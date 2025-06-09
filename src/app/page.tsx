@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Sparkles, Users, Zap } from "lucide-react";
 import Link from "next/link";
-import { CodeHighlightDemo } from "@/components/chat/CodeHighlightDemo";
+import { FileUploadDemo } from "@/components/chat/FileUploadDemo";
 
 export default function HomePage() {
   const { isSignedIn } = useUser();
@@ -17,7 +17,7 @@ export default function HomePage() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
             <MessageSquare className="h-10 w-10 text-primary" />
           </div>
-          <CodeHighlightDemo />
+          <FileUploadDemo />
 
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
             Welcome to{" "}

@@ -67,7 +67,7 @@ export default function ChatPage() {
 
       <SignedIn>
         <SidebarProvider defaultOpen={!sidebarCollapsed}>
-          <div className="flex h-[calc(100vh-50px)] w-full">
+          <div className="flex h-screen w-full">
             {/* Sidebar Component */}
             <ChatSidebar
               activeConversationId={activeConversationId}

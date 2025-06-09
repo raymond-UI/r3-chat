@@ -4,9 +4,14 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { FilePreview } from "./FilePreview";
+
+interface MessageWithFiles extends Doc<"messages"> {
+  attachedFiles?: Doc<"files">[];
+}
 
 interface MessageListProps {
-  messages: Doc<"messages">[];
+  messages: MessageWithFiles[];
 }
 
 export function MessageList({ messages }: MessageListProps) {
@@ -31,6 +36,7 @@ export function MessageList({ messages }: MessageListProps) {
         const isCurrentUser = message.userId === user?.id;
         const isAI = message.type === "ai";
         const isSystem = message.type === "system";
+        const hasFiles = message.attachedFiles && message.attachedFiles.length > 0;
 
         return (
           <div
@@ -72,34 +78,46 @@ export function MessageList({ messages }: MessageListProps) {
             {/* Message Content */}
             <div
               className={cn(
-                "flex flex-col w-full",
+                "flex flex-col w-full gap-2",
                 isCurrentUser && !isAI ? "items-end" : "items-start"
               )}
             >
-              {/* Message Bubble */}
-              <div
-                className={cn(
-                  "rounded-2xl px-4 py-2 break-words max-w-full",
-                  isAI
-                    ? "bg-purple-50 text-foreground"
-                    : isSystem
-                      ? "bg-gray-50 text-gray-700 border border-gray-200 text-sm"
-                      : isCurrentUser
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                )}
-              >
-                {/* Render markdown for AI and user messages, plain text for system */}
-                {isSystem ? (
-                  <p className="whitespace-pre-wrap text-sm">
-                    {message.content}
-                  </p>
-                ) : (
-                  <MarkdownRenderer content={message.content} />
-                )}
-              </div>
+              {/* Attached Files */}
+              {hasFiles && (
+                <div className={cn(
+                  "flex flex-col gap-2 max-w-md",
+                  isCurrentUser && !isAI ? "items-end" : "items-start"
+                )}>
+                  {message.attachedFiles?.map((file) => (
+                    <FilePreview key={file._id} file={file} className="max-w-full" />
+                  ))}
+                </div>
+              )}
 
-              {/* Timestamp */}
+              {/* Message Bubble */}
+              {message.content && (
+                <div
+                  className={cn(
+                    "rounded-2xl px-4 py-2 break-words max-w-full",
+                    isAI
+                      ? "bg-purple-50 text-foreground"
+                      : isSystem
+                        ? "bg-gray-50 text-gray-700 border border-gray-200 text-sm"
+                        : isCurrentUser
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                  )}
+                >
+                  {/* Render markdown for AI and user messages, plain text for system */}
+                  {isSystem ? (
+                    <p className="whitespace-pre-wrap text-sm">
+                      {message.content}
+                    </p>
+                  ) : (
+                    <MarkdownRenderer content={message.content} />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

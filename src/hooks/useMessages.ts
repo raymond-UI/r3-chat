@@ -24,7 +24,8 @@ export function useSendMessage() {
     conversationId: Id<"conversations">,
     content: string,
     type: "user" | "ai" | "system" = "user",
-    aiModel?: string
+    aiModel?: string,
+    fileIds?: Id<"files">[]
   ) => {
     if (!user?.id) throw new Error("User not authenticated");
     
@@ -34,6 +35,7 @@ export function useSendMessage() {
       content,
       type,
       aiModel,
+      fileIds,
     });
   };
 

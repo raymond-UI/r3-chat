@@ -9,6 +9,16 @@ jiti("./src/env");
 const nextConfig = {
   output: "standalone",
   distDir: ".next",
+  images: {
+    remotePatterns: [
+      {
+        // upload path for user files
+        protocol: "https",
+        hostname: "eftjl1pi5j.ufs.sh",
+        pathname: "/f/*",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

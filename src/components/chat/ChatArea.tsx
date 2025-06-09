@@ -2,14 +2,15 @@
 
 import { MessageInput } from "@/components/chat/MessageInput";
 import { MessageList } from "@/components/chat/MessageList";
-import { ModelSelector } from "@/components/chat/ModelSelector";
 import { ParticipantsList } from "@/components/chat/ParticipantsList";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useAI } from "@/hooks/useAI";
+import { useFiles } from "@/hooks/useFiles";
 import { useMessages, useSendMessage } from "@/hooks/useMessages";
 import { usePresence } from "@/hooks/usePresence";
+import { useUser } from "@clerk/nextjs";
 import { Bot } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Switch } from "../ui/switch";
 
@@ -22,40 +23,62 @@ export function ChatArea({ conversationId }: ChatAreaProps) {
   const { send } = useSendMessage();
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
   const { selectedModel, setSelectedModel, isGenerating, sendToAI } = useAI();
+  const { 
+    // files, 
+    uploadingFiles, 
+    uploadedFileIds,
+    isUploading,
+    hasFilesToSend,
+    uploadFiles, 
+    removeFile, 
+    clearUploadedFiles 
+  } = useFiles(conversationId);
 
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const { user } = useUser();
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isSending) return;
+  const handleSendMessage = useCallback(async () => {
+    if (!user?.id || (!inputValue.trim() && !hasFilesToSend)) return;
 
-    const content = inputValue.trim();
+    const messageContent = inputValue.trim();
     setInputValue("");
     setIsSending(true);
-
+    
     try {
-      // Send user message
-      await send(conversationId, content);
+      // Send user message with uploaded file IDs
+      await send(
+        conversationId, 
+        messageContent, 
+        "user", 
+        undefined, 
+        uploadedFileIds.length > 0 ? uploadedFileIds : undefined
+      );
+      
+      // Clear uploaded files after message is sent
+      clearUploadedFiles();
       await stopTyping();
 
-      // Trigger AI response if enabled
-      if (aiEnabled) {
-        await sendToAI(conversationId, content, selectedModel);
+      // Generate AI response if enabled
+      if (aiEnabled && messageContent) {
+        await sendToAI(conversationId, messageContent, selectedModel);
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      setInputValue(content); // Restore input on error
+      // Re-add message to input on error
+      setInputValue(messageContent);
     } finally {
       setIsSending(false);
     }
-  };
+  }, [user?.id, inputValue, hasFilesToSend, uploadedFileIds, send, conversationId, clearUploadedFiles, stopTyping, aiEnabled, sendToAI, selectedModel]);
 
   const handleInputChange = async (value: string) => {
     setInputValue(value);
@@ -90,14 +113,11 @@ export function ChatArea({ conversationId }: ChatAreaProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full  mx-auto">
+    <div className="flex-1 flex flex-col w-full h-full relative mx-auto">
       {/* Header with AI Controls */}
       <div className="border-b border-border py-2">
         <div className="flex items-center justify-between">
-          <ModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-          />
+        
 
           <div className="flex items-center gap-2">
             <ParticipantsList conversationId={conversationId} />
@@ -146,13 +166,20 @@ export function ChatArea({ conversationId }: ChatAreaProps) {
       </div>
 
       {/* Message Input */}
-      <div className="border-8 border-secondary/50 p-1 w-full rounded-t-lg max-w-3xl mx-auto">
+      <div className="bg-secondary/60 backdrop-blur shadow-2xl p-2 pb-0 w-full rounded-t-lg max-w-3xl mx-auto">
         <MessageInput
           value={inputValue}
           onChange={handleInputChange}
           onSend={handleSendMessage}
           disabled={isSending || isGenerating}
-          placeholder="Type your message..."
+          placeholder={isGenerating ? "AI is responding..." : "Type a message..."}
+          uploadingFiles={uploadingFiles}
+          onUploadFiles={uploadFiles}
+          onRemoveFile={removeFile}
+          isUploading={isUploading}
+          hasFilesToSend={hasFilesToSend}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
         />
       </div>
     </div>

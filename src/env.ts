@@ -15,6 +15,8 @@ export const env = createEnv({
     CONVEX_DEPLOYMENT: z.string(),
     CLERK_SECRET_KEY: z.string(),
     // CLERK_WEBHOOK_SIGNING_SECRET: z.string(),
+    OPENROUTER_API_KEY: z.string(),
+    UPLOADTHING_TOKEN: z.string(),
 
     NODE_ENV: z
       .enum(["development", "test", "production"])
@@ -31,6 +33,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CONVEX_URL: z.string().url(),
     NEXT_PUBLIC_CLERK_FRONTEND_API_URL: z.string().url(),
+    NEXT_PUBLIC_APP_URL: z.string().url(),
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
   },
 
@@ -52,6 +55,11 @@ export const env = createEnv({
     CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
 
     NEXT_PUBLIC_CLERK_FRONTEND_API_URL: process.env.NEXT_PUBLIC_CLERK_FRONTEND_API_URL,
+
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
+
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -5,6 +5,7 @@ import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { getAIModelsArray, type AIModel } from "@/types/ai";
+import { env } from "@/env";
 
 type Message = {
   _id: Id<"messages">;
@@ -49,9 +50,9 @@ export const generateResponse = action({
     // Initialize OpenAI client with OpenRouter
     const client = new OpenAI({
       baseURL: "https://openrouter.ai/api/v1",
-      apiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: env.OPENROUTER_API_KEY,
       defaultHeaders: {
-        "HTTP-Referer": process.env.SITE_URL || "http://localhost:3000",
+        "HTTP-Referer": env.NEXT_PUBLIC_APP_URL,
         "X-Title": "R3 Chat",
       },
     });

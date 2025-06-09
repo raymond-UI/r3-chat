@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as ai from "../ai.js";
 import type * as conversations from "../conversations.js";
+import type * as files from "../files.js";
 import type * as messages from "../messages.js";
 import type * as presence from "../presence.js";
 
@@ -29,6 +30,7 @@ import type * as presence from "../presence.js";
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   conversations: typeof conversations;
+  files: typeof files;
   messages: typeof messages;
   presence: typeof presence;
 }>;
