@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -18,7 +18,10 @@ interface ModelSelectorProps {
   onModelChange: (model: string) => void;
 }
 
-export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorProps) {
+export function ModelSelector({
+  selectedModel,
+  onModelChange,
+}: ModelSelectorProps) {
   const { fetchModels } = useAI();
   const [models, setModels] = useState<AIModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,19 +43,27 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
 
   const getCostColor = (cost: string) => {
     switch (cost.toLowerCase()) {
-      case "low": return "bg-green-100 text-green-700";
-      case "medium": return "bg-yellow-100 text-yellow-700";
-      case "high": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "low":
+        return "bg-green-100 text-green-700";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "high":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
   const getSpeedColor = (speed: string) => {
     switch (speed.toLowerCase()) {
-      case "fast": return "bg-green-100 text-green-700";
-      case "medium": return "bg-yellow-100 text-yellow-700";
-      case "slow": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "fast":
+        return "bg-green-100 text-green-700";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "slow":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
@@ -65,15 +76,10 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
     );
   }
 
-  const currentModel = models.find(m => m.key === selectedModel);
+  const currentModel = models.find((m) => m.key === selectedModel);
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Brain className="h-4 w-4" />
-        <span>AI Model:</span>
-      </div>
-      
       <Select value={selectedModel} onValueChange={onModelChange}>
         <SelectTrigger className="w-[200px]">
           <SelectValue>
@@ -81,11 +87,17 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
               <span>{currentModel?.name || selectedModel}</span>
               {currentModel && (
                 <div className="flex gap-1">
-                  <Badge variant="outline" className={`text-xs ${getCostColor(currentModel.cost)}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${getCostColor(currentModel.cost)}`}
+                  >
                     <DollarSign className="h-3 w-3 mr-1" />
                     {currentModel.cost}
                   </Badge>
-                  <Badge variant="outline" className={`text-xs ${getSpeedColor(currentModel.speed)}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${getSpeedColor(currentModel.speed)}`}
+                  >
                     <Zap className="h-3 w-3 mr-1" />
                     {currentModel.speed}
                   </Badge>
@@ -94,11 +106,11 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
             </div>
           </SelectValue>
         </SelectTrigger>
-        
-        <SelectContent>
+
+        <SelectContent className="max-h-[300px] overflow-y-auto">
           {models.map((model) => (
-            <SelectItem key={model.key} value={model.key}>
-              <div className="flex flex-col gap-1">
+            <SelectItem key={model.key} value={model.key} className="border-b last:border-b-0 rounded-none">
+              <div className="flex flex-col gap-1 ">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{model.name}</span>
                   <span className="text-xs text-muted-foreground">
@@ -106,11 +118,17 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
                   </span>
                 </div>
                 <div className="flex gap-1">
-                  <Badge variant="outline" className={`text-xs ${getCostColor(model.cost)}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${getCostColor(model.cost)}`}
+                  >
                     <DollarSign className="h-3 w-3 mr-1" />
                     {model.cost}
                   </Badge>
-                  <Badge variant="outline" className={`text-xs ${getSpeedColor(model.speed)}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${getSpeedColor(model.speed)}`}
+                  >
                     <Zap className="h-3 w-3 mr-1" />
                     {model.speed}
                   </Badge>
@@ -122,4 +140,4 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
       </Select>
     </div>
   );
-} 
+}
