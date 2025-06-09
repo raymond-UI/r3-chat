@@ -67,9 +67,13 @@ export function ChatArea({ conversationId }: ChatAreaProps) {
       clearUploadedFiles();
       await stopTyping();
 
-      // Generate AI response if enabled
+      // Generate AI response if enabled (attachments are handled by message.send)
       if (aiEnabled && messageContent) {
-        await sendToAI(conversationId, messageContent, selectedModel);
+        await sendToAI(
+          conversationId, 
+          messageContent, 
+          selectedModel
+        );
       }
     } catch (error) {
       console.error("Failed to send message:", error);

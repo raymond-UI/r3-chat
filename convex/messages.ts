@@ -41,6 +41,24 @@ export const send = mutation({
     fileIds: v.optional(v.array(v.id("files"))), // File IDs to attach
   },
   handler: async (ctx, args) => {
+    // Build attachments array if files are provided
+    let attachments = undefined;
+    if (args.fileIds && args.fileIds.length > 0) {
+      const files = await Promise.all(
+        args.fileIds.map(fileId => ctx.db.get(fileId))
+      );
+      
+      attachments = files
+        .filter(file => file !== null)
+        .map(file => ({
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          file_url: file.url,
+          extracted_content: file.extractedText || undefined,
+        }));
+    }
+
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       userId: args.userId,
@@ -48,6 +66,7 @@ export const send = mutation({
       type: args.type,
       aiModel: args.aiModel,
       timestamp: Date.now(),
+      attachments,
     });
 
     // Update file records with message ID if files are attached

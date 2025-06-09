@@ -1,143 +1,158 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React from "react";
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Zap, DollarSign } from "lucide-react";
-import { useAI } from "@/hooks/useAI";
-import { AIModel } from "@/types/ai";
+import { ChevronDown, Eye, Zap, DollarSign } from "lucide-react";
+import { getAIModelsArray } from "@/types/ai";
+import { cn } from "@/lib/utils";
 
 interface ModelSelectorProps {
   selectedModel: string;
   onModelChange: (model: string) => void;
+  hasImages?: boolean;
+  className?: string;
 }
 
-export function ModelSelector({
-  selectedModel,
-  onModelChange,
-}: ModelSelectorProps) {
-  const { fetchModels } = useAI();
-  const [models, setModels] = useState<AIModel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        const modelList = await fetchModels();
-        setModels(modelList);
-      } catch (error) {
-        console.error("Failed to load models:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadModels();
-  }, [fetchModels]);
-
-  const getCostColor = (cost: string) => {
-    switch (cost.toLowerCase()) {
-      case "low":
-        return "bg-green-100 text-green-700";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700";
-      case "high":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getSpeedColor = (speed: string) => {
-    switch (speed.toLowerCase()) {
-      case "fast":
-        return "bg-green-100 text-green-700";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700";
-      case "slow":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Brain className="h-4 w-4 animate-pulse" />
-        <span>Loading models...</span>
-      </div>
-    );
+const getCostIcon = (cost: string) => {
+  switch (cost) {
+    case "Free":
+      return <span className="text-green-600">○</span>;
+    case "Low":
+      return <span className="text-yellow-600">●</span>;
+    case "Medium":
+      return <span className="text-orange-600">●●</span>;
+    case "High":
+      return <span className="text-red-600">●●●</span>;
+    default:
+      return <DollarSign className="h-3 w-3" />;
   }
+};
 
-  const currentModel = models.find((m) => m.key === selectedModel);
+const getSpeedIcon = (speed: string) => {
+  switch (speed) {
+    case "Fast":
+      return <Zap className="h-3 w-3 text-green-600" />;
+    case "Medium":
+      return <Zap className="h-3 w-3 text-yellow-600" />;
+    case "Slow":
+      return <Zap className="h-3 w-3 text-red-600" />;
+    default:
+      return <Zap className="h-3 w-3" />;
+  }
+};
+
+export function ModelSelector({ 
+  selectedModel, 
+  onModelChange, 
+  hasImages = false,
+  className 
+}: ModelSelectorProps) {
+  const models = getAIModelsArray();
+  // const currentModel = models.find(m => m.key === selectedModel || m.id === selectedModel);
+  
+  // Filter models if user has images attached
+  const availableModels = hasImages 
+    ? models.filter(m => m.supportVision)
+    : models;
+
+  const selectedModelData = availableModels.find(m => 
+    m.key === selectedModel || m.id === selectedModel
+  ) || availableModels[0];
 
   return (
-    <div className="flex items-center gap-3">
-      <Select value={selectedModel} onValueChange={onModelChange}>
-        <SelectTrigger className="w-[200px]">
-          <SelectValue>
-            <div className="flex items-center gap-2">
-              <span>{currentModel?.name || selectedModel}</span>
-              {currentModel && (
-                <div className="flex gap-1">
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${getCostColor(currentModel.cost)}`}
-                  >
-                    <DollarSign className="h-3 w-3 mr-1" />
-                    {currentModel.cost}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${getSpeedColor(currentModel.speed)}`}
-                  >
-                    <Zap className="h-3 w-3 mr-1" />
-                    {currentModel.speed}
-                  </Badge>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={cn("justify-between min-w-[200px]", className)}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{selectedModelData?.name}</span>
+            {selectedModelData?.supportVision && (
+              <Eye className="h-3 w-3 text-blue-600" />
+            )}
+          </div>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent className="w-80" align="end">
+        <DropdownMenuLabel>
+          <div className="flex items-center justify-between">
+            <span>AI Models</span>
+            {hasImages && (
+              <Badge variant="secondary" className="text-xs">
+                <Eye className="h-3 w-3 mr-1" />
+                Vision Required
+              </Badge>
+            )}
+          </div>
+        </DropdownMenuLabel>
+        
+        <DropdownMenuSeparator />
+        
+        {hasImages && availableModels.length === 0 && (
+          <div className="p-2 text-sm text-muted-foreground text-center">
+            No models support image analysis.
+            Remove images to access more models.
+          </div>
+        )}
+        
+        {availableModels.map((model) => (
+          <DropdownMenuItem
+            key={model.key}
+            onClick={() => onModelChange(model.key)}
+            className={cn(
+              "flex items-center justify-between p-3 cursor-pointer",
+              (selectedModel === model.key || selectedModel === model.id) && 
+              "bg-accent"
+            )}
+          >
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{model.name}</span>
+                {model.supportVision && (
+                  <Eye className="h-3 w-3 text-blue-600" />
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>{model.provider}</span>
+                <div className="flex items-center gap-1">
+                  {getCostIcon(model.cost)}
+                  <span>{model.cost}</span>
                 </div>
-              )}
-            </div>
-          </SelectValue>
-        </SelectTrigger>
-
-        <SelectContent className="max-h-[300px] overflow-y-auto">
-          {models.map((model) => (
-            <SelectItem key={model.key} value={model.key} className="border-b last:border-b-0 rounded-none">
-              <div className="flex flex-col gap-1 ">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{model.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    by {model.provider}
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${getCostColor(model.cost)}`}
-                  >
-                    <DollarSign className="h-3 w-3 mr-1" />
-                    {model.cost}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${getSpeedColor(model.speed)}`}
-                  >
-                    <Zap className="h-3 w-3 mr-1" />
-                    {model.speed}
-                  </Badge>
+                <div className="flex items-center gap-1">
+                  {getSpeedIcon(model.speed)}
+                  <span>{model.speed}</span>
                 </div>
               </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+            </div>
+          </DropdownMenuItem>
+        ))}
+        
+        {hasImages && (
+          <>
+            <DropdownMenuSeparator />
+            <div className="p-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <Eye className="h-3 w-3" />
+                <span className="font-medium">Vision Support</span>
+              </div>
+              <p>Only models with vision support can analyze images. Remove images to access text-only models.</p>
+            </div>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

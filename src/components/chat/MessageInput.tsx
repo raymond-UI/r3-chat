@@ -71,6 +71,13 @@ export function MessageInput({
     e.target.value = "";
   };
 
+  // Check if we have any image files attached
+  const hasImages = uploadingFiles.some(
+    fileWithPreview => 
+      fileWithPreview.file.type.startsWith('image/') && 
+      (fileWithPreview.uploaded || fileWithPreview.uploading)
+  );
+
   // Can send if:
   // - Has text content OR has uploaded files ready to send
   // - Not disabled
@@ -113,6 +120,7 @@ export function MessageInput({
             <ModelSelector
               selectedModel={selectedModel}
               onModelChange={onModelChange}
+              hasImages={hasImages}
             />
 
             {/* File Upload Button */}

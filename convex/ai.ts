@@ -15,6 +15,13 @@ type Message = {
   type: "user" | "ai" | "system";
   aiModel?: string;
   timestamp: number;
+  attachments?: Array<{
+    file_name: string;
+    file_type: string;
+    file_size: number;
+    file_url: string;
+    extracted_content?: string;
+  }>;
 };
 
 type GenerateResponseReturn = {
@@ -47,6 +54,22 @@ export const generateResponse = action({
       conversationId,
     });
 
+    // Get latest user message to check for attachments
+    const lastMessage = messages[messages.length - 1];
+    let fileContext = "";
+    
+    if (lastMessage && lastMessage.attachments && lastMessage.attachments.length > 0) {
+      fileContext = "\n\nAttached files:\n";
+      
+      for (const attachment of lastMessage.attachments) {
+        fileContext += `\nFile: ${attachment.file_name} (${attachment.file_type})\n`;
+        
+        if (attachment.extracted_content) {
+          fileContext += `Content: ${attachment.extracted_content.slice(0, 2000)}${attachment.extracted_content.length > 2000 ? "..." : ""}\n`;
+        }
+      }
+    }
+
     // Initialize OpenAI client with OpenRouter
     const client = new OpenAI({
       baseURL: "https://openrouter.ai/api/v1",
@@ -67,10 +90,10 @@ export const generateResponse = action({
         content: msg.content,
       }));
 
-      // Add current user message
+      // Add current user message with file context
       recentMessages.push({
         role: "user" as const,
-        content: userMessage,
+        content: userMessage + fileContext,
       });
 
       // Get AI response

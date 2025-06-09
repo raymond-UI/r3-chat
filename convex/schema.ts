@@ -17,6 +17,13 @@ export default defineSchema({
     aiModel: v.optional(v.string()),
     timestamp: v.number(),
     type: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
+    attachments: v.optional(v.array(v.object({
+      file_name: v.string(),
+      file_type: v.string(), 
+      file_size: v.number(),
+      extracted_content: v.optional(v.string()),
+      file_url: v.string(),
+    }))),
   }).index("by_conversation", ["conversationId"]),
   presence: defineTable({
     userId: v.string(),

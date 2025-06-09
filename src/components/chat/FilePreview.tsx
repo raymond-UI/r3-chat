@@ -1,14 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, Download, Eye, Loader2, Sparkles } from "lucide-react";
+import { FileText, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { formatFileSize } from "@/hooks/useFiles";
 import { cn } from "@/lib/utils";
@@ -20,7 +14,6 @@ interface FilePreviewProps {
 }
 
 export function FilePreview({ file, className }: FilePreviewProps) {
-  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
 
   const handleDownload = () => {
     window.open(file.url, "_blank");
@@ -101,39 +94,7 @@ export function FilePreview({ file, className }: FilePreviewProps) {
         </div>
       )}
 
-      {/* AI Analysis Section */}
-      {(file.analysisResult || !file.analysisResult) && (
-        <Collapsible open={isAnalysisOpen} onOpenChange={setIsAnalysisOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="w-full justify-between p-3 h-auto border-t"
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-purple-500" />
-                <span className="text-sm">AI Analysis</span>
-              </div>
-              {!file.analysisResult && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-3 pb-3">
-            <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
-              {file.analysisResult ? (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {file.analysisResult}
-                </p>
-              ) : (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Analyzing file content...</span>
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+
 
       {/* Extracted Text for PDFs */}
       {file.type === "pdf" && file.extractedText && (

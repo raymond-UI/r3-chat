@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { env } from "@/env";
 
 // Create a new file record
 export const create = mutation({
@@ -32,8 +31,8 @@ export const create = mutation({
       thumbnailUrl: args.thumbnailUrl,
     });
 
-    // Trigger AI analysis in the background
-    await ctx.scheduler.runAfter(0, internal.files.analyzeFile, {
+    // Trigger text extraction only (no AI analysis)
+    await ctx.scheduler.runAfter(0, internal.files.extractFileContent, {
       fileId,
     });
 
@@ -53,96 +52,91 @@ export const getByConversation = query({
   },
 });
 
-// Get a specific file (internal)
-export const getById = internalQuery({
+// Get a specific file
+export const getById = query({
   args: { fileId: v.id("files") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.fileId);
   },
 });
 
-// Update file with analysis result (internal)
-export const updateAnalysis = internalMutation({
-  args: {
-    fileId: v.id("files"),
-    analysisResult: v.string(),
-  },
+// Get a specific file (internal)
+export const getByIdInternal = internalQuery({
+  args: { fileId: v.id("files") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.fileId, {
-      analysisResult: args.analysisResult,
-    });
+    return await ctx.db.get(args.fileId);
   },
 });
 
-// AI analysis action (internal)
-export const analyzeFile = internalAction({
+// Update file with extracted text and analysis result (internal)
+export const updateFileContent = internalMutation({
+  args: {
+    fileId: v.id("files"),
+    extractedText: v.optional(v.string()),
+    analysisResult: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const updateData: { extractedText?: string; analysisResult?: string } = {};
+    if (args.extractedText !== undefined) {
+      updateData.extractedText = args.extractedText;
+    }
+    if (args.analysisResult !== undefined) {
+      updateData.analysisResult = args.analysisResult;
+    }
+    
+    await ctx.db.patch(args.fileId, updateData);
+  },
+});
+
+// Extract text content from file (internal)
+export const extractFileContent = internalAction({
   args: { fileId: v.id("files") },
   handler: async (ctx, args) => {
-    const file = await ctx.runQuery(internal.files.getById, {
+    const file = await ctx.runQuery(internal.files.getByIdInternal, {
       fileId: args.fileId,
     });
 
     if (!file) return;
 
     try {
-      let analysisPrompt = "";
+      let extractedText = "";
       
-      if (file.type === "image") {
-        analysisPrompt = `Analyze this image and provide a detailed description. Focus on:
-- Main subjects and objects
-- Colors, lighting, and composition
-- Text content if any
-- Context and setting
-- Any notable details or interesting elements`;
-      } else if (file.type === "pdf" && file.extractedText) {
-        analysisPrompt = `Analyze this PDF document content and provide a summary. Focus on:
-- Main topics and themes
-- Key points and insights
-- Document structure and organization
-- Important data or findings
-- Actionable items or conclusions
+      // Extract text content if PDF
+      if (file.type === "pdf" || file.mimeType === "application/pdf") {
+        try {
+          const processResponse = await fetch("http://localhost:3000/api/process-document", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              fileUrl: file.url,
+              fileType: file.mimeType,
+              fileName: file.name,
+            }),
+          });
 
-Document content: ${file.extractedText.slice(0, 3000)}...`;
-      } else {
-        analysisPrompt = `Analyze this file (${file.name}) and provide relevant insights about its content and purpose.`;
+          if (processResponse.ok) {
+            const processResult = await processResponse.json();
+            if (processResult.success) {
+              extractedText = processResult.extractedText;
+            }
+          }
+        } catch (error) {
+          console.error("Document processing failed:", error);
+        }
+
+        // Update file with extracted text only
+        if (extractedText) {
+          await ctx.runMutation(internal.files.updateFileContent, {
+            fileId: args.fileId,
+            extractedText,
+          });
+        }
       }
 
-      // Use your existing OpenRouter API integration
-      const openai = new (await import("openai")).OpenAI({
-        apiKey: env.OPENROUTER_API_KEY,
-        baseURL: "https://openrouter.ai/api/v1",
-      });
-
-      const response = await openai.chat.completions.create({
-        model: "anthropic/claude-3.5-sonnet",
-        messages: [
-          {
-            role: "system",
-            content: "You are an AI assistant that analyzes uploaded files and provides helpful insights and descriptions.",
-          },
-          {
-            role: "user",
-            content: analysisPrompt,
-          },
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      });
-
-      const analysis = response.choices[0]?.message?.content || "Unable to analyze file";
-
-      // Update the file with analysis
-      await ctx.runMutation(internal.files.updateAnalysis, {
-        fileId: args.fileId,
-        analysisResult: analysis,
-      });
-
     } catch (error) {
-      console.error("File analysis failed:", error);
-      await ctx.runMutation(internal.files.updateAnalysis, {
-        fileId: args.fileId,
-        analysisResult: "Analysis failed - please try again later",
-      });
+      console.error("File content extraction failed:", error);
     }
   },
 });
@@ -150,7 +144,8 @@ Document content: ${file.extractedText.slice(0, 3000)}...`;
 // Extract text from PDF (you might want to implement this server-side)
 export const extractPdfText = action({
   args: { url: v.string() },
-  handler: async (ctx, args) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  handler: async (_ctx, _args) => {
     try {
       // This would typically be done server-side
       // For now, we'll return a placeholder
