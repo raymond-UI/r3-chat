@@ -116,7 +116,7 @@ export function ChatArea({ conversationId }: ChatAreaProps) {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 max-w-3xl mx-auto">
+      <div className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto">
         <MessageList messages={messages} />
 
         {/* AI Generating Indicator */}

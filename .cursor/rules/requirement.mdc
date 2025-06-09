@@ -4,6 +4,11 @@ globs:
 alwaysApply: true
 ---
 
+Done so far:
+- Basic auth
+- Convex basic
+- Basic ai chat with collboration via invite.
+
 ## 🎯 Project Overview
 
 **Product Name**: [Your Chat App Name]
