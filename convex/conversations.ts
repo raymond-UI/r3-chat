@@ -16,7 +16,7 @@ export const list = query({
   },
 });
 
-// Get a specific conversation by ID
+// Get a single conversation by ID
 export const get = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, { conversationId }) => {

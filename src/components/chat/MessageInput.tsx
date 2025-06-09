@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 interface MessageInputProps {
   value: string;
@@ -47,7 +47,7 @@ export function MessageInput({
   };
 
   return (
-    <div className="flex gap-2 items-end">
+    <div className="flex flex-col sm:flex-row gap-2 items-end w-full">
       <div className="flex-1 relative">
         <Textarea
           ref={textareaRef}
@@ -56,7 +56,7 @@ export function MessageInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="min-h-[40px] max-h-[120px] resize-none pr-12"
+          className="min-h-[80px] w-full max-h-[120px] resize-none sm:pr-12  rounded-t-lg border-none focus-visible:ring-0 focus-visible:ring-offset-0"
           rows={1}
         />
       </div>

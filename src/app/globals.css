@@ -173,4 +173,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-secondary/50 rounded-full;
+  }
 }

@@ -5,7 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { AIModel } from "@/types/ai";
 
 export function useAI() {
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
+  const [selectedModel, setSelectedModel] = useState("meta-llama/llama-3.3-8b-instruct:free");
   const [isGenerating, setIsGenerating] = useState(false);
   
   const generateResponse = useAction(api.ai.generateResponse);

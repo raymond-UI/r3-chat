@@ -78,7 +78,7 @@ export const AI_MODELS = {
   // Type for model configuration
   export type ModelConfig = typeof AI_MODELS[ModelKey];
 export interface AIModel {
-  key: ModelKey;  // Use the ModelKey type for better type safety
+  key: string;
   name: string;
   provider: string;
   cost: string;
@@ -88,8 +88,8 @@ export interface AIModel {
 
 // Helper function to convert AI_MODELS to AIModel array
 export function getAIModelsArray(): AIModel[] {
-  return Object.entries(AI_MODELS).map(([key, config]) => ({
-    key: key as ModelKey,
-    ...config,
+  return Object.entries(AI_MODELS).map(([key, model]) => ({
+    key,
+    ...model
   }));
 }

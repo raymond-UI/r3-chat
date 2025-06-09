@@ -1,28 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useConversations } from "@/hooks/useConversations";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, MessageSquare } from "lucide-react";
+import { Plus, MessageSquare, Users } from "lucide-react";
 
 interface ConversationListProps {
   activeConversationId?: Id<"conversations">;
   onSelectConversation: (id: Id<"conversations">) => void;
 }
 
-export function ConversationList({ 
-  activeConversationId, 
-  onSelectConversation 
+type ConversationGroup = {
+  label: string;
+  conversations: Array<{
+    _id: Id<"conversations">;
+    title: string;
+    lastMessage?: string;
+    updatedAt: number;
+    isCollaborative?: boolean;
+  }>;
+};
+
+export function ConversationList({
+  activeConversationId,
+  onSelectConversation,
 }: ConversationListProps) {
   const { conversations, create, isLoading } = useConversations();
   const [isCreating, setIsCreating] = useState(false);
   const [newChatTitle, setNewChatTitle] = useState("");
 
+  const groupedConversations = useMemo(() => {
+    if (!conversations.length) return [];
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const groups: ConversationGroup[] = [
+      { label: "Today", conversations: [] },
+      { label: "Yesterday", conversations: [] },
+      { label: "Last 7 days", conversations: [] },
+      { label: "Last 30 days", conversations: [] },
+      { label: "Older", conversations: [] },
+    ];
+
+    conversations.forEach((conversation) => {
+      const conversationDate = new Date(conversation.updatedAt);
+
+      if (conversationDate >= today) {
+        groups[0].conversations.push(conversation);
+      } else if (conversationDate >= yesterday) {
+        groups[1].conversations.push(conversation);
+      } else if (conversationDate >= lastWeek) {
+        groups[2].conversations.push(conversation);
+      } else if (conversationDate >= lastMonth) {
+        groups[3].conversations.push(conversation);
+      } else {
+        groups[4].conversations.push(conversation);
+      }
+    });
+
+    // Filter out empty groups
+    return groups.filter((group) => group.conversations.length > 0);
+  }, [conversations]);
+
   const handleCreateChat = async () => {
     if (!newChatTitle.trim()) return;
-    
+
     try {
       const conversationId = await create(newChatTitle.trim());
       onSelectConversation(conversationId);
@@ -62,12 +110,8 @@ export function ConversationList({
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Conversations</h2>
-          <Button 
-            size="sm" 
-            onClick={handleQuickStart}
-            className="h-8 w-8 p-0"
-          >
+          <h2 className="text-sm font-semibold">Conversations</h2>
+          <Button size="sm" onClick={handleQuickStart} className="h-8 w-8 p-0">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -100,9 +144,9 @@ export function ConversationList({
           <div className="p-4 text-center text-muted-foreground">
             <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
             <p>No conversations yet</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setIsCreating(true)}
               className="mt-2"
             >
@@ -110,30 +154,40 @@ export function ConversationList({
             </Button>
           </div>
         ) : (
-          <div className="p-2">
-            {conversations.map((conversation) => (
-              <div
-                key={conversation._id}
-                onClick={() => onSelectConversation(conversation._id)}
-                className={`
-                  p-3 rounded-lg cursor-pointer transition-colors
-                  hover:bg-muted/50
-                  ${activeConversationId === conversation._id 
-                    ? "bg-muted border border-border" 
-                    : ""
-                  }
-                `}
-              >
-                <div className="font-medium text-sm mb-1">
-                  {conversation.title}
-                </div>
-                {conversation.lastMessage && (
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {conversation.lastMessage}
-                  </div>
-                )}
-                <div className="text-xs text-muted-foreground mt-1">
-                  {new Date(conversation.updatedAt).toLocaleDateString()}
+          <div className="p-2 space-y-4">
+            {groupedConversations.map((group) => (
+              <div key={group.label}>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">
+                  {group.label}
+                </h3>
+                <div className="space-y-1">
+                  {group.conversations.map((conversation) => (
+                    <div
+                      key={conversation._id}
+                      onClick={() => onSelectConversation(conversation._id)}
+                      className={`
+                        p-3 rounded-lg cursor-pointer transition-colors
+                        hover:bg-background/50
+                        ${
+                          activeConversationId === conversation._id
+                            ? "bg-background border border-border"
+                            : ""
+                        }
+                      `}
+                    >
+                      <div className="font-medium text-sm mb-1 flex items-center gap-2">
+                        {conversation.title}
+                        {conversation.isCollaborative && (
+                          <Users className="h-3 w-3 text-muted-foreground" />
+                        )}
+                      </div>
+                      {conversation.lastMessage && (
+                        <div className="text-xs text-muted-foreground line-clamp-1">
+                          {conversation.lastMessage}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -143,9 +197,9 @@ export function ConversationList({
 
       {/* Footer */}
       <div className="p-4 border-t border-border">
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setIsCreating(true)}
           className="w-full"
         >
@@ -155,4 +209,4 @@ export function ConversationList({
       </div>
     </div>
   );
-} 
+}
