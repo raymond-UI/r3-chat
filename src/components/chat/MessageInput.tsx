@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StagedFiles } from "./StagedFiles";
-import { Send, Paperclip } from "lucide-react";
+import { Send, Paperclip, Settings2 } from "lucide-react";
 import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
 import { useConversations } from "@/hooks/useConversations";
@@ -56,7 +56,7 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
 }, ref) => {
   // Local state for new chat mode
   const [localInputValue, setLocalInputValue] = useState("");
-  const [localSelectedModel, setLocalSelectedModel] = useState("meta-llama/llama-3.3-8b-instruct:free");
+  const [localSelectedModel, setLocalSelectedModel] = useState("google/gemini-2.0-flash-exp:free");
   const [isSending, setIsSending] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -203,7 +203,11 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
     }
   };
 
-  return (
+  const handleSettings = () => {
+    console.log("Settings");
+  };
+
+    return (
     <div className="w-full bg-background rounded-md overflow-clip">
       {/* Uploading/Staged Files Preview */}
       <StagedFiles files={uploadingFiles} onRemove={onRemoveFile} />
@@ -224,7 +228,7 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
           />
         </div>
 
-        <div className="flex items-center justify-end w-full border border-border/50 bg-secondary/5 flex-row gap-2 p-2">
+        <div className="flex items-center justify-end w-full border border-border/50 bg-secondary/5 flex-row gap-1 p-2">
           <div className="flex items-center gap-2 w-full justify-start">
             {/* Hidden File Input */}
             <input
@@ -252,6 +256,16 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
               title="Upload files"
             >
               <Paperclip className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSettings}
+              disabled={isDisabled}
+              className="flex-shrink-0"
+              title="Settings"
+            >
+              <Settings2 className="h-4 w-4" />
             </Button>
           </div>
           {/* Send Button */}

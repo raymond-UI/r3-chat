@@ -82,6 +82,15 @@ export const AI_MODELS = {
     id: "google/gemini-2.0-flash-001",
     supportVision: true,
   },
+  "google/gemini-2.0-flash-exp:free": {
+    name: "Gemini 2.0 Flash (free)",
+    provider: "Google",
+    cost: "Free",
+    speed: "Medium",
+    id: "google/gemini-2.0-flash-exp:free",
+    supportVision: true,
+    functionCalling: true,
+  },
   "meta-llama/llama-3.3-8b-instruct:free": {
     name: "Llama 3.3 (free)",
     provider: "Meta",

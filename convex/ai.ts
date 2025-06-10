@@ -99,35 +99,62 @@ export const streamAgentResponse = action({
     }
   ): Promise<string> => {
     try {
-      // Create agent with dynamic model for streaming
-      const streamingAgent = new Agent(components.agent, {
-        chat: openRouterProvider(model),
-        instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
-        tools: {
-          webSearch: webSearchTool,
-          getCurrentTime: getCurrentTimeTool,
-        },
-        maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
-        maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
-        usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-          console.log(
-            `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
-          );
-        },
-      });
-
-      // Let the Agent manage threads automatically - no manual thread ID
-      const result = await streamingAgent.generateText(
-        ctx,
-        { userId },
-        {
-          prompt: userMessage,
-        }
-      );
-
+      // Fetch conversation to get threadId
+      const conversation = await ctx.runQuery(api.conversations.get, { conversationId });
+      let threadId = conversation?.threadId;
+      let thread;
+      let streamingAgent;
+      if (!threadId) {
+        // Create agent with dynamic model for streaming
+        streamingAgent = new Agent(components.agent, {
+          chat: openRouterProvider(model),
+          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
+          tools: {
+            webSearch: webSearchTool,
+            getCurrentTime: getCurrentTimeTool,
+          },
+          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
+          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
+            console.log(
+              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+            );
+          },
+        });
+        // Create a new thread and store threadId
+        const threadResult = await streamingAgent.createThread(ctx, { userId });
+        threadId = threadResult.threadId;
+        thread = threadResult.thread;
+        // Patch conversation with threadId
+        await ctx.runMutation(api.conversations.patchThreadId, { conversationId, threadId });
+      } else {
+        streamingAgent = new Agent(components.agent, {
+          chat: openRouterProvider(model),
+          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
+          tools: {
+            webSearch: webSearchTool,
+            getCurrentTime: getCurrentTimeTool,
+          },
+          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
+          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
+            console.log(
+              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+            );
+          },
+        });
+        // Continue existing thread
+        thread = (await streamingAgent.continueThread(ctx, { threadId })).thread;
+      }
+      // Generate text with context
+      console.log("\n=== User Message ===");
+      console.log("From:", userId);
+      console.log("Content:", userMessage);
+      console.log("Thread:", threadId);
+      console.log("===================\n");
+      const result = await thread.generateText({ prompt: userMessage });
       // Log the agent result
       console.log("[streamAgentResponse] Agent result:", result.text);
-
       // Save AI response to your existing message system
       await ctx.runMutation(api.messages.send, {
         conversationId,
@@ -136,11 +163,9 @@ export const streamAgentResponse = action({
         type: "ai",
         aiModel: model,
       });
-
       return result.text;
     } catch (error) {
       console.error("Convex streaming agent generation error:", error);
-
       // Send error message
       await ctx.runMutation(api.messages.send, {
         conversationId,
@@ -148,7 +173,6 @@ export const streamAgentResponse = action({
         content: `Sorry, I encountered an error while processing your request: ${error instanceof Error ? error.message : "Unknown error"}`,
         type: "system",
       });
-
       throw error;
     }
   },
@@ -177,33 +201,54 @@ export const generateAgentResponse = action({
     }
   ): Promise<{ messageId: Id<"messages"> }> => {
     try {
-      // Create agent with dynamic model
-      const agentWithModel = new Agent(components.agent, {
-        chat: openRouterProvider(model),
-        instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
-        tools: {
-          webSearch: webSearchTool,
-          getCurrentTime: getCurrentTimeTool,
-        },
-        maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
-        maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
-        usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-          console.log(
-            `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
-          );
-        },
-      });
-
-      // Let the Agent manage threads automatically - no manual thread ID
+      // Fetch conversation to get threadId
+      const conversation = await ctx.runQuery(api.conversations.get, { conversationId });
+      let threadId = conversation?.threadId;
+      let thread;
+      let agentWithModel;
+      if (!threadId) {
+        agentWithModel = new Agent(components.agent, {
+          chat: openRouterProvider(model),
+          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
+          tools: {
+            webSearch: webSearchTool,
+            getCurrentTime: getCurrentTimeTool,
+          },
+          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
+          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
+            console.log(
+              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+            );
+          },
+        });
+        // Create a new thread and store threadId
+        const threadResult = await agentWithModel.createThread(ctx, { userId });
+        threadId = threadResult.threadId;
+        thread = threadResult.thread;
+        await ctx.runMutation(api.conversations.patchThreadId, { conversationId, threadId });
+      } else {
+        agentWithModel = new Agent(components.agent, {
+          chat: openRouterProvider(model),
+          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
+          tools: {
+            webSearch: webSearchTool,
+            getCurrentTime: getCurrentTimeTool,
+          },
+          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
+          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
+            console.log(
+              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+            );
+          },
+        });
+        // Continue existing thread
+        thread = (await agentWithModel.continueThread(ctx, { threadId })).thread;
+      }
       let result;
       try {
-        result = await agentWithModel.generateText(
-          ctx,
-          { userId },
-          {
-            prompt: userMessage,
-          }
-        );
+        result = await thread.generateText({ prompt: userMessage });
         // Log the agent result
         console.log("[generateAgentResponse] Agent result:", result.text);
       } catch (error) {
@@ -218,14 +263,12 @@ export const generateAgentResponse = action({
           console.log(
             "Tool calling failed, falling back to simple agent without tools"
           );
-
           const fallbackAgent = new Agent(components.agent, {
             chat: openRouterProvider(model),
             instructions: AI_PROMPTS.FALLBACK_INSTRUCTIONS,
             maxSteps: AGENT_CONFIG.FALLBACK_AGENT.maxSteps,
             maxRetries: AGENT_CONFIG.FALLBACK_AGENT.maxRetries,
           });
-
           result = await fallbackAgent.generateText(
             ctx,
             { userId },
@@ -239,7 +282,6 @@ export const generateAgentResponse = action({
           throw error;
         }
       }
-
       // Save AI response to your existing message system
       const messageId: Id<"messages"> = await ctx.runMutation(
         api.messages.send,
@@ -251,13 +293,11 @@ export const generateAgentResponse = action({
           aiModel: model,
         }
       );
-
       return {
         messageId,
       };
     } catch (error) {
       console.error("Agent generation error:", error);
-
       // Send error message
       await ctx.runMutation(api.messages.send, {
         conversationId,
@@ -265,7 +305,6 @@ export const generateAgentResponse = action({
         content: `Sorry, I encountered an error while processing your request: ${error instanceof Error ? error.message : "Unknown error"}`,
         type: "system",
       });
-
       throw error;
     }
   },

@@ -75,4 +75,18 @@ export const updateTitle = mutation({
       updatedAt: Date.now(),
     });
   },
+});
+
+// Patch threadId for a conversation
+export const patchThreadId = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    threadId: v.string(),
+  },
+  handler: async (ctx, { conversationId, threadId }) => {
+    await ctx.db.patch(conversationId, {
+      threadId,
+      updatedAt: Date.now(),
+    });
+  },
 }); 

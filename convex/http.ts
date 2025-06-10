@@ -26,30 +26,41 @@ http.route({
         return new Response("Missing required fields", { status: 400 });
       }
 
-      // Create agent with the specified model
-      const streamingAgent = new Agent(components.agent, {
-        chat: openRouterProvider(model || "meta-llama/llama-3.3-8b-instruct:free"),
-        instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. 
-Be concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.
-Use the available tools when needed to provide accurate and up-to-date information.`,
-        maxSteps: 5,
-        maxRetries: 3,
-      });
+      // Fetch conversation to get threadId
+      const conversation = await ctx.runQuery(api.conversations.get, { conversationId });
+      let threadId = conversation?.threadId;
+      let thread;
+      let streamingAgent;
+      if (!threadId) {
+        streamingAgent = new Agent(components.agent, {
+          chat: openRouterProvider(model || "meta-llama/llama-3.3-8b-instruct:free"),
+          instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. \nBe concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.\nUse the available tools when needed to provide accurate and up-to-date information.`,
+          maxSteps: 5,
+          maxRetries: 3,
+        });
+        // Create a new thread and store threadId
+        const threadResult = await streamingAgent.createThread(ctx, { userId });
+        threadId = threadResult.threadId;
+        thread = threadResult.thread;
+        await ctx.runMutation(api.conversations.patchThreadId, { conversationId, threadId });
+      } else {
+        streamingAgent = new Agent(components.agent, {
+          chat: openRouterProvider(model || "meta-llama/llama-3.3-8b-instruct:free"),
+          instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. \nBe concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.\nUse the available tools when needed to provide accurate and up-to-date information.`,
+          maxSteps: 5,
+          maxRetries: 3,
+        });
+        // Continue existing thread
+        thread = (await streamingAgent.continueThread(ctx, { threadId })).thread;
+      }
+      // Use thread to generate streaming text
+      const result = await thread.streamText({ prompt: userMessage });
+      let fullText = "";
 
       // Create a readable stream for the response
       const stream = new ReadableStream({
         async start(controller) {
           try {
-            // Use conversation ID and user ID as thread identifier for Agent's internal thread management
-            const threadId = `conversation_${conversationId}_${userId}`;
-            
-            // Use streamText for real streaming
-            const result = await streamingAgent.streamText(ctx, { userId, threadId }, {
-              prompt: userMessage,
-            });
-
-            let fullText = "";
-
             // Stream the response
             if (result.textStream) {
               for await (const chunk of result.textStream) {

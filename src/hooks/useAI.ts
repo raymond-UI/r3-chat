@@ -7,7 +7,7 @@ import { useUser } from "@clerk/nextjs";
 
 export function useAI() {
   const { user } = useUser();
-  const [selectedModel, setSelectedModel] = useState("meta-llama/llama-3.3-8b-instruct:free");
+  const [selectedModel, setSelectedModel] = useState("google/gemini-2.0-flash-exp:free");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   
@@ -33,6 +33,13 @@ export function useAI() {
 
     setIsGenerating(true);
     
+    // Log prompt and context sent from frontend
+    console.log("\n=== Sending Message to AI ===");
+    console.log("User:", user.id);
+    console.log("Message:", userMessage);
+    console.log("Model:", model || selectedModel);
+    console.log("Conversation:", conversationId);
+    console.log("===========================\n");
     try {
       const result = await generateAgentResponse({
         conversationId,
@@ -63,6 +70,13 @@ export function useAI() {
 
     setIsStreaming(true);
     
+    // Log prompt and context sent from frontend
+    console.log("[useAI] streamToAI called", {
+      conversationId,
+      prompt: userMessage,
+      model: model || selectedModel,
+      userId: user.id,
+    });
     try {
       // Use Convex HTTP streaming endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_CONVEX_URL}/ai/stream`, {

@@ -22,7 +22,7 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="flex flex-col items-start justify-start w-full h-full">
+    <div className="flex flex-col items-start justify-start w-full min-w-0 overflow-hidden h-full">
       <ChatHeader
         conversationId={conversationId as Id<"conversations">}
         title={conversation?.title}
