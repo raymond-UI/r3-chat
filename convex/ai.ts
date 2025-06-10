@@ -9,6 +9,7 @@ import type { ActionCtx } from "./_generated/server";
 import { getAIModelsArray, type AIModel } from "@/types/ai";
 import { env } from "@/env";
 import { z } from "zod";
+import { AI_PROMPTS, AGENT_CONFIG, MODEL_CONFIG } from "@/utils/prompts";
 
 // Configure OpenRouter provider
 const openRouterProvider = createOpenRouter({
@@ -29,46 +30,53 @@ const webSearchTool = createTool({
 });
 
 const getCurrentTimeTool = createTool({
-  description: "Get the current date and time",
-  args: z.object({}),
-  handler: async (): Promise<string> => {
-    return new Date().toISOString();
+  description: "Get the current date and time in ISO format with timezone information",
+  args: z.object({
+    format: z.enum(['iso', 'local', 'utc']).optional().describe("The format to return the time in. Defaults to 'iso'"),
+  }),
+  handler: async (_ctx, args): Promise<string> => {
+    const now = new Date();
+    
+    switch (args.format) {
+      case 'local':
+        return now.toLocaleString();
+      case 'utc':
+        return now.toUTCString();
+      case 'iso':
+      default:
+        return now.toISOString();
+    }
   },
 });
 
 // Create the main AI agent
 const aiAgent = new Agent(components.agent, {
   // Chat completions model - using a more reliable model for tool calling
-  chat: openRouterProvider("openai/gpt-4o-mini"),
-  
-  // Default instructions - more explicit about available tools
-  instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. 
-Be concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.
+  chat: openRouterProvider(MODEL_CONFIG.MAIN_CHAT),
 
-You have access to these tools when needed:
-1. webSearch - use ONLY when the user asks for current/recent information, news, or real-time data that you wouldn't know
-2. getCurrentTime - use ONLY when the user specifically asks for the current date or time
+  // Default instructions
+  instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
 
-For most requests (creative writing, explanations, coding help, analysis, general knowledge, etc.), respond naturally without using any tools. Only use tools when the user's request specifically requires current information or time data that you cannot provide from your training.`,
-  
   // Available tools
   tools: {
     webSearch: webSearchTool,
     getCurrentTime: getCurrentTimeTool,
   },
-  
+
   // Enable multi-step tool use
-  maxSteps: 5,
-  maxRetries: 3,
-  
+  maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+  maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
+
   // Track token usage
   usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-    console.log(`Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`);
+    console.log(
+      `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+    );
     // TODO: Store usage in database for billing/analytics
   },
 });
 
-// Stream AI response using Convex Agent (Convex-native streaming)
+// Stream AI response using Convex Agent
 export const streamAgentResponse = action({
   args: {
     conversationId: v.id("conversations"),
@@ -94,46 +102,45 @@ export const streamAgentResponse = action({
       // Create agent with dynamic model for streaming
       const streamingAgent = new Agent(components.agent, {
         chat: openRouterProvider(model),
-        instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. 
-Be concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.
-
-You have access to these tools when needed:
-1. webSearch - use ONLY when the user asks for current/recent information, news, or real-time data that you wouldn't know
-2. getCurrentTime - use ONLY when the user specifically asks for the current date or time
-
-For most requests (creative writing, explanations, coding help, analysis, general knowledge, etc.), respond naturally without using any tools. Only use tools when the user's request specifically requires current information or time data that you cannot provide from your training.`,
+        instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
         tools: {
           webSearch: webSearchTool,
           getCurrentTime: getCurrentTimeTool,
         },
-        maxSteps: 5,
-        maxRetries: 3,
+        maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+        maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
         usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-          console.log(`Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`);
+          console.log(
+            `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+          );
         },
       });
 
       // Let the Agent manage threads automatically - no manual thread ID
-      const result = await streamingAgent.generateText(ctx, { userId }, {
-        prompt: userMessage,
-      });
-
-      // Save AI response to your existing message system
-      await ctx.runMutation(
-        api.messages.send,
+      const result = await streamingAgent.generateText(
+        ctx,
+        { userId },
         {
-          conversationId,
-          userId: "ai-assistant", // Special AI user ID
-          content: result.text,
-          type: "ai",
-          aiModel: model,
+          prompt: userMessage,
         }
       );
+
+      // Log the agent result
+      console.log("[streamAgentResponse] Agent result:", result.text);
+
+      // Save AI response to your existing message system
+      await ctx.runMutation(api.messages.send, {
+        conversationId,
+        userId: "ai-assistant", // Special AI user ID
+        content: result.text,
+        type: "ai",
+        aiModel: model,
+      });
 
       return result.text;
     } catch (error) {
       console.error("Convex streaming agent generation error:", error);
-      
+
       // Send error message
       await ctx.runMutation(api.messages.send, {
         conversationId,
@@ -173,49 +180,61 @@ export const generateAgentResponse = action({
       // Create agent with dynamic model
       const agentWithModel = new Agent(components.agent, {
         chat: openRouterProvider(model),
-        instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. 
-Be concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.
-
-You have access to these tools when needed:
-1. webSearch - use ONLY when the user asks for current/recent information, news, or real-time data that you wouldn't know
-2. getCurrentTime - use ONLY when the user specifically asks for the current date or time
-
-For most requests (creative writing, explanations, coding help, analysis, general knowledge, etc.), respond naturally without using any tools. Only use tools when the user's request specifically requires current information or time data that you cannot provide from your training.`,
+        instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
         tools: {
           webSearch: webSearchTool,
           getCurrentTime: getCurrentTimeTool,
         },
-        maxSteps: 5,
-        maxRetries: 3,
+        maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+        maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
         usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-          console.log(`Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`);
+          console.log(
+            `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+          );
         },
       });
 
       // Let the Agent manage threads automatically - no manual thread ID
       let result;
       try {
-        result = await agentWithModel.generateText(ctx, { userId }, {
-          prompt: userMessage,
-        });
+        result = await agentWithModel.generateText(
+          ctx,
+          { userId },
+          {
+            prompt: userMessage,
+          }
+        );
+        // Log the agent result
+        console.log("[generateAgentResponse] Agent result:", result.text);
       } catch (error) {
         // If tool calling fails, fallback to simple agent without tools
-        if (error && typeof error === 'object' && 'name' in error && 
-            (error.name === 'AI_APICallError' || error.name === 'AI_TypeValidationError')) {
-          console.log("Tool calling failed, falling back to simple agent without tools");
-          
+        if (
+          error &&
+          typeof error === "object" &&
+          "name" in error &&
+          (error.name === "AI_APICallError" ||
+            error.name === "AI_TypeValidationError")
+        ) {
+          console.log(
+            "Tool calling failed, falling back to simple agent without tools"
+          );
+
           const fallbackAgent = new Agent(components.agent, {
             chat: openRouterProvider(model),
-            instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. 
-Be concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.
-Provide helpful responses based on your training data.`,
-            maxSteps: 1,
-            maxRetries: 2,
+            instructions: AI_PROMPTS.FALLBACK_INSTRUCTIONS,
+            maxSteps: AGENT_CONFIG.FALLBACK_AGENT.maxSteps,
+            maxRetries: AGENT_CONFIG.FALLBACK_AGENT.maxRetries,
           });
-          
-          result = await fallbackAgent.generateText(ctx, { userId }, {
-            prompt: userMessage,
-          });
+
+          result = await fallbackAgent.generateText(
+            ctx,
+            { userId },
+            {
+              prompt: userMessage,
+            }
+          );
+          // Log the fallback agent result
+          console.log("[generateAgentResponse] Fallback agent result:", result.text);
         } else {
           throw error;
         }
@@ -271,18 +290,25 @@ export const generateAgentTitle = action({
     try {
       // Use a simple approach for title generation without persistent threads
       const titleAgent = new Agent(components.agent, {
-        chat: openRouterProvider("meta-llama/llama-3.1-8b-instruct:free"),
-        instructions: "You are tasked with generating short, descriptive titles for chat conversations. Generate a concise title (2-6 words) that captures the main topic or intent of the message. Respond with only the title, no extra text or quotes.",
-        maxSteps: 1, // No tools needed for title generation
+        chat: openRouterProvider(MODEL_CONFIG.TITLE_GENERATION),
+        instructions: AI_PROMPTS.TITLE_GENERATION_INSTRUCTIONS,
+        maxSteps: AGENT_CONFIG.TITLE_AGENT.maxSteps,
       });
 
       // Let the Agent manage threads automatically - use unique userId per title generation
-      const result = await titleAgent.generateText(ctx, { userId: `title-gen-${conversationId}` }, {
-        prompt: `Generate a short title for this message: "${firstMessage}"`,
-      });
+      const result = await titleAgent.generateText(
+        ctx,
+        { userId: `title-gen-${conversationId}` },
+        {
+          prompt: AI_PROMPTS.TITLE_GENERATION_PROMPT(firstMessage),
+        }
+      );
 
-      const cleanTitle = result.text.replace(/['"]/g, '').trim();
-      
+      const cleanTitle = result.text.replace(/['"]/g, "").trim();
+
+      // Log the generated title
+      console.log("[generateAgentTitle] Generated title:", cleanTitle);
+
       // Update conversation title
       await ctx.runMutation(api.conversations.updateTitle, {
         conversationId,
@@ -292,11 +318,12 @@ export const generateAgentTitle = action({
       return cleanTitle;
     } catch (error) {
       console.error("Agent title generation error:", error);
-      
+
       // Fallback to simple title generation
-      const fallbackTitle = firstMessage.length > 30 
-        ? firstMessage.substring(0, 27) + "..." 
-        : firstMessage;
+      const fallbackTitle =
+        firstMessage.length > 30
+          ? firstMessage.substring(0, 27) + "..."
+          : firstMessage;
 
       await ctx.runMutation(api.conversations.updateTitle, {
         conversationId,

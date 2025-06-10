@@ -7,6 +7,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "openai/gpt-4.1",
     supportVision: true,
+    search: true,
   },
   "openai/gpt-4o-mini": {
     name: "GPT-4o Mini",
@@ -15,6 +16,15 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "openai/gpt-4o-mini",
     supportVision: true,
+  },
+  "openai/gpt-4o-mini-search-preview": {
+    name: "GPT-4o Mini Search",
+    provider: "OpenAI",
+    cost: "Medium",
+    speed: "Medium",
+    id: "openai/gpt-4o-mini-search-preview",
+    supportVision: true,
+    search: true,
   },
   "openai/gpt-3.5-turbo": {
     name: "GPT-3.5 Turbo",
