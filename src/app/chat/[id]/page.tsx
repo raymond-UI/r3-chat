@@ -15,7 +15,6 @@ export default function ConversationPage() {
   const conversation = useQuery(api.conversations.get, {
     conversationId: conversationId as Id<"conversations">,
   });
-  console.log(conversation);
 
   // Validate the conversation ID format
   if (!conversationId || typeof conversationId !== "string") {
@@ -26,7 +25,7 @@ export default function ConversationPage() {
     <div className="flex flex-col items-start justify-start w-full h-full">
       <ChatHeader
         conversationId={conversationId as Id<"conversations">}
-        title={conversation?.title || "Untitled"}
+        title={conversation?.title}
         aiEnabled={aiEnabled}
         onAiToggle={setAiEnabled}
       />

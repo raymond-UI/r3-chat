@@ -76,7 +76,37 @@ export function JoinConversationDialog({
     }
   };
 
-  if (!conversation) {
+  // Show loading state while conversation is being fetched
+  if (conversationId && conversation === undefined) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-muted-foreground" />
+              Loading Conversation
+            </DialogTitle>
+            <DialogDescription>
+              Please wait while we load the conversation details...
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+          </div>
+          
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Show error state when conversation is null (not found)
+  if (conversationId && conversation === null) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
@@ -105,7 +135,7 @@ export function JoinConversationDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {conversation.isCollaborative ? (
+            {conversation?.isCollaborative ? (
               <Users className="h-5 w-5 text-blue-600" />
             ) : (
               <MessageSquare className="h-5 w-5 text-green-600" />
@@ -121,9 +151,9 @@ export function JoinConversationDialog({
           {/* Conversation Details */}
           <div className="p-4 rounded-lg bg-muted/50 space-y-3">
             <div>
-              <h3 className="font-medium text-lg">{conversation.title}</h3>
+              <h3 className="font-medium text-lg">{conversation?.title}</h3>
               <div className="flex items-center gap-2 mt-1">
-                {conversation.isCollaborative ? (
+                {conversation?.isCollaborative ? (
                   <Badge variant="secondary" className="text-xs">
                     <Users className="h-3 w-3 mr-1" />
                     Collaborative
@@ -135,7 +165,7 @@ export function JoinConversationDialog({
                   </Badge>
                 )}
                 <span className="text-xs text-muted-foreground">
-                  {conversation.participants.length} participant{conversation.participants.length !== 1 ? 's' : ''}
+                  {conversation?.participants.length} participant{conversation?.participants.length !== 1 ? 's' : ''}
                 </span>
               </div>
             </div>
@@ -144,7 +174,7 @@ export function JoinConversationDialog({
             <div>
               <p className="text-sm font-medium mb-2">Participants:</p>
               <div className="flex -space-x-2">
-                {conversation.participants.slice(0, 5).map((participantId) => (
+                {conversation?.participants.slice(0, 5).map((participantId) => (
                   <Avatar key={participantId} className="h-8 w-8 border-2 border-background">
                     <AvatarImage src={user?.id === participantId ? user?.imageUrl : undefined} />
                     <AvatarFallback className="text-xs">
@@ -155,9 +185,9 @@ export function JoinConversationDialog({
                     </AvatarFallback>
                   </Avatar>
                 ))}
-                {conversation.participants.length > 5 && (
+                {(conversation?.participants.length || 0) > 5 && (
                   <div className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center">
-                    <span className="text-xs">+{conversation.participants.length - 5}</span>
+                    <span className="text-xs">+{(conversation?.participants.length || 0) - 5}</span>
                   </div>
                 )}
               </div>
@@ -221,4 +251,4 @@ export function JoinConversationDialog({
       </DialogContent>
     </Dialog>
   );
-} 
+}

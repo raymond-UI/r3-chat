@@ -12,8 +12,6 @@ import { useConversations } from "@/hooks/useConversations";
 import { useSendMessage } from "@/hooks/useMessages";
 import { useUser } from "@clerk/nextjs";
 import { useAI } from "@/hooks/useAI";
-import { useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
 interface MessageInputProps {
@@ -68,8 +66,7 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
   const { user } = useUser();
   const { create } = useConversations();
   const { send } = useSendMessage();
-  const { sendToAI } = useAI();
-  const generateTitleAction = useAction(api.ai.generateTitle);
+  const { sendToAI, generateTitle } = useAI(); // Use the new agent-based methods
 
   // Use local or prop values based on mode
   const currentValue = isNewChat ? localInputValue : (value || "");
@@ -186,9 +183,9 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
         // Navigate to the conversation page
         router.push(`/chat/${conversationId}`);
 
-        // Generate title and AI response in parallel
+        // Generate title and AI response in parallel using the new agent system
         if (messageContent) {
-          generateTitleAction({ conversationId, firstMessage: messageContent }).catch(console.error);
+          generateTitle(conversationId, messageContent).catch(console.error);
           sendToAI(conversationId, messageContent, currentSelectedModel).catch(console.error);
         }
       } catch (error) {
@@ -207,14 +204,14 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
   };
 
   return (
-    <div className="bg-background rounded-t-md overflow-clip">
+    <div className="w-full bg-background rounded-md overflow-clip">
       {/* Uploading/Staged Files Preview */}
       <StagedFiles files={uploadingFiles} onRemove={onRemoveFile} />
 
       {/* Message Input Area */}
       <div className="flex flex-col items-end">
         {/* Text Input */}
-        <div className="flex-1 w-full relative">
+        <div className=" w-full relative">
           <Textarea
             ref={textareaRef}
             value={currentValue}
@@ -227,7 +224,7 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
           />
         </div>
 
-        <div className="flex items-center justify-end w-full border-t border-border/50 bg-secondary/5 flex-row gap-2 p-2">
+        <div className="flex items-center justify-end w-full border border-border/50 bg-secondary/5 flex-row gap-2 p-2">
           <div className="flex items-center gap-2 w-full justify-start">
             {/* Hidden File Input */}
             <input

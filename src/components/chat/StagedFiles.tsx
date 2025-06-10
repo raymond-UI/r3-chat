@@ -1,8 +1,20 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { X, FileText, CheckCircle, AlertCircle, Loader2, ChevronDown, FileImage } from "lucide-react";
+import {
+  X,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ChevronDown,
+  FileImage,
+} from "lucide-react";
 import { FileWithPreview, formatFileSize } from "@/hooks/useFiles";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -23,30 +35,28 @@ interface FileDetailsProps {
 function FileDetails({ fileId }: FileDetailsProps) {
   const file = useQuery(api.files.getById, { fileId });
   const [isOpen, setIsOpen] = useState(false);
-  
+
   if (!file) return null;
 
   const hasExtractedText = Boolean(file.extractedText?.trim());
-  
+
   // Only show if we have extracted text content
   if (!hasExtractedText) return null;
-  
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="h-auto p-1 text-xs"
-        >
-          <ChevronDown className={cn(
-            "h-3 w-3 transition-transform",
-            isOpen && "rotate-180"
-          )} />
+        <Button variant="ghost" size="sm" className="h-auto p-1 text-xs">
+          <ChevronDown
+            className={cn(
+              "h-3 w-3 transition-transform",
+              isOpen && "rotate-180"
+            )}
+          />
           View Extracted Text
         </Button>
       </CollapsibleTrigger>
-      
+
       <CollapsibleContent className="mt-2">
         <div className="text-xs">
           <Badge variant="outline" className="mb-1">
@@ -72,7 +82,7 @@ export function StagedFiles({ files, onRemove, className }: StagedFilesProps) {
         {files.map((fileWithPreview, index) => (
           <div
             key={index}
-            className="relative group flex flex-col gap-2 bg-background border rounded-lg p-3 min-w-[200px] max-w-sm"
+            className="relative group flex flex-col gap-2 bg-background border rounded-lg p-1 min-w-[200px] max-w-sm"
           >
             <div className="flex items-center gap-2">
               {/* File Preview */}
@@ -82,7 +92,7 @@ export function StagedFiles({ files, onRemove, className }: StagedFilesProps) {
                     <Image
                       src={fileWithPreview.preview}
                       alt={fileWithPreview.file.name}
-                      className="h-8 w-8 rounded object-cover"
+                      className="h-8 w-8 rounded-sm object-cover"
                       width={32}
                       height={32}
                     />
@@ -91,7 +101,7 @@ export function StagedFiles({ files, onRemove, className }: StagedFilesProps) {
                     </Badge>
                   </div>
                 ) : (
-                  <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-sm bg-muted flex items-center justify-center">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                   </div>
                 )}
@@ -100,11 +110,36 @@ export function StagedFiles({ files, onRemove, className }: StagedFilesProps) {
               {/* File Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {fileWithPreview.file.name}
+                  {fileWithPreview.file.name.slice(0, 20)}...
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatFileSize(fileWithPreview.file.size)}
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(fileWithPreview.file.size)}
+                  </p>
+                {/* Upload Status */}
+                <div className="flex items-center gap-2">
+                  {fileWithPreview.uploading && (
+                    <div className="flex items-center gap-1 text-xs text-blue-600">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span className="sr-only">Uploading...</span>
+                    </div>
+                  )}
+
+                  {fileWithPreview.uploaded && (
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle className="h-3 w-3" />
+                      <span className="sr-only">Ready</span>
+                    </div>
+                  )}
+
+                  {fileWithPreview.error && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span className="sr-only">Failed</span>
+                    </div>
+                  )}
+                  </div>
+                </div>
               </div>
 
               {/* Remove Button - Only show if not uploading */}
@@ -120,30 +155,6 @@ export function StagedFiles({ files, onRemove, className }: StagedFilesProps) {
               )}
             </div>
 
-            {/* Upload Status */}
-            <div className="flex items-center gap-2">
-              {fileWithPreview.uploading && (
-                <div className="flex items-center gap-1 text-xs text-blue-600">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Uploading...</span>
-                </div>
-              )}
-              
-              {fileWithPreview.uploaded && (
-                <div className="flex items-center gap-1 text-xs text-green-600">
-                  <CheckCircle className="h-3 w-3" />
-                  <span>Ready</span>
-                </div>
-              )}
-              
-              {fileWithPreview.error && (
-                <div className="flex items-center gap-1 text-xs text-red-600">
-                  <AlertCircle className="h-3 w-3" />
-                  <span>Failed</span>
-                </div>
-              )}
-            </div>
-
             {/* File Details - Only show for uploaded files */}
             {fileWithPreview.uploaded && fileWithPreview.fileId && (
               <FileDetails fileId={fileWithPreview.fileId} />
@@ -153,4 +164,4 @@ export function StagedFiles({ files, onRemove, className }: StagedFilesProps) {
       </div>
     </div>
   );
-} 
+}

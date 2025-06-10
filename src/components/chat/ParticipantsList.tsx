@@ -92,12 +92,12 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
                   </AvatarFallback>
                 </Avatar>
                 
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">
-                    {participantId === user?.id ? "You" : participantId}
-                  </div>
+                <div className="flex-1 min-w-0 gap-1">
+                  <span className="font-medium text-sm">
+                    {participantId === user?.id ? "You" : user?.firstName}
+                  </span>
                   {activeUsers.includes(participantId) && (
-                    <Badge variant="secondary" className="text-xs">Online</Badge>
+                    <Badge variant="secondary" className="ml-1 text-xs">Online</Badge>
                   )}
                 </div>
               </div>

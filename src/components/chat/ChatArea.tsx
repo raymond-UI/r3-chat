@@ -8,7 +8,6 @@ import { useFiles } from "@/hooks/useFiles";
 import { useMessages, useSendMessage } from "@/hooks/useMessages";
 import { usePresence } from "@/hooks/usePresence";
 import { useUser } from "@clerk/nextjs";
-import { Bot } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 
@@ -22,15 +21,15 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   const { send } = useSendMessage();
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
   const { selectedModel, setSelectedModel, isGenerating, sendToAI } = useAI();
-  const { 
-    // files, 
-    uploadingFiles, 
+  const {
+    // files,
+    uploadingFiles,
     uploadedFileIds,
     isUploading,
     hasFilesToSend,
-    uploadFiles, 
-    removeFile, 
-    clearUploadedFiles 
+    uploadFiles,
+    removeFile,
+    clearUploadedFiles,
   } = useFiles(conversationId);
 
   const [inputValue, setInputValue] = useState("");
@@ -50,28 +49,24 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     const messageContent = inputValue.trim();
     setInputValue("");
     setIsSending(true);
-    
+
     try {
       // Send user message with uploaded file IDs
       await send(
-        conversationId, 
-        messageContent, 
-        "user", 
-        undefined, 
+        conversationId,
+        messageContent,
+        "user",
+        undefined,
         uploadedFileIds.length > 0 ? uploadedFileIds : undefined
       );
-      
+
       // Clear uploaded files after message is sent
       clearUploadedFiles();
       await stopTyping();
 
       // Generate AI response if enabled (attachments are handled by message.send)
       if (aiEnabled && messageContent) {
-        await sendToAI(
-          conversationId, 
-          messageContent, 
-          selectedModel
-        );
+        await sendToAI(conversationId, messageContent, selectedModel);
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -80,7 +75,19 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     } finally {
       setIsSending(false);
     }
-  }, [user?.id, inputValue, hasFilesToSend, uploadedFileIds, send, conversationId, clearUploadedFiles, stopTyping, aiEnabled, sendToAI, selectedModel]);
+  }, [
+    user?.id,
+    inputValue,
+    hasFilesToSend,
+    uploadedFileIds,
+    send,
+    conversationId,
+    clearUploadedFiles,
+    stopTyping,
+    aiEnabled,
+    sendToAI,
+    selectedModel,
+  ]);
 
   const handleInputChange = async (value: string) => {
     setInputValue(value);
@@ -116,22 +123,18 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   return (
     <div className="flex-1 flex flex-col w-full h-full relative mx-auto overflow-y-auto">
-
-
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto">
         <MessageList messages={messages} />
 
         {/* AI Generating Indicator */}
         {isGenerating && (
-          <div className="mt-4">
+          <div className="mt-4 -translate-y-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Bot className="h-4 w-4 animate-pulse" />
-              <span>AI is thinking...</span>
               <div className="flex space-x-1">
-                <div className="w-1 h-1 bg-current rounded-full animate-bounce"></div>
-                <div className="w-1 h-1 bg-current rounded-full animate-bounce delay-100"></div>
-                <div className="w-1 h-1 bg-current rounded-full animate-bounce delay-200"></div>
+                <div className="w-3 h-3  bg-current rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-current rounded-full animate-bounce delay-100"></div>
+                <div className="w-3 h-3 bg-current rounded-full animate-bounce delay-200"></div>
               </div>
             </div>
           </div>
@@ -155,7 +158,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
           onChange={handleInputChange}
           onSend={handleSendMessage}
           disabled={isSending || isGenerating}
-          placeholder={isGenerating ? "AI is responding..." : "Type a message..."}
+          placeholder={
+            isGenerating ? "AI is responding..." : "Type a message..."
+          }
           uploadingFiles={uploadingFiles}
           onUploadFiles={uploadFiles}
           onRemoveFile={removeFile}

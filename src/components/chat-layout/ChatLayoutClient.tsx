@@ -9,18 +9,22 @@ import { Button } from "@/components/ui/button";
 import { ChatSidebar } from "@/components/chat-layout/ChatSidebar";
 import { JoinConversationDialog } from "@/components/chat/JoinConversationDialog";
 import { Id } from "../../../convex/_generated/dataModel";
+import { CollapsedMenu } from "./CollapsedMenu";
 
 function ChatLayoutInner({ children }: { children: React.ReactNode }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
-  const [pendingInviteId, setPendingInviteId] = useState<Id<"conversations"> | null>(null);
-  
+  const [pendingInviteId, setPendingInviteId] =
+    useState<Id<"conversations"> | null>(null);
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   // Extract conversation ID from pathname
-  const conversationId = pathname === "/chat" ? undefined : pathname.split("/chat/")[1] as Id<"conversations"> | undefined;
+  const conversationId =
+    pathname === "/chat"
+      ? undefined
+      : (pathname.split("/chat/")[1] as Id<"conversations"> | undefined);
 
   // Handle invite links
   useEffect(() => {
@@ -30,10 +34,6 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
       setJoinDialogOpen(true);
     }
   }, [searchParams]);
-
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
 
   const handleSelectConversation = (id: Id<"conversations">) => {
     router.push(`/chat/${id}`);
@@ -52,6 +52,11 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   const handleCloseJoinDialog = () => {
     setJoinDialogOpen(false);
     setPendingInviteId(null);
+  };
+
+  const handleSearch = () => {
+    // TODO: Implement search commnand
+    console.log("search");
   };
 
   return (
@@ -73,23 +78,22 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
       </SignedOut>
 
       <SignedIn>
-        <SidebarProvider defaultOpen={!sidebarCollapsed}>
+        <SidebarProvider>
           <div className="flex h-screen w-full">
             {/* Persistent Sidebar */}
+            <CollapsedMenu onNewChat={handleNewChat} onSearch={handleSearch} />
             <ChatSidebar
               activeConversationId={conversationId}
               onSelectConversation={handleSelectConversation}
               onNewChat={handleNewChat}
-              isCollapsed={sidebarCollapsed}
-              onToggleCollapse={handleToggleSidebar}
+              // isCollapsed={sidebarCollapsed}
+              // onToggleCollapse={handleToggleSidebar}
             />
 
             {/* Main Content Area */}
             <div className="flex flex-1 flex-col">
               {/* Dynamic Content */}
-              <main className="flex-1 w-full overflow-hidden">
-                {children}
-              </main>
+              <main className="flex-1 w-full overflow-hidden">{children}</main>
             </div>
           </div>
         </SidebarProvider>
@@ -108,14 +112,14 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
 
 export function ChatLayoutClient({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={
-      <div className="h-[calc(100vh-50px)] flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          Loading...
+    <Suspense
+      fallback={
+        <div className="h-[calc(100vh-50px)] flex items-center justify-center w-full">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
         </div>
-      </div>
-    }>
+      }
+    >
       <ChatLayoutInner>{children}</ChatLayoutInner>
     </Suspense>
   );
-} 
+}

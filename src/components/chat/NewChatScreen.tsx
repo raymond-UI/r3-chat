@@ -236,13 +236,13 @@ export function NewChatScreen() {
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full relative mx-auto sm:px-10">
+    <div className="flex-1 flex items-center justify-center flex-col w-full h-full relative mx-auto">
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-4xl mx-auto">
+      <div className="flex-1 relative overflow-y-auto p-4 w-full sm:pt-6 max-w-4xl mx-auto  sm:px-10 py-10">
         <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
           {/* Header */}
           <motion.div
-            className="text-left space-y-4 w-full mb-4"
+            className="space-y-4 w-full mb-8 text-center"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -254,7 +254,7 @@ export function NewChatScreen() {
 
           {/* Tabs */}
           <motion.div
-            className="flex gap-2 mb-8 w-full"
+            className="flex gap-2 mb-8 w-full overflow-x-auto justify-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
@@ -289,7 +289,6 @@ export function NewChatScreen() {
           </motion.div>
 
           {/* Suggestions */}
-          <div className="w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -297,7 +296,7 @@ export function NewChatScreen() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="space-y-3"
+                className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2"
               >
                 {currentTab.suggestions.map((suggestion, index) => (
                   <motion.button
@@ -314,8 +313,7 @@ export function NewChatScreen() {
                     }}
                     onClick={() => handleSuggestionClick(suggestion.text)}
                     className="w-full cursor-pointer text-left p-4 rounded-xl bg-card hover:bg-muted/60 border border-border/50 hover:border-border transition-all duration-200 group"
-                  >
-                    <div className="space-y-1">
+                  > 
                       <p className="font-medium text-foreground group-hover:text-primary transition-colors">
                         {suggestion.text}
                       </p>
@@ -323,19 +321,17 @@ export function NewChatScreen() {
                         <p className="text-sm text-muted-foreground">
                           {suggestion.description}
                         </p>
-                      )}
-                    </div>
+                      )}     
                   </motion.button>
                 ))}
               </motion.div>
             </AnimatePresence>
-          </div>
         </div>
       </div>
 
       {/* Message Input */}
       <motion.div
-        className="bg-secondary/60 backdrop-blur shadow-2xl p-2 pb-0 w-full rounded-t-lg max-w-4xl mx-auto"
+        className="bg-secondary/60 backdrop-blur shadow-2xl p-2 w-full rounded-lg max-w-4xl mx-auto mt-0"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
