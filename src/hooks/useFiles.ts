@@ -12,20 +12,30 @@ export interface FileWithPreview {
   uploaded?: boolean;
   fileId?: Id<"files">;
   error?: string;
+  // For files uploaded to storage but not yet saved to database
+  uploadResult?: {
+    name: string;
+    size: number;
+    url: string;
+    type: string;
+  };
 }
 
-export const useFiles = (conversationId: Id<"conversations">) => {
+export const useFiles = (conversationId?: Id<"conversations">) => {
   const [uploadingFiles, setUploadingFiles] = useState<FileWithPreview[]>([]);
   const [uploadedFileIds, setUploadedFileIds] = useState<Id<"files">[]>([]);
 
   const { user } = useUser();
   const createFile = useMutation(api.files.create);
-  const getFiles = useQuery(api.files.getByConversation, { conversationId });
+  const getFiles = useQuery(
+    api.files.getByConversation, 
+    conversationId ? { conversationId } : "skip"
+  );
 
   const { startUpload: startImageUpload } = useUploadThing("imageUploader");
   const { startUpload: startPdfUpload } = useUploadThing("pdfUploader");
 
-  // Start uploading files immediately when selected
+  // Upload files immediately to storage (works for both new and existing chats)
   const uploadFiles = async (files: File[]) => {
     const validFiles = validateFiles(files);
     
@@ -52,35 +62,34 @@ export const useFiles = (conversationId: Id<"conversations">) => {
       // Separate files by type
       const imageFiles = validFiles.filter(f => f.type.startsWith('image/'));
       const pdfFiles = validFiles.filter(f => f.type === 'application/pdf');
-      const allUploadedIds: Id<"files">[] = [];
+      const allUploadResults: Array<{
+        name: string;
+        size: number;
+        url: string;
+        type: string;
+      }> = [];
 
-      // Upload images
+      // Upload images to storage
       if (imageFiles.length > 0) {
         const imageResults = await startImageUpload(imageFiles);
-        
-        for (const result of imageResults || []) {
-          const fileId = await createFile({
-            name: result.name,
-            type: "image",
-            mimeType: result.type || "image/jpeg",
-            size: result.size,
-            url: result.url,
-            uploadedBy: user?.id || "unknown",
-            conversationId,
-          });
-          allUploadedIds.push(fileId);
-        }
+        allUploadResults.push(...(imageResults || []));
       }
 
-      // Upload PDFs
+      // Upload PDFs to storage
       if (pdfFiles.length > 0) {
         const pdfResults = await startPdfUpload(pdfFiles);
+        allUploadResults.push(...(pdfResults || []));
+      }
+
+      // If we have a conversationId, create database records immediately
+      if (conversationId) {
+        const allUploadedIds: Id<"files">[] = [];
         
-        for (const result of pdfResults || []) {
+        for (const result of allUploadResults) {
           const fileId = await createFile({
             name: result.name,
-            type: "pdf",
-            mimeType: result.type || "application/pdf",
+            type: result.type?.startsWith('image/') ? "image" : "pdf",
+            mimeType: result.type || "application/octet-stream",
             size: result.size,
             url: result.url,
             uploadedBy: user?.id || "unknown",
@@ -88,28 +97,44 @@ export const useFiles = (conversationId: Id<"conversations">) => {
           });
           allUploadedIds.push(fileId);
         }
+
+        // Update files to show completion with database IDs
+        setUploadingFiles(prev => 
+          prev.map((fileWithPreview) => {
+            if (filesWithPreview.includes(fileWithPreview)) {
+              const resultIndex = validFiles.findIndex(f => f === fileWithPreview.file);
+              return {
+                ...fileWithPreview,
+                uploading: false,
+                uploaded: true,
+                fileId: allUploadedIds[resultIndex]
+              };
+            }
+            return fileWithPreview;
+          })
+        );
+
+        setUploadedFileIds(prev => [...prev, ...allUploadedIds]);
+        return allUploadedIds;
+      } else {
+        // No conversationId yet - store upload results for later database creation
+        setUploadingFiles(prev => 
+          prev.map((fileWithPreview) => {
+            if (filesWithPreview.includes(fileWithPreview)) {
+              const resultIndex = validFiles.findIndex(f => f === fileWithPreview.file);
+              return {
+                ...fileWithPreview,
+                uploading: false,
+                uploaded: true,
+                uploadResult: allUploadResults[resultIndex]
+              };
+            }
+            return fileWithPreview;
+          })
+        );
+
+        return [];
       }
-
-      // Update uploading files to show completion
-      setUploadingFiles(prev => 
-        prev.map(fileWithPreview => {
-          const fileIndex = validFiles.findIndex(f => f === fileWithPreview.file);
-          if (fileIndex !== -1) {
-            return {
-              ...fileWithPreview,
-              uploading: false,
-              uploaded: true,
-              fileId: allUploadedIds[fileIndex]
-            };
-          }
-          return fileWithPreview;
-        })
-      );
-
-      // Store uploaded file IDs for message attachment
-      setUploadedFileIds(prev => [...prev, ...allUploadedIds]);
-
-      return allUploadedIds;
     } catch (error) {
       console.error("Failed to upload files:", error);
       
@@ -122,6 +147,51 @@ export const useFiles = (conversationId: Id<"conversations">) => {
         )
       );
       
+      throw error;
+    }
+  };
+
+  // Create database records for files that were uploaded to storage but not yet saved to database
+  const saveUploadedFilesToDatabase = async (targetConversationId: Id<"conversations">) => {
+    const filesWithUploadResults = uploadingFiles.filter(f => f.uploadResult && !f.fileId);
+    if (filesWithUploadResults.length === 0) return [];
+
+    try {
+      const allUploadedIds: Id<"files">[] = [];
+      
+      for (const fileWithPreview of filesWithUploadResults) {
+        const result = fileWithPreview.uploadResult!;
+        const fileId = await createFile({
+          name: result.name,
+          type: result.type.startsWith('image/') ? "image" : "pdf",
+          mimeType: result.type,
+          size: result.size,
+          url: result.url,
+          uploadedBy: user?.id || "unknown",
+          conversationId: targetConversationId,
+        });
+        allUploadedIds.push(fileId);
+      }
+
+      // Update files to include database IDs
+      setUploadingFiles(prev => 
+        prev.map(fileWithPreview => {
+          if (filesWithUploadResults.includes(fileWithPreview)) {
+            const fileIndex = filesWithUploadResults.findIndex(f => f === fileWithPreview);
+            return {
+              ...fileWithPreview,
+              fileId: allUploadedIds[fileIndex],
+              uploadResult: undefined // Clear the temporary upload result
+            };
+          }
+          return fileWithPreview;
+        })
+      );
+
+      setUploadedFileIds(prev => [...prev, ...allUploadedIds]);
+      return allUploadedIds;
+    } catch (error) {
+      console.error("Failed to save uploaded files to database:", error);
       throw error;
     }
   };
@@ -161,8 +231,8 @@ export const useFiles = (conversationId: Id<"conversations">) => {
   // Check if any files are currently uploading
   const isUploading = uploadingFiles.some(f => f.uploading);
   
-  // Check if there are files ready to be sent
-  const hasFilesToSend = uploadedFileIds.length > 0;
+  // Check if there are files ready to be sent (either with database IDs or upload results)
+  const hasFilesToSend = uploadedFileIds.length > 0 || uploadingFiles.some(f => f.uploadResult || f.fileId);
 
   return {
     files: getFiles,
@@ -171,6 +241,7 @@ export const useFiles = (conversationId: Id<"conversations">) => {
     isUploading,
     hasFilesToSend,
     uploadFiles,
+    saveUploadedFilesToDatabase, // Renamed from uploadStagedFiles
     removeFile,
     clearUploadedFiles,
   };

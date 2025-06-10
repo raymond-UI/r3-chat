@@ -86,7 +86,7 @@ export function JoinConversationDialog({
               Conversation Not Found
             </DialogTitle>
             <DialogDescription>
-              This conversation doesn't exist or you don't have permission to view it.
+              This conversation doesn&apos;t exist or you don&apos;t have permission to view it.
             </DialogDescription>
           </DialogHeader>
           
@@ -113,7 +113,7 @@ export function JoinConversationDialog({
             Join Conversation
           </DialogTitle>
           <DialogDescription>
-            You've been invited to join this conversation
+            You&apos;ve been invited to join this conversation
           </DialogDescription>
         </DialogHeader>
 
@@ -174,7 +174,7 @@ export function JoinConversationDialog({
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                You're already a participant in this conversation.
+                You&apos;re already a participant in this conversation.
               </AlertDescription>
             </Alert>
           )}

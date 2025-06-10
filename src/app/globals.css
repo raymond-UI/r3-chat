@@ -35,9 +35,9 @@
   --sidebar-accent-foreground: oklch(0.3963 0.0251 285.1962);
   --sidebar-border: oklch(0.9383 0.0026 48.7178);
   --sidebar-ring: oklch(0.5916 0.2180 0.5844);
-  --font-sans: Inter;
-  --font-serif: Merriweather;
-  --font-mono: JetBrains Mono;
+  --font-sans: Geist, sans-serif;
+  --font-serif: Source Serif 4, serif;
+  --font-mono: JetBrains Mono, monospace;
   --radius: 1.05rem;
   --shadow-2xs: 0 0.25rem 8px -2.5px hsl(0 0% 0% / 0.04);
   --shadow-xs: 0 0.25rem 8px -2.5px hsl(0 0% 0% / 0.04);
@@ -158,11 +158,8 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground tracking-normal;
+  p {
+    @apply tracking-normal text-foreground;
   }
 }
 
@@ -171,7 +168,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground tracking-normal;
   }
   ::-webkit-scrollbar {
     width: 4px;

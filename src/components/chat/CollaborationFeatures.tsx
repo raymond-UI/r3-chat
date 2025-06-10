@@ -119,7 +119,7 @@ export function CollaborationFeatures() {
           <div>
             <h4 className="font-medium mb-2">Creating Collaborative Rooms:</h4>
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-              <li>Click "Create Collaborative Room" on welcome screen</li>
+              <li>Click &quot;Create Collaborative Room&quot; on welcome screen</li>
               <li>Or create a new chat and mark it as collaborative</li>
               <li>See the Users icon indicating collaborative mode</li>
             </ol>

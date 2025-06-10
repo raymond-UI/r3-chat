@@ -49,7 +49,7 @@ export function MessageList({ messages }: MessageListProps) {
             {/* sender */}
             <div
               className={cn(
-                "flex items-center",
+                "flex items-center mt-4",
                 isCurrentUser && !isAI ? "ml-auto" : ""
               )}
             >
@@ -104,13 +104,13 @@ export function MessageList({ messages }: MessageListProps) {
                       : isSystem
                         ? "bg-gray-50 text-gray-700 border border-gray-200 text-sm"
                         : isCurrentUser
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary/20 text-primary"
                           : "bg-muted text-foreground"
                   )}
                 >
                   {/* Render markdown for AI and user messages, plain text for system */}
                   {isSystem ? (
-                    <p className="whitespace-pre-wrap text-sm">
+                    <p className="whitespace-pre-wrap text-base">
                       {message.content}
                     </p>
                   ) : (

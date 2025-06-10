@@ -159,3 +159,88 @@ export const getModels = action({
     return getAIModelsArray();
   },
 });
+
+// Generate conversation title
+export const generateTitle = action({
+  args: {
+    conversationId: v.id("conversations"),
+    firstMessage: v.string(),
+  },
+  handler: async (
+    ctx: ActionCtx,
+    {
+      conversationId,
+      firstMessage,
+    }: {
+      conversationId: Id<"conversations">;
+      firstMessage: string;
+    }
+  ): Promise<string> => {
+    // Initialize OpenAI client with OpenRouter
+    const client = new OpenAI({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: env.OPENROUTER_API_KEY,
+      defaultHeaders: {
+        "HTTP-Referer": env.NEXT_PUBLIC_APP_URL,
+        "X-Title": "R3 Chat",
+      },
+    });
+
+    try {
+      // Get AI to generate a short title
+      const completion: OpenAI.Chat.Completions.ChatCompletion =
+        await client.chat.completions.create({
+          model: "meta-llama/llama-3.1-8b-instruct:free", // Use a fast, free model for title generation
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are tasked with generating short, descriptive titles for chat conversations. Generate a concise title (2-6 words) that captures the main topic or intent of the message. Respond with only the title, no extra text or quotes.",
+            },
+            {
+              role: "user",
+              content: `Generate a short title for this message: "${firstMessage}"`,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 20,
+        });
+
+      const title: string | null | undefined =
+        completion.choices[0]?.message?.content;
+
+      if (!title) {
+        // Fallback to simple title generation
+        return firstMessage.length > 30 
+          ? firstMessage.substring(0, 27) + "..." 
+          : firstMessage;
+      }
+
+      // Clean up the title (remove quotes if AI added them)
+      const cleanTitle = title.replace(/['"]/g, '').trim();
+      
+      // Update conversation title
+      await ctx.runMutation(api.conversations.updateTitle, {
+        conversationId,
+        title: cleanTitle,
+      });
+
+      return cleanTitle;
+    } catch (error) {
+      console.error("Title generation error:", error);
+      
+      // Fallback to simple title generation
+      const fallbackTitle = firstMessage.length > 30 
+        ? firstMessage.substring(0, 27) + "..." 
+        : firstMessage;
+
+      // Update conversation title with fallback
+      await ctx.runMutation(api.conversations.updateTitle, {
+        conversationId,
+        title: fallbackTitle,
+      });
+
+      return fallbackTitle;
+    }
+  },
+});

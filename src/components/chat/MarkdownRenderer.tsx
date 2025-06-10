@@ -34,7 +34,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           
           // Paragraphs
           p({ children }) {
-            return <p className="mb-3 last:mb-0 leading-6 text-sm">{children}</p>;
+            return <p className="mb-3 last:mb-0 leading-6 text-base">{children}</p>;
           },
           
           // Headings
@@ -45,18 +45,18 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             return <h2 className="text-base font-medium mb-2 text-foreground">{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className="text-sm font-medium mb-2 text-foreground">{children}</h3>;
+            return <h3 className="text-base font-medium mb-2 text-foreground">{children}</h3>;
           },
           
           // Lists
           ul({ children }) {
-            return <ul className="list-disc pl-4 mb-3 space-y-1 text-sm">{children}</ul>;
+            return <ul className="list-disc pl-4 mb-3 space-y-1 tracking-wide text-base">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal pl-4 mb-3 space-y-1 text-sm">{children}</ol>;
+            return <ol className="list-decimal pl-4 mb-3 space-y-2 tracking-wide text-base">{children}</ol>;
           },
           li({ children }) {
-            return <li className="leading-5">{children}</li>;
+            return <li className="leading-5 tracking-wide text-base">{children}</li>;
           },
           
           // Blockquotes

@@ -1,30 +1,23 @@
-import {
-    Menu,
-    Plus,
-    Search,
-    SidebarClose,
-    User
-} from "lucide-react";
+import { Menu, Plus, Search, SidebarClose, User } from "lucide-react";
 
 import { ConversationList } from "@/components/chat/ConversationList";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
-import { Input } from "../ui/input";
 
 interface ChatSidebarProps {
   activeConversationId: Id<"conversations"> | undefined;
-  onSelectConversation: (id: Id<"conversations"> | undefined) => void;
+  onSelectConversation: (id: Id<"conversations">) => void;
+  onNewChat: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -32,6 +25,7 @@ interface ChatSidebarProps {
 export function ChatSidebar({
   activeConversationId,
   onSelectConversation,
+  onNewChat,
   isCollapsed,
   onToggleCollapse,
 }: ChatSidebarProps) {
@@ -47,9 +41,6 @@ export function ChatSidebar({
           <div className="flex items-center gap-3">
             <div className="group-data-[collapsible=icon]:hidden">
               <h2 className="text-base font-semibold">R3 Chat</h2>
-              <p className="text-xs text-muted-foreground">
-                Team Communication
-              </p>
             </div>
           </div>
 
@@ -103,10 +94,6 @@ export function ChatSidebar({
       <SidebarContent className="px-2 py-4">
         {/* Expanded Header Actions */}
         <div className="group-data-[collapsible=icon]:hidden mb-4 space-y-2">
-          <div className="flex gap-2">
-            <Input placeholder="Search" className="flex-1 bg-background" />
-          </div>
-          <Separator />
         </div>
 
         {/* Conversation List Container */}
@@ -114,6 +101,7 @@ export function ChatSidebar({
           <ConversationList
             activeConversationId={activeConversationId}
             onSelectConversation={onSelectConversation}
+            onNewChat={onNewChat}
           />
         </div>
       </SidebarContent>

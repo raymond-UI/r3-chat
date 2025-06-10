@@ -1,56 +1,128 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState, useImperativeHandle, forwardRef } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StagedFiles } from "./StagedFiles";
 import { Send, Paperclip } from "lucide-react";
 import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
+import { useConversations } from "@/hooks/useConversations";
+import { useSendMessage } from "@/hooks/useMessages";
+import { useUser } from "@clerk/nextjs";
+import { useAI } from "@/hooks/useAI";
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 
 interface MessageInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSend: () => void;
+  // For existing chat mode
+  value?: string;
+  onChange?: (value: string) => void;
+  onSend?: () => void;
   disabled?: boolean;
   placeholder?: string;
+  selectedModel?: string;
+  onModelChange?: (model: string) => void;
+  
+  // For new chat mode
+  isNewChat?: boolean;
+  clearUploadedFiles?: () => void;
+  
+  // Common props
   uploadingFiles: FileWithPreview[];
   onUploadFiles: (files: File[]) => void;
   onRemoveFile: (index: number) => void;
   isUploading?: boolean;
   hasFilesToSend?: boolean;
-  selectedModel: string;
-  onModelChange: (model: string) => void;
+  uploadStagedFiles?: (conversationId: Id<"conversations">) => Promise<Id<"files">[]>;
 }
 
-export function MessageInput({
+export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, MessageInputProps>(({
   value,
   onChange,
   onSend,
   disabled = false,
   placeholder = "Type a message...",
+  selectedModel,
+  onModelChange,
+  isNewChat = false,
+  clearUploadedFiles,
   uploadingFiles,
   onUploadFiles,
   onRemoveFile,
   isUploading = false,
   hasFilesToSend = false,
-  selectedModel,
-  onModelChange,
-}: MessageInputProps) {
+  uploadStagedFiles,
+}, ref) => {
+  // Local state for new chat mode
+  const [localInputValue, setLocalInputValue] = useState("");
+  const [localSelectedModel, setLocalSelectedModel] = useState("meta-llama/llama-3.3-8b-instruct:free");
+  const [isSending, setIsSending] = useState(false);
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  const { user } = useUser();
+  const { create } = useConversations();
+  const { send } = useSendMessage();
+  const { sendToAI } = useAI();
+  const generateTitleAction = useAction(api.ai.generateTitle);
+
+  // Use local or prop values based on mode
+  const currentValue = isNewChat ? localInputValue : (value || "");
+  const currentSelectedModel = isNewChat ? localSelectedModel : (selectedModel || "");
+  const currentPlaceholder = isNewChat ? "Start a new conversation..." : placeholder;
+  const isDisabled = isNewChat ? isSending : disabled;
+
+  // Expose fill input function for new chat mode
+  useImperativeHandle(ref, () => ({
+    fillInput: (text: string) => {
+      if (isNewChat) {
+        setLocalInputValue(text);
+      } else if (onChange) {
+        onChange(text);
+      }
+      // Auto-resize textarea after setting value
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+  }), [isNewChat, onChange]);
+
+  const handleValueChange = (newValue: string) => {
+    if (isNewChat) {
+      setLocalInputValue(newValue);
+    } else if (onChange) {
+      onChange(newValue);
+    }
+  };
+
+  const handleModelChange = (model: string) => {
+    if (isNewChat) {
+      setLocalSelectedModel(model);
+    } else if (onModelChange) {
+      onModelChange(model);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (canSend) {
-        onSend();
+        handleSendMessage();
       }
     }
   };
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
+    handleValueChange(e.target.value);
 
     // Auto-resize textarea
     const textarea = e.target;
@@ -82,7 +154,57 @@ export function MessageInput({
   // - Has text content OR has uploaded files ready to send
   // - Not disabled
   // - Not currently uploading files
-  const canSend = (value.trim() || hasFilesToSend) && !disabled && !isUploading;
+  const canSend = (currentValue.trim() || hasFilesToSend) && !isDisabled && !isUploading;
+
+  const handleSendMessage = async () => {
+    if (isNewChat) {
+      // New chat creation logic
+      if (!user?.id || (!currentValue.trim() && !hasFilesToSend)) return;
+
+      const messageContent = currentValue.trim();
+      setLocalInputValue("");
+      setIsSending(true);
+      
+      try {
+        // Create new conversation
+        const conversationId = await create("New Chat");
+        
+        // Save any uploaded files to database
+        let uploadedFileIds: Id<"files">[] = [];
+        if (uploadStagedFiles && hasFilesToSend) {
+          uploadedFileIds = await uploadStagedFiles(conversationId);
+        }
+        
+        // Send message with uploaded file IDs
+        await send(conversationId, messageContent, "user", undefined, uploadedFileIds.length > 0 ? uploadedFileIds : undefined);
+        
+        // Clear staged files
+        if (clearUploadedFiles) {
+          clearUploadedFiles();
+        }
+
+        // Navigate to the conversation page
+        router.push(`/chat/${conversationId}`);
+
+        // Generate title and AI response in parallel
+        if (messageContent) {
+          generateTitleAction({ conversationId, firstMessage: messageContent }).catch(console.error);
+          sendToAI(conversationId, messageContent, currentSelectedModel).catch(console.error);
+        }
+      } catch (error) {
+        console.error("Failed to create conversation and send message:", error);
+        // Re-add message to input on error
+        setLocalInputValue(messageContent);
+      } finally {
+        setIsSending(false);
+      }
+    } else {
+      // Existing chat logic
+      if (onSend) {
+        onSend();
+      }
+    }
+  };
 
   return (
     <div className="bg-background rounded-t-md overflow-clip">
@@ -95,11 +217,11 @@ export function MessageInput({
         <div className="flex-1 w-full relative">
           <Textarea
             ref={textareaRef}
-            value={value}
+            value={currentValue}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder={isUploading ? "Files uploading..." : placeholder}
-            disabled={disabled}
+            placeholder={isUploading ? "Files uploading..." : currentPlaceholder}
+            disabled={isDisabled}
             className="min-h-[80px] w-full max-h-[120px] resize-none rounded-none rounded-t-md border-none focus-visible:ring-0 focus-visible:ring-offset-0"
             rows={1}
           />
@@ -118,8 +240,8 @@ export function MessageInput({
             />
 
             <ModelSelector
-              selectedModel={selectedModel}
-              onModelChange={onModelChange}
+              selectedModel={currentSelectedModel}
+              onModelChange={handleModelChange}
               hasImages={hasImages}
             />
 
@@ -128,7 +250,7 @@ export function MessageInput({
               variant="ghost"
               size="sm"
               onClick={handleFileSelect}
-              disabled={disabled}
+              disabled={isDisabled}
               className="flex-shrink-0"
               title="Upload files"
             >
@@ -137,7 +259,7 @@ export function MessageInput({
           </div>
           {/* Send Button */}
           <Button
-            onClick={onSend}
+            onClick={handleSendMessage}
             disabled={!canSend}
             className="flex-shrink-0"
             title={
@@ -154,4 +276,6 @@ export function MessageInput({
       </div>
     </div>
   );
-}
+});
+
+MessageInput.displayName = "MessageInput";
