@@ -19,6 +19,9 @@ export default defineSchema({
     aiModel: v.optional(v.string()),
     timestamp: v.number(),
     type: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
+    status: v.optional(v.union(v.literal("complete"), v.literal("streaming"), v.literal("error"))),
+    streamingForUser: v.optional(v.string()),
+    lastUpdated: v.optional(v.number()),
     attachments: v.optional(v.array(v.object({
       file_name: v.string(),
       file_type: v.string(), 
@@ -26,7 +29,8 @@ export default defineSchema({
       extracted_content: v.optional(v.string()),
       file_url: v.string(),
     }))),
-  }).index("by_conversation", ["conversationId"]),
+  }).index("by_conversation", ["conversationId"])
+    .index("by_status", ["status"]),
   presence: defineTable({
     userId: v.string(),
     conversationId: v.id("conversations"),

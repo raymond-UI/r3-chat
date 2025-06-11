@@ -1,4 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Get all messages for a conversation
@@ -39,6 +40,8 @@ export const send = mutation({
     type: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
     aiModel: v.optional(v.string()),
     fileIds: v.optional(v.array(v.id("files"))), // File IDs to attach
+    status: v.optional(v.union(v.literal("complete"), v.literal("streaming"), v.literal("error"))),
+    streamingForUser: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Build attachments array if files are provided
@@ -59,13 +62,17 @@ export const send = mutation({
         }));
     }
 
+    const now = Date.now();
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       userId: args.userId,
       content: args.content,
       type: args.type,
       aiModel: args.aiModel,
-      timestamp: Date.now(),
+      timestamp: now,
+      status: args.status || "complete",
+      streamingForUser: args.streamingForUser,
+      lastUpdated: now,
       attachments,
     });
 
@@ -79,10 +86,56 @@ export const send = mutation({
     // Update conversation's last message and timestamp
     await ctx.db.patch(args.conversationId, {
       lastMessage: args.content,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
 
     return messageId;
+  },
+});
+
+// Update streaming message content and status
+export const updateStreaming = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    content: v.string(),
+    status: v.optional(v.union(v.literal("streaming"), v.literal("complete"), v.literal("error"))),
+  },
+  handler: async (ctx, { messageId, content, status }) => {
+    await ctx.db.patch(messageId, {
+      content,
+      lastUpdated: Date.now(),
+      ...(status && { status }),
+    });
+  },
+});
+
+// Cleanup stale streaming messages
+export const cleanupStaleStreaming = internalMutation({
+  handler: async (ctx) => {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    
+    const staleMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_status", (q) => q.eq("status", "streaming"))
+      .filter((q) => q.lt(q.field("lastUpdated"), oneHourAgo))
+      .collect();
+
+    for (const message of staleMessages) {
+      await ctx.db.patch(message._id, {
+        status: "error",
+        content: message.content || "Message failed to complete",
+        lastUpdated: Date.now(),
+      });
+    }
+    
+    console.log(`Cleaned up ${staleMessages.length} stale streaming messages`);
+  },
+});
+
+// Schedule periodic cleanup
+export const scheduleCleanup = internalMutation({
+  handler: async (ctx) => {
+    await ctx.scheduler.runAfter(60 * 60 * 1000, internal.messages.cleanupStaleStreaming);
   },
 });
 

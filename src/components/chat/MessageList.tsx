@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
-import { Doc, Id } from "../../../convex/_generated/dataModel";
+import { Doc } from "../../../convex/_generated/dataModel";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { FilePreview } from "./FilePreview";
 
@@ -10,27 +10,12 @@ interface MessageWithFiles extends Doc<"messages"> {
   attachedFiles?: Doc<"files">[];
 }
 
-// Optimistic message type for streaming
-interface OptimisticMessage {
-  _id: string;
-  conversationId: Id<"conversations">;
-  userId: string;
-  content: string;
-  type: "user" | "ai" | "system";
-  timestamp: number;
-  aiModel?: string;
-  attachments?: Array<{
-    file_name: string;
-    file_type: string;
-    file_size: number;
-    file_url: string;
-    extracted_content?: string;
-  }>;
-  isOptimistic?: boolean;
-  isStreaming?: boolean;
+// 🆕 Enhanced message type with streaming status
+interface EnhancedMessage extends MessageWithFiles {
+  isRealTimeStreaming?: boolean;
 }
 
-type MessageType = MessageWithFiles | OptimisticMessage;
+type MessageType = EnhancedMessage;
 
 interface MessageListProps {
   messages: MessageType[];
@@ -58,17 +43,23 @@ export function MessageList({ messages }: MessageListProps) {
         const isCurrentUser = message.userId === user?.id;
         const isAI = message.type === "ai";
         const isSystem = message.type === "system";
-        const isOptimistic = 'isOptimistic' in message && message.isOptimistic;
-        const isStreaming = 'isStreaming' in message && message.isStreaming;
-        const hasFiles = 'attachedFiles' in message && message.attachedFiles && message.attachedFiles.length > 0;
+        // 🆕 Enhanced streaming status detection
+        const isStreaming = message.status === "streaming";
+        // const isMyStream = message.streamingForUser === user?.id;
+        const isRealTimeStreaming = message.isRealTimeStreaming || false;
+        const hasFiles =
+          "attachedFiles" in message &&
+          message.attachedFiles &&
+          message.attachedFiles.length > 0;
 
         return (
           <div
             key={message._id}
             className={cn(
-              "flex flex-col px-2 sm:px-0 gap-1 sm:max-w-[90%] w-full",
+              "flex flex-col px-2 sm:px-0 gap-1 sm:max-w-[90%] h-full w-full",
               isCurrentUser && !isAI ? "m-auto" : "",
-              isOptimistic ? "opacity-95" : ""
+              // 🆕 Visual indication for streaming messages
+              isStreaming ? "opacity-95" : ""
             )}
           >
             {/* sender */}
@@ -80,7 +71,8 @@ export function MessageList({ messages }: MessageListProps) {
             >
               {isAI ? (
                 <span className="text-xs text-muted-foreground order-1">
-                  Assistant{isStreaming ? " (typing...)" : ""}:
+                  {/*  streaming indicator */}
+                  Assistant:
                 </span>
               ) : isSystem ? (
                 <span className="text-xs text-muted-foreground">System:</span>
@@ -110,13 +102,19 @@ export function MessageList({ messages }: MessageListProps) {
               )}
             >
               {/* Attached Files */}
-              {hasFiles && 'attachedFiles' in message && (
-                <div className={cn(
-                  "flex flex-col gap-2 max-w-md",
-                  isCurrentUser && !isAI ? "items-end" : "items-start"
-                )}>
+              {hasFiles && "attachedFiles" in message && (
+                <div
+                  className={cn(
+                    "flex flex-col gap-2 max-w-md",
+                    isCurrentUser && !isAI ? "items-end" : "items-start"
+                  )}
+                >
                   {message.attachedFiles?.map((file) => (
-                    <FilePreview key={file._id} file={file} className="max-w-full" />
+                    <FilePreview
+                      key={file._id}
+                      file={file}
+                      className="max-w-full"
+                    />
                   ))}
                 </div>
               )}
@@ -143,8 +141,8 @@ export function MessageList({ messages }: MessageListProps) {
                   ) : (
                     <div className="relative">
                       <MarkdownRenderer content={message.content} />
-                      {/* Show blinking cursor while streaming */}
-                      {isStreaming && (
+                      {/* 🆕 Enhanced streaming cursor - only show for real-time streaming */}
+                      {isRealTimeStreaming && (
                         <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse ml-1" />
                       )}
                     </div>

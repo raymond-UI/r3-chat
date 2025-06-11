@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StagedFiles } from "./StagedFiles";
-import { Send, Paperclip, Settings2 } from "lucide-react";
+import { Send, Paperclip, Settings2, Loader2 } from "lucide-react";
 import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
 import { useConversations } from "@/hooks/useConversations";
@@ -294,7 +294,11 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
                   : "Send message"
             }
           >
-            <Send className="h-4 w-4" />
+            {isSending || isStreaming || isUploading || canSend ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>

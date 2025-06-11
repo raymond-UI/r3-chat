@@ -1,11 +1,10 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { Agent } from "@convex-dev/agent";
-import { components } from "./_generated/api";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { env } from "@/env";
 import { Id } from "./_generated/dataModel";
+import { streamText } from "ai";
 
 const http = httpRouter();
 
@@ -41,7 +40,7 @@ http.route({
   }),
 });
 
-// HTTP endpoint for streaming AI responses using Convex Agent best practices
+// 🆕 Real AI SDK streaming with multi-user coordination
 http.route({
   path: "/ai/stream",
   method: "POST",
@@ -60,68 +59,49 @@ http.route({
         });
       }
 
-      // Create agent with proper streaming configuration
-      const streamingAgent = new Agent(components.agent, {
-        chat: openRouterProvider(
-          model || "meta-llama/llama-3.3-8b-instruct:free"
-        ),
-        instructions: `You are a helpful AI assistant in R3 Chat, a collaborative chat application. 
-Be concise, friendly, and helpful. If the conversation involves multiple users, acknowledge the collaborative context appropriately.
-Use the available tools when needed to provide accurate and up-to-date information.`,
-        maxSteps: 5,
-        maxRetries: 3,
+      // 🆕 FIRST: Create the AI message in database for multi-user coordination
+      const aiMessageId = await ctx.runMutation(api.messages.send, {
+        conversationId: conversationId as Id<"conversations">,
+        userId: "ai-assistant",
+        content: "",
+        type: "ai",
+        aiModel: model || "meta-llama/llama-3.3-8b-instruct:free",
+        status: "streaming",
+        streamingForUser: userId, // Track who initiated
       });
 
-      // Let Agent create and manage threads automatically
-      // Pass only userId, Agent will handle thread creation/management internally
-      const result = await streamingAgent.generateText(
-        ctx,
-        { userId },
-        {
-          prompt: userMessage,
-        }
-      );
+      // 🆕 Start background processing for multi-user coordination (using same message)
+      ctx.scheduler.runAfter(0, api.ai.streamAgentResponse, {
+        messageId: aiMessageId, // Pass the message ID
+        conversationId: conversationId as Id<"conversations">,
+        userMessage,
+        model: model || "meta-llama/llama-3.3-8b-instruct:free",
+        userId,
+      });
 
-      // Create a readable stream for real-time response
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            // Get the complete text from Agent (Agent handles internal streaming)
-            const fullText = result.text;
-
-            // Simulate streaming for UX by breaking text into chunks
-            const words = fullText.split(" ");
-
-            for (const word of words) {
-              controller.enqueue(new TextEncoder().encode(word + " "));
-              // Small delay for streaming effect
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-
-            // Save the complete response to database
-            await ctx.runMutation(api.messages.send, {
-              conversationId: conversationId as Id<"conversations">,
-              userId: "ai-assistant",
-              content: fullText,
-              type: "ai",
-              aiModel: model || "meta-llama/llama-3.3-8b-instruct:free",
-            });
-
-            controller.close();
-          } catch (error) {
-            console.error("Agent streaming error:", error);
-            controller.error(error);
-          }
+      // 🆕 Real-time AI SDK streaming for the active user
+      const result = await streamText({
+        model: openRouterProvider(model || "meta-llama/llama-3.3-8b-instruct:free"),
+        prompt: userMessage,
+        onFinish: async (result) => {
+          // Update the database message when streaming completes
+          await ctx.runMutation(internal.messages.updateStreaming, {
+            messageId: aiMessageId,
+            content: result.text,
+            status: "complete",
+          });
         },
       });
 
-      return new Response(stream, {
+      // Return real AI SDK stream response with correct method name
+      return result.toDataStreamResponse({
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Vary": "origin",
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-cache",
-          Connection: "keep-alive",
+          "Connection": "keep-alive",
+          "X-Message-Id": aiMessageId, // Send message ID to frontend
         },
       });
     } catch (error) {

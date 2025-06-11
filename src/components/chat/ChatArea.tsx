@@ -10,30 +10,11 @@ import { usePresence } from "@/hooks/usePresence";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { AiIndicator } from "../indicators/AiIndicator";
 
 interface ChatAreaProps {
   conversationId: Id<"conversations">;
   aiEnabled: boolean;
-}
-
-// Optimistic message type for streaming
-interface OptimisticMessage {
-  _id: string;
-  conversationId: Id<"conversations">;
-  userId: string;
-  content: string;
-  type: "user" | "ai" | "system";
-  timestamp: number;
-  aiModel?: string;
-  attachments?: Array<{
-    file_name: string;
-    file_type: string;
-    file_size: number;
-    file_url: string;
-    extracted_content?: string;
-  }>;
-  isOptimistic?: boolean;
-  isStreaming?: boolean;
 }
 
 export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
@@ -54,22 +35,35 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
-  // Optimistic messages for real-time streaming
-  const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
+  // 🆕 Track streaming content for active user only (real-time streaming)
+  const [activeStreamingContent, setActiveStreamingContent] = useState<Record<string, string>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { user } = useUser();
 
-  // Combine real and optimistic messages
-  const allMessages = [
-    ...messages.map(m => ({ ...m, isOptimistic: false as const })),
-    ...optimisticMessages
-  ].sort((a, b) => a.timestamp - b.timestamp);
+  // 🆕 Enhanced message display with proper status from database
+  const displayMessages = messages.map(message => {
+    // Show real-time streaming content for the user who initiated the stream
+    if (message.status === "streaming" && message.streamingForUser === user?.id) {
+      // Use a simple key that matches any active streaming
+      const streamingContent = activeStreamingContent["active-stream"];
+      
+      return {
+        ...message,
+        content: streamingContent || message.content,
+        isRealTimeStreaming: Boolean(streamingContent),
+      };
+    }
+    return {
+      ...message,
+      isRealTimeStreaming: false,
+    };
+  });
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [allMessages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "end" });
+  }, [displayMessages]);
 
   const handleSendMessage = useCallback(async () => {
     if (!user?.id || (!inputValue.trim() && !hasFilesToSend)) return;
@@ -80,7 +74,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
     try {
       // Send user message with uploaded file IDs
-      await send(
+      const userMessage = await send(
         conversationId,
         messageContent,
         "user",
@@ -92,63 +86,38 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       clearUploadedFiles();
       await stopTyping();
 
-      // Generate AI response if enabled with optimistic updates
-      if (aiEnabled && messageContent) {
-        // Create optimistic AI message that will be updated in real-time
-        const optimisticAIMessage: OptimisticMessage = {
-          _id: `optimistic-ai-${Date.now()}`,
-          conversationId,
-          userId: "ai-assistant",
-          content: "",
-          type: "ai",
-          timestamp: Date.now(),
-          aiModel: selectedModel,
-          isOptimistic: true,
-          isStreaming: true,
-        };
-
-        // Add optimistic message to state
-        setOptimisticMessages(prev => [...prev, optimisticAIMessage]);
-
-        await streamToAI(
-          conversationId,
-          messageContent,
-          selectedModel,
-          // Real-time chunk handler - updates optimistic message
-          (chunk: string) => {
-            setOptimisticMessages(prev => 
-              prev.map(msg => 
-                msg._id === optimisticAIMessage._id 
-                  ? { ...msg, content: msg.content + chunk }
-                  : msg
-              )
-            );
-          },
-          // Complete handler - marks streaming as done
-          (fullResponse: string) => {
-            setOptimisticMessages(prev => 
-              prev.map(msg => 
-                msg._id === optimisticAIMessage._id 
-                  ? { ...msg, content: fullResponse, isStreaming: false }
-                  : msg
-              )
-            );
-            
-            // Remove optimistic message after a delay to let real message appear
-            setTimeout(() => {
-              setOptimisticMessages(prev => 
-                prev.filter(msg => msg._id !== optimisticAIMessage._id)
-              );
-            }, 1000);
-          }
-        );
+      // 🆕 Real streaming with multi-user coordination
+      if (aiEnabled && messageContent && userMessage) {
+        try {
+          await streamToAI(
+            conversationId,
+            messageContent,
+            selectedModel,
+            // Real-time chunks for active user
+            (chunk: string) => {
+              setActiveStreamingContent(prev => ({
+                ...prev,
+                "active-stream": (prev["active-stream"] || "") + chunk
+              }));
+            },
+            // Complete handler
+            () => {
+              console.log("✅ Streaming complete");
+              // Clear all streaming content - database message should now be complete
+              setActiveStreamingContent({});
+            }
+          );
+        } catch (error) {
+          console.error("Streaming error:", error);
+          setActiveStreamingContent({});
+        }
       }
     } catch (error) {
       console.error("Failed to send message:", error);
       // Re-add message to input on error
       setInputValue(messageContent);
-      // Clear any optimistic messages
-      setOptimisticMessages([]);
+      // Clear any streaming content
+      setActiveStreamingContent({});
     } finally {
       setIsSending(false);
     }
@@ -202,10 +171,10 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     <div className="flex-1 flex flex-col w-full h-full relative mx-auto overflow-y-auto">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto">
-        <MessageList messages={allMessages} />
+        <MessageList messages={displayMessages} />
 
-        {/* AI Generating Indicator */}
-        {isStreaming && !optimisticMessages.length && (
+        {/* 🆕 Multi-user streaming indicators based on database status */}
+        {messages.some(m => m.status === "streaming" && m.streamingForUser !== user?.id) && (
           <div className="mt-4 -translate-y-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="flex space-x-1">
@@ -213,8 +182,15 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
                 <div className="w-3 h-3 bg-current rounded-full animate-bounce delay-100"></div>
                 <div className="w-3 h-3 bg-current rounded-full animate-bounce delay-200"></div>
               </div>
-              <span>AI is thinking...</span>
+              <span>Assistant...</span>
             </div>
+          </div>
+        )}
+
+        {/* 🆕 Enhanced streaming indicators */}
+        {isStreaming && (
+          <div className="mt-4">
+            <AiIndicator />
           </div>
         )}
 

@@ -3,13 +3,14 @@ import { v } from "convex/values";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createTool, Agent } from "@convex-dev/agent";
 import { components } from "./_generated/api";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { getAIModelsArray, type AIModel } from "@/types/ai";
 import { env } from "@/env";
 import { z } from "zod";
 import { AI_PROMPTS, AGENT_CONFIG, MODEL_CONFIG } from "@/utils/prompts";
+import { streamText } from "ai";
 
 // Configure OpenRouter provider
 const openRouterProvider = createOpenRouter({
@@ -76,8 +77,87 @@ const aiAgent = new Agent(components.agent, {
   },
 });
 
-// Note: streamAgentResponse removed - now handled by HTTP streaming endpoint in convex/http.ts
-// This simplifies the architecture by using the recommended Convex Agent patterns
+// Enhanced streaming with multi-user coordination using existing or new message
+export const streamAgentResponse = action({
+  args: {
+    messageId: v.optional(v.id("messages")), // 🆕 Optional: use existing message
+    conversationId: v.id("conversations"),
+    userMessage: v.string(),
+    model: v.string(),
+    userId: v.string(),
+  },
+  handler: async (
+    ctx: ActionCtx,
+    {
+      messageId,
+      conversationId,
+      userMessage,
+      model,
+      userId,
+    }: {
+      messageId?: Id<"messages">;
+      conversationId: Id<"conversations">;
+      userMessage: string;
+      model: string;
+      userId: string;
+    }
+  ): Promise<{ messageId: Id<"messages">; fullText: string }> => {
+    // Use existing message or create new one
+    const aiMessageId = messageId || await ctx.runMutation(api.messages.send, {
+      conversationId,
+      userId: "ai-assistant",
+      content: "",
+      type: "ai",
+      aiModel: model,
+      status: "streaming",
+      streamingForUser: userId, // Track who initiated
+    });
+
+    try {
+      let accumulatedContent = "";
+      let lastUpdate = Date.now();
+      const UPDATE_INTERVAL = 2000; // Update other users every 2 seconds
+
+      const result = await streamText({
+        model: openRouterProvider(model),
+        prompt: userMessage,
+        onChunk: async ({ chunk }) => {
+          if (chunk.type === "text-delta") {
+            accumulatedContent += chunk.textDelta || "";
+          }
+          
+          // Periodic updates for other users (not the initiator)
+          if (Date.now() - lastUpdate > UPDATE_INTERVAL) {
+            await ctx.runMutation(internal.messages.updateStreaming, {
+              messageId: aiMessageId,
+              content: accumulatedContent,
+            });
+            lastUpdate = Date.now();
+          }
+        },
+        onFinish: async (result) => {
+          // Final update - mark as complete
+          await ctx.runMutation(internal.messages.updateStreaming, {
+            messageId: aiMessageId,
+            content: result.text,
+            status: "complete",
+          });
+        },
+      });
+
+      const fullText = await result.text;
+      return { messageId: aiMessageId, fullText };
+    } catch (error) {
+      console.error("Streaming agent response error:", error);
+      await ctx.runMutation(internal.messages.updateStreaming, {
+        messageId: aiMessageId,
+        content: "Sorry, I encountered an error generating a response.",
+        status: "error",
+      });
+      throw error;
+    }
+  },
+});
 
 // Generate AI response with agent (non-streaming version for background tasks)
 export const generateAgentResponse = action({
