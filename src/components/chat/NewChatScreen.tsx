@@ -4,7 +4,7 @@ import { Sparkles, Code, BookOpen, Search } from "lucide-react";
 import { MessageInput } from "./MessageInput";
 import { useFiles } from "@/hooks/useFiles";
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { gsap } from "gsap";
 import { Button } from "../ui/button";
 import { useUser } from "@clerk/nextjs";
@@ -331,7 +331,7 @@ export function NewChatScreen() {
 
       {/* Message Input */}
       <motion.div
-        className="bg-secondary/60 backdrop-blur shadow-2xl p-2 w-full rounded-lg max-w-4xl mx-auto mt-0"
+        className="w-full"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}

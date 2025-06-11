@@ -91,6 +91,59 @@ export const updateLastMessage = mutation({
   },
 });
 
+// Delete a conversation and all its messages
+export const remove = mutation({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, { conversationId }) => {
+    // Delete all messages in the conversation first
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
+      .collect();
+    
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
+
+    // Delete all files associated with the conversation
+    const files = await ctx.db
+      .query("files")
+      .filter((q) => q.eq(q.field("conversationId"), conversationId))
+      .collect();
+    
+    for (const file of files) {
+      await ctx.db.delete(file._id);
+    }
+
+    // Delete presence records for this conversation
+    const presenceRecords = await ctx.db
+      .query("presence")
+      .filter((q) => q.eq(q.field("conversationId"), conversationId))
+      .collect();
+    
+    for (const presence of presenceRecords) {
+      await ctx.db.delete(presence._id);
+    }
+
+    // Remove from pinned conversations for all users
+    const userPrefs = await ctx.db
+      .query("userPreferences")
+      .collect();
+    
+    for (const pref of userPrefs) {
+      if (pref.pinnedConversations.includes(conversationId)) {
+        await ctx.db.patch(pref._id, {
+          pinnedConversations: pref.pinnedConversations.filter(id => id !== conversationId),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    // Finally, delete the conversation
+    await ctx.db.delete(conversationId);
+  },
+});
+
 // Note: Migration completed - threadId field removed from all conversations
 // Agent now handles thread management internally with string identifiers
 // No need to store threadId in conversation table 

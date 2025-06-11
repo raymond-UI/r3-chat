@@ -5,6 +5,8 @@ import { useUser } from "@clerk/nextjs";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { FilePreview } from "./FilePreview";
+import { ChatBubbleAction } from "../actions/ChatBubbleAction";
+import { useState } from "react";
 
 interface MessageWithFiles extends Doc<"messages"> {
   attachedFiles?: Doc<"files">[];
@@ -23,6 +25,26 @@ interface MessageListProps {
 
 export function MessageList({ messages }: MessageListProps) {
   const { user } = useUser();
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+  };
+
+  const handleEdit = (messageId: string) => {
+    // TODO: Implement edit functionality
+    console.log("Edit message:", messageId);
+  };
+
+  const handleRetry = (messageId: string) => {
+    // TODO: Implement retry functionality
+    console.log("Retry message:", messageId);
+  };
+
+  const handleBranchOut = (messageId: string) => {
+    // TODO: Implement branch out functionality
+    console.log("Branch out from message:", messageId);
+  };
 
   if (messages.length === 0) {
     return (
@@ -61,6 +83,8 @@ export function MessageList({ messages }: MessageListProps) {
               // 🆕 Visual indication for streaming messages
               isStreaming ? "opacity-95" : ""
             )}
+            onMouseEnter={() => setHoveredMessageId(message._id)}
+            onMouseLeave={() => setHoveredMessageId(null)}
           >
             {/* sender */}
             <div
@@ -123,13 +147,13 @@ export function MessageList({ messages }: MessageListProps) {
               {message.content && (
                 <div
                   className={cn(
-                    "rounded-2xl p-2 break-words max-w-full",
+                    "rounded-2xl p-2 break-words max-w-full relative",
                     isAI
                       ? "bg-transparent text-foreground"
                       : isSystem
                         ? "bg-transparent text-foreground wrap-anywhere border w-full text-sm"
                         : isCurrentUser
-                          ? "bg-primary/20 text-primary"
+                          ? "bg-primary/10 text-primary max-h-80 overflow-y-auto"
                           : "bg-muted text-foreground"
                   )}
                 >
@@ -149,6 +173,35 @@ export function MessageList({ messages }: MessageListProps) {
                   )}
                 </div>
               )}
+
+              {/* Chat Bubble Actions - Positioned below message */}
+ 
+              <div className={cn(
+                "flex h-9 w-full",
+                isCurrentUser && !isAI ? "justify-end" : "justify-start"
+              )}>
+                <ChatBubbleAction
+                  visible={hoveredMessageId === message._id}
+                  onEdit={(e) => {
+                    e.stopPropagation();
+                    handleEdit(message._id);
+                  }}
+                  onRetry={(e) => {
+                    e.stopPropagation();
+                    handleRetry(message._id);
+                  }}
+                  onCopy={(e) => {
+                    e.stopPropagation();
+                    handleCopy(message.content);
+                  }}
+                  onBranchOut={(e) => {
+                    e.stopPropagation();
+                    handleBranchOut(message._id);
+                  }}
+                  isAssistant={isAI}
+                />
+              </div>
+
             </div>
           </div>
         );

@@ -91,9 +91,9 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
             />
 
             {/* Main Content Area */}
-            <div className="flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col bg-sidebar pt-4 pl-4">
               {/* Dynamic Content */}
-              <main className="flex-1 w-full overflow-hidden">{children}</main>
+              <main className="bg-background border border-secondary flex-1 w-full overflow-hidden rounded-tl-2xl">{children}</main>
             </div>
           </div>
         </SidebarProvider>

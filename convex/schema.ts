@@ -52,4 +52,11 @@ export default defineSchema({
     analysisResult: v.optional(v.string()), // AI analysis summary
     thumbnailUrl: v.optional(v.string()), // For file previews
   }),
+  // User preferences (pinned conversations, etc.)
+  userPreferences: defineTable({
+    userId: v.string(),
+    pinnedConversations: v.array(v.id("conversations")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 }); 

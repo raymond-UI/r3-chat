@@ -8,11 +8,11 @@ import { useFiles } from "@/hooks/useFiles";
 import { useMessages, useSendMessage } from "@/hooks/useMessages";
 import { usePresence } from "@/hooks/usePresence";
 import { useUser } from "@clerk/nextjs";
+import { ArrowDown } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { AiIndicator } from "../indicators/AiIndicator";
 import { Button } from "../ui/button";
-import { ArrowDown } from "lucide-react";
 
 interface ChatAreaProps {
   conversationId: Id<"conversations">;
@@ -259,8 +259,10 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   if (isLoading) {
     return (
       <div className="flex-1 w-full flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          Loading conversation...
+        <div className="flex items-center space-x-1">
+          <div className="size-3 bg-current rounded-full animate-bounce"></div>
+          <div className="size-4 bg-current rounded-full animate-bounce delay-100"></div>
+          <div className="size-3 bg-current rounded-full animate-bounce delay-200"></div>
         </div>
       </div>
     );
@@ -333,7 +335,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       </div>
 
       {/* Message Input */}
-      <div className="bg-secondary/60 backdrop-blur shadow-2xl p-2 pb-0 w-full rounded-t-lg max-w-3xl mx-auto">
+      <div className="w-full">
         <MessageInput
           value={inputValue}
           onChange={handleInputChange}

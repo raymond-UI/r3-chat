@@ -4,9 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConversations } from "@/hooks/useConversations";
 import { useDebounce } from "@/hooks/useDebounce";
-import { MessageSquare, Search, Users, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { ConversationListAction } from "../actions/ConversationListAction";
+import { ConfirmationModal } from "../actions/ConfirmationModal";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface ConversationListProps {
   activeConversationId?: Id<"conversations">;
@@ -30,11 +42,21 @@ export function ConversationList({
   onSelectConversation,
   onNewChat,
 }: ConversationListProps) {
-  const { conversations, isLoading } = useConversations();
+  const { conversations, pinnedConversations, remove, pin, isLoading } =
+    useConversations();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Debounce search query for performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Add state for hovered conversation
+  const [hoveredId, setHoveredId] = useState<Id<"conversations"> | null>(null);
+  const [pinnedOpen, setPinnedOpen] = useState(true);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] =
+    useState<Id<"conversations"> | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery("");
@@ -61,6 +83,44 @@ export function ConversationList({
 
     return sorted;
   }, [conversations, debouncedSearchQuery]);
+
+  // Pin/unpin logic
+  const handlePin = (id: Id<"conversations">, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent conversation selection
+    pin(id).catch((error) => {
+      console.error("Failed to toggle pin:", error);
+    });
+  };
+
+  // Delete logic
+  const handleDelete = (id: Id<"conversations">, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setConversationToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!conversationToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await remove(conversationToDelete);
+      setIsDeleteModalOpen(false);
+      setConversationToDelete(null);
+      router.replace(`/`);
+      toast.success("Conversation deleted successfully");
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+      toast.error("Failed to delete conversation. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Split conversations into pinned and unpinned using persistent data
+  const pinnedConversationsList = filteredAndSortedConversations.filter((c) =>
+    pinnedConversations.includes(c._id)
+  );
 
   const groupedConversations = useMemo(() => {
     if (!filteredAndSortedConversations.length) return [];
@@ -113,6 +173,10 @@ export function ConversationList({
     onNewChat();
   };
 
+  const conversationToDeleteObj = conversations.find(
+    (c) => c._id === conversationToDelete
+  );
+
   if (isLoading) {
     return (
       <div className="p-4">
@@ -131,7 +195,7 @@ export function ConversationList({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p- border-b border-border space-y-3">
+      <div className="space-y-3">
         <div className="flex flex-col items-center justify-between">
           <h2 className="sr-only">Conversations</h2>
           <Button onClick={handleQuickStart} className="w-full">
@@ -140,13 +204,13 @@ export function ConversationList({
         </div>
 
         {/* Search Bar */}
-        <div className="relative">
+        <div className="relative px-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 h-9 rounded-none border-none border-b"
+            className="px-6 h-9 bg-sidebar rounded-none border-none border-b focus-visible:ring-0 focus-visible:ring-offset-0"
           />
           {searchQuery && (
             <Button
@@ -196,45 +260,122 @@ export function ConversationList({
           </div>
         ) : (
           <div className="space-y-4 mt-8">
-            {groupedConversations.map((group) => (
-              <div
-                key={group.label}
-                className="mt-2 p-2 border-b last:border-b-0 border-primary/25"
-              >
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 font-mono mb-2">
-                  {group.label}
-                </h3>
-                <div className="space-y-1">
-                  {group.conversations.map((conversation) => (
-                    <div
-                      key={conversation._id}
-                      onClick={() => onSelectConversation(conversation._id)}
-                      className={`
-                        p-2 rounded-lg cursor-pointer transition-colors
-                        hover:bg-background/50 text-foreground
-                        ${
+            {/* Pinned group */}
+            {pinnedConversationsList.length > 0 && (
+              <div className="mt-2 p-2">
+                <div
+                  className="flex items-center justify-between px-2 cursor-pointer select-none"
+                  onClick={() => setPinnedOpen((v) => !v)}
+                >
+                  <h3 className="text-xs font-bold text-primary tracking-wider font-mono mb-2">
+                    Pinned
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {pinnedOpen ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronUp className="h-4 w-4" />
+                    )}
+                  </span>
+                </div>
+                {pinnedOpen && (
+                  <div className="space-y-1">
+                    {pinnedConversationsList.map((conversation) => (
+                      <div
+                        key={conversation._id}
+                        onClick={() => onSelectConversation(conversation._id)}
+                        onMouseEnter={() => setHoveredId(conversation._id)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        className={`relative p-2 px-4 rounded cursor-pointer transition-colors hover:bg-muted text-foreground ${
                           activeConversationId === conversation._id
                             ? "bg-background border border-border"
                             : ""
-                        }
-                      `}
-                    >
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium truncate text-ellipsis">
-                          {conversation.title}
-                        </h3>
-                        {conversation.isCollaborative && (
-                          <Users className="h-3 w-3 text-muted-foreground" />
-                        )}
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm truncate text-ellipsis">
+                            {conversation.title}
+                          </h3>
+                          {conversation.isCollaborative && (
+                            <Users className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <ConversationListAction
+                          visible={hoveredId === conversation._id}
+                          isPinned={pinnedConversations.includes(
+                            conversation._id
+                          )}
+                          onPin={(event) => handlePin(conversation._id, event)}
+                          onDelete={(event) =>
+                            handleDelete(conversation._id, event)
+                          }
+                        />
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Regular groups */}
+            {groupedConversations.map((group) => (
+              <div key={group.label} className="mt-2 p-2">
+                <h3 className="text-xs font-medium text-primary  tracking-wider px-2 font-mono mb-2">
+                  {group.label}
+                </h3>
+                <div className="space-y-1">
+                  {group.conversations
+                    .filter((c) => !pinnedConversations.includes(c._id))
+                    .map((conversation) => (
+                      <div
+                        key={conversation._id}
+                        onClick={() => onSelectConversation(conversation._id)}
+                        onMouseEnter={() => setHoveredId(conversation._id)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        className={`relative p-2 px-4 rounded cursor-pointer transition-colors hover:bg-muted text-foreground ${
+                          activeConversationId === conversation._id
+                            ? "bg-background border border-border"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm truncate text-ellipsis">
+                            {conversation.title}
+                          </h3>
+                          {conversation.isCollaborative && (
+                            <Users className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <ConversationListAction
+                          visible={hoveredId === conversation._id}
+                          isPinned={pinnedConversations.includes(
+                            conversation._id
+                          )}
+                          onPin={(event) => handlePin(conversation._id, event)}
+                          onDelete={(event) =>
+                            handleDelete(conversation._id, event)
+                          }
+                        />
+                      </div>
+                    ))}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Conversation"
+        titleIcon={<Trash2 className="h-4 w-4" />}
+        description={`Are you sure you want to delete "${conversationToDeleteObj?.title}"? This action cannot be undone.`}
+        confirmButtonProps={{
+          variant: "destructive",
+          onClick: confirmDelete,
+          disabled: isDeleting,
+          children: isDeleting ? "Deleting..." : "Delete",
+        }}
+      />
     </div>
   );
 }

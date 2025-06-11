@@ -27,7 +27,7 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   return (
     <Sidebar
-      className="border-r border-border/50 "
+    className="border-none"
       collapsible="offcanvas"
       side="left"
     >
@@ -56,19 +56,7 @@ export function ChatSidebar({
         </Button>
       </div>
 
-      <SidebarContent className="px-2 py-4">
-        {/* Expanded Header Actions */}
-        {/* <div className="group-data-[collapsible=icon]:hidden mb-4 space-y-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2"
-            onClick={onNewChat}
-          >
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Button>
-        </div> */}
+      <SidebarContent className="px-2 py-4 border-none">
 
         {/* Conversation List Container */}
         <div className="flex-1 overflow-hidden">
