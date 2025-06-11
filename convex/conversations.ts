@@ -26,21 +26,21 @@ export const get = query({
 
 // Create a new conversation
 export const create = mutation({
-  args: { 
+  args: {
     title: v.string(),
-    userId: v.string(),
-    isCollaborative: v.optional(v.boolean())
+    participants: v.array(v.string()),
+    isCollaborative: v.boolean(),
   },
-  handler: async (ctx, { title, userId, isCollaborative = false }) => {
-    const conversationId = await ctx.db.insert("conversations", {
+  handler: async (ctx, { title, participants, isCollaborative }) => {
+    const now = Date.now();
+    return await ctx.db.insert("conversations", {
       title,
-      participants: [userId],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      participants,
+      lastMessage: undefined,
+      createdAt: now,
+      updatedAt: now,
       isCollaborative,
     });
-    
-    return conversationId;
   },
 });
 
@@ -65,9 +65,9 @@ export const addParticipant = mutation({
 
 // Update conversation title
 export const updateTitle = mutation({
-  args: { 
+  args: {
     conversationId: v.id("conversations"),
-    title: v.string()
+    title: v.string(),
   },
   handler: async (ctx, { conversationId, title }) => {
     await ctx.db.patch(conversationId, {
@@ -77,16 +77,20 @@ export const updateTitle = mutation({
   },
 });
 
-// Patch threadId for a conversation
-export const patchThreadId = mutation({
+// Update last message
+export const updateLastMessage = mutation({
   args: {
     conversationId: v.id("conversations"),
-    threadId: v.string(),
+    lastMessage: v.string(),
   },
-  handler: async (ctx, { conversationId, threadId }) => {
+  handler: async (ctx, { conversationId, lastMessage }) => {
     await ctx.db.patch(conversationId, {
-      threadId,
+      lastMessage,
       updatedAt: Date.now(),
     });
   },
-}); 
+});
+
+// Note: Migration completed - threadId field removed from all conversations
+// Agent now handles thread management internally with string identifiers
+// No need to store threadId in conversation table 

@@ -20,7 +20,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   const { messages, isLoading } = useMessages(conversationId);
   const { send } = useSendMessage();
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
-  const { selectedModel, setSelectedModel, isGenerating, sendToAI } = useAI();
+  const { selectedModel, setSelectedModel, isStreaming, streamToAI } = useAI();
   const {
     // files,
     uploadingFiles,
@@ -66,7 +66,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
       // Generate AI response if enabled (attachments are handled by message.send)
       if (aiEnabled && messageContent) {
-        await sendToAI(conversationId, messageContent, selectedModel);
+        await streamToAI(conversationId, messageContent, selectedModel);
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -85,7 +85,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     clearUploadedFiles,
     stopTyping,
     aiEnabled,
-    sendToAI,
+    streamToAI,
     selectedModel,
   ]);
 
@@ -128,7 +128,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         <MessageList messages={messages} />
 
         {/* AI Generating Indicator */}
-        {isGenerating && (
+        {isStreaming && (
           <div className="mt-4 -translate-y-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="flex space-x-1">
@@ -157,9 +157,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
           value={inputValue}
           onChange={handleInputChange}
           onSend={handleSendMessage}
-          disabled={isSending || isGenerating}
+          disabled={isSending || isStreaming}
           placeholder={
-            isGenerating ? "AI is responding..." : "Type a message..."
+            isStreaming ? "AI is responding..." : "Type a message..."
           }
           uploadingFiles={uploadingFiles}
           onUploadFiles={uploadFiles}

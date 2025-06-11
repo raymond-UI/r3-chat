@@ -165,17 +165,22 @@ Our implementation uses a dual approach that works with Convex Agent's built-in 
 
 ### Thread Management Strategy
 
-**Key Insight**: Convex Agent manages threads internally. We provide string-based thread identifiers that the Agent uses to maintain conversation context:
+**Key Insight**: Convex Agent manages threads internally. We should let the Agent create and manage threads automatically rather than providing custom thread identifiers:
 
 ```typescript
-// Thread ID format: conversation_${conversationId}_${userId}
-const threadId = `conversation_${conversationId}_${userId}`;
+// ✅ CORRECT: Let Agent handle thread management automatically
+const result = await agent.generateText(ctx, { userId }, {
+  prompt: userMessage,
+});
 
-// Agent handles all internal thread management
+// ❌ INCORRECT: Custom thread IDs cause validation errors
+const threadId = `conversation_${conversationId}_${userId}`;
 const result = await agent.generateText(ctx, { userId, threadId }, {
   prompt: userMessage,
 });
 ```
+
+The Agent creates its own internal threads table and validates thread IDs must be proper Convex IDs from this table. Custom string patterns will fail validation.
 
 ### Convex HTTP Streaming Endpoint
 
@@ -281,18 +286,21 @@ const streamToAI = async (conversationId, userMessage, model, onChunk, onComplet
 
 ### ✅ **Correct Approach** (Current Implementation)
 ```typescript
-// Let Agent manage threads with consistent string identifiers
-const threadId = `conversation_${conversationId}_${userId}`;
-const result = await agent.generateText(ctx, { userId, threadId }, { prompt });
+// Let Agent manage threads automatically - no manual thread management
+const result = await agent.generateText(ctx, { userId }, { prompt });
 ```
 
 ### ❌ **Incorrect Approach** (Previously Attempted)
 ```typescript
+// Don't provide custom thread IDs - causes validation errors
+const threadId = `conversation_${conversationId}_${userId}`;
+const result = await agent.generateText(ctx, { userId, threadId }, { prompt });
+
 // Don't try to manage threads manually with custom tables
-const customThreadId = await ctx.runMutation(api.threads.create, {...}); // This causes ID validation errors
+const customThreadId = await ctx.runMutation(api.threads.create, {...});
 ```
 
-**Why This Matters**: The Convex Agent creates its own internal tables (embeddings, threads, etc.) and validates that thread IDs come from its managed tables. Custom thread management conflicts with this system.
+**Why This Matters**: The Convex Agent creates its own internal tables (embeddings, threads, etc.) and validates that thread IDs are proper Convex IDs from its managed tables. Custom thread IDs or manual thread management conflicts with this system.
 
 ## Usage Patterns
 
@@ -407,8 +415,8 @@ NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 ### Common Issues
 
 1. **Thread ID Validation Errors**
-   - ✅ **Solution**: Use string-based thread IDs, let Agent manage internally
-   - ❌ **Don't**: Create custom thread tables or try to manage thread IDs manually
+   - ✅ **Solution**: Let Agent manage threads automatically, don't provide custom threadId
+   - ❌ **Don't**: Use custom thread strings or try to manage thread IDs manually
 
 2. **Streaming Not Working**
    - Verify `OPENROUTER_API_KEY` is set correctly
@@ -442,8 +450,8 @@ NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
    - Implement proper loading states
 
 4. **Thread Management**
-   - Use consistent thread ID format: `conversation_${conversationId}_${userId}`
-   - Let Agent handle all thread lifecycle management
-   - Don't create custom thread tables
+   - Let Agent handle all thread creation and management automatically
+   - Don't provide custom thread IDs in generateText calls
+   - Don't create custom thread tables or manual thread management
 
 This Convex-native approach provides real-time streaming performance while working seamlessly with the Convex Agent's internal architecture. The key insight is to work **with** the Agent's design rather than against it. 

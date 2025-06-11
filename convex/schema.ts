@@ -9,7 +9,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     isCollaborative: v.boolean(),
-    threadId: v.optional(v.string()), // Convex Agent thread ID for context
+    // threadId field kept as optional for backward compatibility with existing data
+    threadId: v.optional(v.string()),
   }),
   messages: defineTable({
     conversationId: v.id("conversations"),

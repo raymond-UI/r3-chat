@@ -18,7 +18,11 @@ export function useConversations() {
 
   const create = async (title: string, isCollaborative = false) => {
     if (!userId) throw new Error("User not authenticated");
-    return await createConversation({ title, userId, isCollaborative });
+    return await createConversation({ 
+      title, 
+      participants: [userId], // Convert userId to participants array
+      isCollaborative 
+    });
   };
 
   const update = async (conversationId: Id<"conversations">, title: string) => {

@@ -35,7 +35,7 @@ export function CodeBlock({
   };
 
   return (
-    <div className={cn("relative group rounded-lg overflow-hidden w-full border border-border my-4", className)}>
+    <div className={cn("codeblock relative group rounded-lg overflow-hidden w-full border border-border my-4", className)}>
       {/* Header with language and copy button */}
       <div className="flex items-center justify-between bg-muted/50 px-4 py-2 text-sm">
         <span className="text-muted-foreground font-mono">
@@ -44,7 +44,7 @@ export function CodeBlock({
         <Button
           size="sm"
           variant="ghost"
-          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-8 w-8 p-0 sm:opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleCopy}
           aria-label="Copy code"
         >
@@ -58,10 +58,12 @@ export function CodeBlock({
 
       {/* Code content */}
       <SyntaxHighlighter
+
         language={language}
         style={resolvedTheme === "dark" ? oneDark : oneLight}
         showLineNumbers={showLineNumbers}
         wrapLongLines
+        wrapLines
         customStyle={{
           margin: 0,
           fontSize: "0.875rem",
@@ -71,6 +73,7 @@ export function CodeBlock({
         lineNumberStyle={{
           minWidth: "3em",
           paddingRight: "1em",
+          textAlign: "left",
           color: "var(--muted-foreground)",
           userSelect: "none",
         }}

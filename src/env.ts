@@ -33,6 +33,7 @@ export const env = createEnv({
     // NEXT_PUBLIC_APP_URL: z.string().url(),
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CONVEX_URL: z.string().url(),
+    NEXT_PUBLIC_CONVEX_SITE_URL: z.string().url(),
     NEXT_PUBLIC_CLERK_FRONTEND_API_URL: z.string().url(),
     NEXT_PUBLIC_APP_URL: z.string().url(),
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
@@ -53,6 +54,7 @@ export const env = createEnv({
     // CLERK_WEBHOOK_SIGNING_SECRET: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
 
     NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+    NEXT_PUBLIC_CONVEX_SITE_URL: process.env.NEXT_PUBLIC_CONVEX_SITE_URL,
     CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
 
     NEXT_PUBLIC_CLERK_FRONTEND_API_URL: process.env.NEXT_PUBLIC_CLERK_FRONTEND_API_URL,

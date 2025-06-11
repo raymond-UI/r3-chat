@@ -76,107 +76,8 @@ const aiAgent = new Agent(components.agent, {
   },
 });
 
-// Stream AI response using Convex Agent
-export const streamAgentResponse = action({
-  args: {
-    conversationId: v.id("conversations"),
-    userMessage: v.string(),
-    model: v.string(),
-    userId: v.string(),
-  },
-  handler: async (
-    ctx: ActionCtx,
-    {
-      conversationId,
-      userMessage,
-      model,
-      userId,
-    }: {
-      conversationId: Id<"conversations">;
-      userMessage: string;
-      model: string;
-      userId: string;
-    }
-  ): Promise<string> => {
-    try {
-      // Fetch conversation to get threadId
-      const conversation = await ctx.runQuery(api.conversations.get, { conversationId });
-      let threadId = conversation?.threadId;
-      let thread;
-      let streamingAgent;
-      if (!threadId) {
-        // Create agent with dynamic model for streaming
-        streamingAgent = new Agent(components.agent, {
-          chat: openRouterProvider(model),
-          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
-          tools: {
-            webSearch: webSearchTool,
-            getCurrentTime: getCurrentTimeTool,
-          },
-          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
-          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
-          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-            console.log(
-              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
-            );
-          },
-        });
-        // Create a new thread and store threadId
-        const threadResult = await streamingAgent.createThread(ctx, { userId });
-        threadId = threadResult.threadId;
-        thread = threadResult.thread;
-        // Patch conversation with threadId
-        await ctx.runMutation(api.conversations.patchThreadId, { conversationId, threadId });
-      } else {
-        streamingAgent = new Agent(components.agent, {
-          chat: openRouterProvider(model),
-          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
-          tools: {
-            webSearch: webSearchTool,
-            getCurrentTime: getCurrentTimeTool,
-          },
-          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
-          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
-          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-            console.log(
-              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
-            );
-          },
-        });
-        // Continue existing thread
-        thread = (await streamingAgent.continueThread(ctx, { threadId })).thread;
-      }
-      // Generate text with context
-      console.log("\n=== User Message ===");
-      console.log("From:", userId);
-      console.log("Content:", userMessage);
-      console.log("Thread:", threadId);
-      console.log("===================\n");
-      const result = await thread.generateText({ prompt: userMessage });
-      // Log the agent result
-      console.log("[streamAgentResponse] Agent result:", result.text);
-      // Save AI response to your existing message system
-      await ctx.runMutation(api.messages.send, {
-        conversationId,
-        userId: "ai-assistant", // Special AI user ID
-        content: result.text,
-        type: "ai",
-        aiModel: model,
-      });
-      return result.text;
-    } catch (error) {
-      console.error("Convex streaming agent generation error:", error);
-      // Send error message
-      await ctx.runMutation(api.messages.send, {
-        conversationId,
-        userId: "system",
-        content: `Sorry, I encountered an error while processing your request: ${error instanceof Error ? error.message : "Unknown error"}`,
-        type: "system",
-      });
-      throw error;
-    }
-  },
-});
+// Note: streamAgentResponse removed - now handled by HTTP streaming endpoint in convex/http.ts
+// This simplifies the architecture by using the recommended Convex Agent patterns
 
 // Generate AI response with agent (non-streaming version for background tasks)
 export const generateAgentResponse = action({
@@ -201,54 +102,30 @@ export const generateAgentResponse = action({
     }
   ): Promise<{ messageId: Id<"messages"> }> => {
     try {
-      // Fetch conversation to get threadId
-      const conversation = await ctx.runQuery(api.conversations.get, { conversationId });
-      let threadId = conversation?.threadId;
-      let thread;
-      let agentWithModel;
-      if (!threadId) {
-        agentWithModel = new Agent(components.agent, {
-          chat: openRouterProvider(model),
-          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
-          tools: {
-            webSearch: webSearchTool,
-            getCurrentTime: getCurrentTimeTool,
-          },
-          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
-          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
-          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-            console.log(
-              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
-            );
-          },
-        });
-        // Create a new thread and store threadId
-        const threadResult = await agentWithModel.createThread(ctx, { userId });
-        threadId = threadResult.threadId;
-        thread = threadResult.thread;
-        await ctx.runMutation(api.conversations.patchThreadId, { conversationId, threadId });
-      } else {
-        agentWithModel = new Agent(components.agent, {
-          chat: openRouterProvider(model),
-          instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
-          tools: {
-            webSearch: webSearchTool,
-            getCurrentTime: getCurrentTimeTool,
-          },
-          maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
-          maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
-          usageHandler: async (ctx, { userId, threadId, model, usage }) => {
-            console.log(
-              `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
-            );
-          },
-        });
-        // Continue existing thread
-        thread = (await agentWithModel.continueThread(ctx, { threadId })).thread;
-      }
+      // Create agent with dynamic model and tools
+      const agentWithModel = new Agent(components.agent, {
+        chat: openRouterProvider(model),
+        instructions: AI_PROMPTS.MAIN_INSTRUCTIONS,
+        tools: {
+          webSearch: webSearchTool,
+          getCurrentTime: getCurrentTimeTool,
+        },
+        maxSteps: AGENT_CONFIG.MAIN_AGENT.maxSteps,
+        maxRetries: AGENT_CONFIG.MAIN_AGENT.maxRetries,
+        usageHandler: async (ctx, { userId, threadId, model, usage }) => {
+          console.log(
+            `Token usage - User: ${userId}, Thread: ${threadId}, Model: ${model}, Tokens: ${usage.totalTokens}`
+          );
+        },
+      });
+
       let result;
       try {
-        result = await thread.generateText({ prompt: userMessage });
+        // Let Agent create and manage threads automatically
+        result = await agentWithModel.generateText(ctx, { userId }, {
+          prompt: userMessage,
+        });
+        
         // Log the agent result
         console.log("[generateAgentResponse] Agent result:", result.text);
       } catch (error) {
@@ -297,14 +174,7 @@ export const generateAgentResponse = action({
         messageId,
       };
     } catch (error) {
-      console.error("Agent generation error:", error);
-      // Send error message
-      await ctx.runMutation(api.messages.send, {
-        conversationId,
-        userId: "system",
-        content: `Sorry, I encountered an error while processing your request: ${error instanceof Error ? error.message : "Unknown error"}`,
-        type: "system",
-      });
+      console.error("Agent response generation error:", error);
       throw error;
     }
   },
@@ -374,18 +244,8 @@ export const generateAgentTitle = action({
   },
 });
 
-// Create a conversation thread (simplified - let Agent handle internally)
-export const createConversationThread = action({
-  args: {
-    conversationId: v.id("conversations"),
-    userId: v.string(),
-  },
-  handler: async (): Promise<{ success: boolean }> => {
-    // Agent will create and manage threads automatically when first used
-    // No need to manually create threads
-    return { success: true };
-  },
-});
+// Note: createConversationThread removed - Agent handles thread creation automatically
+// Threads are created on-demand when first generateText() call is made
 
 // Get available models (keep existing functionality)
 export const getModels = action({

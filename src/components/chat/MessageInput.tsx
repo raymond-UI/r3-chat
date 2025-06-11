@@ -66,13 +66,13 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
   const { user } = useUser();
   const { create } = useConversations();
   const { send } = useSendMessage();
-  const { sendToAI, generateTitle } = useAI(); // Use the new agent-based methods
+  const { streamToAI, generateTitle, isStreaming } = useAI(); // Use streaming for better UX
 
   // Use local or prop values based on mode
   const currentValue = isNewChat ? localInputValue : (value || "");
   const currentSelectedModel = isNewChat ? localSelectedModel : (selectedModel || "");
   const currentPlaceholder = isNewChat ? "Start a new conversation..." : placeholder;
-  const isDisabled = isNewChat ? isSending : disabled;
+  const isDisabled = isNewChat ? (isSending || isStreaming) : disabled; // Also disable during AI streaming
 
   // Expose fill input function for new chat mode
   useImperativeHandle(ref, () => ({
@@ -186,7 +186,7 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
         // Generate title and AI response in parallel using the new agent system
         if (messageContent) {
           generateTitle(conversationId, messageContent).catch(console.error);
-          sendToAI(conversationId, messageContent, currentSelectedModel).catch(console.error);
+          streamToAI(conversationId, messageContent, currentSelectedModel).catch(console.error);
         }
       } catch (error) {
         console.error("Failed to create conversation and send message:", error);

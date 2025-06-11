@@ -254,7 +254,7 @@ export function NewChatScreen() {
 
           {/* Tabs */}
           <motion.div
-            className="flex gap-2 mb-8 w-full overflow-x-auto justify-center"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8 w-full overflow-x-auto justify-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}

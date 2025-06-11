@@ -42,7 +42,7 @@ export function MessageList({ messages }: MessageListProps) {
           <div
             key={message._id}
             className={cn(
-              "flex flex-col gap-1 sm:max-w-[90%] w-full",
+              "flex flex-col px-2 sm:px-0 gap-1 sm:max-w-[90%] w-full",
               isCurrentUser && !isAI ? "m-auto" : ""
             )}
           >
@@ -78,7 +78,7 @@ export function MessageList({ messages }: MessageListProps) {
             {/* Message Content */}
             <div
               className={cn(
-                "flex flex-col w-full gap-2",
+                "flex flex-col  w-full gap-2",
                 isCurrentUser && !isAI ? "items-end" : "items-start"
               )}
             >
@@ -98,11 +98,11 @@ export function MessageList({ messages }: MessageListProps) {
               {message.content && (
                 <div
                   className={cn(
-                    "rounded-2xl px-4 py-2 break-words max-w-full",
+                    "rounded-2xl p-2 break-words max-w-full",
                     isAI
-                      ? "bg-purple-50 text-foreground"
+                      ? "bg-transparent text-foreground"
                       : isSystem
-                        ? "bg-gray-50 text-gray-700 border border-gray-200 text-sm"
+                        ? "bg-transparent text-foreground wrap-anywhere border w-full text-sm"
                         : isCurrentUser
                           ? "bg-primary/20 text-primary"
                           : "bg-muted text-foreground"
@@ -110,7 +110,7 @@ export function MessageList({ messages }: MessageListProps) {
                 >
                   {/* Render markdown for AI and user messages, plain text for system */}
                   {isSystem ? (
-                    <p className="whitespace-pre-wrap text-base">
+                    <p className="w-full max-w-full text-base">
                       {message.content}
                     </p>
                   ) : (

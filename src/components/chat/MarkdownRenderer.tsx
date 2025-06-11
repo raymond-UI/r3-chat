@@ -11,7 +11,7 @@ interface MarkdownRendererProps {
 
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   return (
-    <div className={cn("markdown-content", className)}>
+    <div className={cn("markdown-content max-w-full", className)}>
       <ReactMarkdown
         components={{
           // Code blocks (```language)
@@ -24,6 +24,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
               <CodeBlock
                 code={code}
                 language={match?.[1] || "plaintext"}
+                className=""
               />
             ) : (
               <InlineCode className={className} {...props}>
@@ -34,35 +35,35 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           
           // Paragraphs
           p({ children }) {
-            return <p className="mb-3 last:mb-0 leading-6 text-base">{children}</p>;
+            return <p className="mb-3 last:mb-0 leading-6 text-base max-w-fit">{children}</p>;
           },
           
           // Headings
           h1({ children }) {
-            return <h1 className="text-lg font-semibold mb-3 text-foreground">{children}</h1>;
+            return <h1 className="text-lg font-semibold mb-3 text-foreground max-w-fit">{children}</h1>;
           },
           h2({ children }) {
-            return <h2 className="text-base font-medium mb-2 text-foreground">{children}</h2>;
+            return <h2 className="text-base font-medium mb-2 text-foreground max-w-fit">{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className="text-base font-medium mb-2 text-foreground">{children}</h3>;
+            return <h3 className="text-base font-medium mb-2 text-foreground max-w-fit">{children}</h3>;
           },
           
           // Lists
           ul({ children }) {
-            return <ul className="list-disc pl-4 mb-3 space-y-1 tracking-wide text-base">{children}</ul>;
+            return <ul className="list-disc pl-4 mb-3 space-y-1 tracking-wide leading-7 text-base max-w-full">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal pl-4 mb-3 space-y-2 tracking-wide text-base">{children}</ol>;
+            return <ol className="list-decimal pl-4 mb-3 space-y-2 tracking-wide leading-7 text-base max-w-full">{children}</ol>;
           },
           li({ children }) {
-            return <li className="leading-5 tracking-wide text-base">{children}</li>;
+            return <li className="leading-7 tracking-wide text-base max-w-full">{children}</li>;
           },
           
           // Blockquotes
           blockquote({ children }) {
             return (
-              <blockquote className="border-l-2 border-muted-foreground/30 pl-3 py-1 my-3 italic text-muted-foreground text-sm">
+              <blockquote className="border-l-2 border-muted-foreground/30 pl-3 py-1 my-3 italic text-muted-foreground text-sm max-w-full">
                 {children}
               </blockquote>
             );
@@ -75,7 +76,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                 href={href} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 underline decoration-primary/50 underline-offset-2 transition-colors"
+                className="text-primary hover:text-primary/80 underline decoration-primary/50 underline-offset-2 transition-colors max-w-fit"
               >
                 {children}
               </a>
@@ -85,8 +86,8 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           // Tables
           table({ children }) {
             return (
-              <div className="overflow-x-auto my-3">
-                <table className="min-w-full border border-border rounded-md text-sm">
+              <div className="overflow-x-auto my-3 max-w-fit">
+                <table className="min-w-full border border-border rounded-md text-sm max-w-fit">
                   {children}
                 </table>
               </div>

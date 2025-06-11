@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { AIModel } from "@/types/ai";
 import { useUser } from "@clerk/nextjs";
+import { env } from "@/env";
 
 export function useAI() {
   const { user } = useUser();
@@ -11,10 +12,9 @@ export function useAI() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   
-  // Use the new agent-based actions
+  // Use the agent-based actions
   const generateAgentResponse = useAction(api.ai.generateAgentResponse);
   const generateAgentTitle = useAction(api.ai.generateAgentTitle);
-  const createConversationThread = useAction(api.ai.createConversationThread);
   const getModels = useAction(api.ai.getModels);
 
   // Get conversation messages for context
@@ -40,6 +40,7 @@ export function useAI() {
     console.log("Model:", model || selectedModel);
     console.log("Conversation:", conversationId);
     console.log("===========================\n");
+    
     try {
       const result = await generateAgentResponse({
         conversationId,
@@ -77,9 +78,10 @@ export function useAI() {
       model: model || selectedModel,
       userId: user.id,
     });
+    
     try {
       // Use Convex HTTP streaming endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_CONVEX_URL}/ai/stream`, {
+      const response = await fetch(`${env.NEXT_PUBLIC_CONVEX_SITE_URL}/ai/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -143,24 +145,6 @@ export function useAI() {
     }
   };
 
-  const initializeThread = async (
-    conversationId: Id<"conversations">
-  ) => {
-    if (!user?.id) {
-      throw new Error("User not authenticated");
-    }
-
-    try {
-      return await createConversationThread({
-        conversationId,
-        userId: user.id,
-      });
-    } catch (error) {
-      console.error("Thread initialization failed:", error);
-      throw error;
-    }
-  };
-
   const fetchModels = async (): Promise<AIModel[]> => {
     try {
       return await getModels();
@@ -178,7 +162,6 @@ export function useAI() {
     sendToAI,
     streamToAI,
     generateTitle,
-    initializeThread,
     fetchModels,
     useMessages,
   };

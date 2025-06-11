@@ -60,7 +60,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="h-[calc(100vh-50px)]">
+    <div className="h-[calc(100vh-50px)] w-full">
       <SignedOut>
         <div className="flex items-center justify-center w-full h-full">
           <div className="text-center space-y-4">
