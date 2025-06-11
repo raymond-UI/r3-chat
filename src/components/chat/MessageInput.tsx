@@ -186,7 +186,20 @@ export const MessageInput = forwardRef<{ fillInput: (text: string) => void }, Me
         // Generate title and AI response in parallel using the new agent system
         if (messageContent) {
           generateTitle(conversationId, messageContent).catch(console.error);
-          streamToAI(conversationId, messageContent, currentSelectedModel).catch(console.error);
+          streamToAI(
+            conversationId, 
+            messageContent, 
+            currentSelectedModel,
+            // Real-time chunk handler for new chat
+            (chunk: string) => {
+              console.log("New chat streaming chunk:", chunk);
+              // The UI will update via MessageList once we navigate to the chat page
+            },
+            // Complete handler
+            (fullResponse: string) => {
+              console.log("New chat AI response complete:", fullResponse);
+            }
+          ).catch(console.error);
         }
       } catch (error) {
         console.error("Failed to create conversation and send message:", error);
