@@ -6,8 +6,6 @@ export default function ChatLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-screen min-h-screen">
-      <ChatLayoutClient>{children}</ChatLayoutClient>
-    </div>
+    <ChatLayoutClient>{children}</ChatLayoutClient>
   );
 }

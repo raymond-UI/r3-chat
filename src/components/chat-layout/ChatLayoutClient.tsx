@@ -40,7 +40,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   const handleNewChat = () => {
-    router.push("/chat");
+    router.push("/");
   };
 
   const handleJoinConversation = (id: Id<"conversations">) => {

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { ChatArea } from "@/components/chat/ChatArea";
 import { ChatHeader } from "@/components/chat/ChatHeader";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { Id } from "../../../../../convex/_generated/dataModel";
 import { useParams, notFound } from "next/navigation";
 import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../../../convex/_generated/api";
 
 export default function ConversationPage() {
   const params = useParams();
