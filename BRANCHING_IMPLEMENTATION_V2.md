@@ -23,8 +23,7 @@ Successfully implemented both types of branching as specified in the updated req
 - ✅ **Navigation arrows** between alternatives (when multiple exist)
 - ✅ **Branch counter** showing "1 of 3", "2 of 3", etc.
 - ✅ **Expandable dropdown** to see all alternatives
-- ✅ **Create new branch** button always visible
-- ✅ **Preview text** for each alternative in dropdown
+- ✅ **Create new branch** button removed; branching handled by retry options
 
 ### **2. Conversation Branching**
 
@@ -46,6 +45,7 @@ Successfully implemented both types of branching as specified in the updated req
 - ✅ **Tooltip showing branch origin** with parent conversation info
 - ✅ **Auto-navigation** to new branched conversation
 - ✅ **Toast notifications** for successful branching
+- ✅ **Branched conversations now use versioning**: "Original Title v2", "Original Title v3", etc.
 
 ---
 
@@ -123,12 +123,12 @@ conversations: {
 #### **BranchSelector.tsx**
 - Shows branch navigation for AI messages
 - Expandable dropdown with branch previews
-- Always visible create button for new alternatives
+- Only shows when branches exist
 
 #### **ConversationBranchIndicator.tsx**
 - Shows GitBranch icon for branched conversations
 - Tooltip with parent conversation details
-- Click handler for navigation (TODO: implement)
+- Click handler for navigation to parent conversation
 
 #### **Hooks**
 - `useBranching.ts` - Message-level branching operations
@@ -140,7 +140,7 @@ conversations: {
 
 ### **Visual Indicators**
 - 🔄 **Retry dropdown** with clear "Replace" vs "Create branch" labels
-- 🌿 **Branch selector** always visible for AI messages
+- 🌿 **Branch selector** only shows when branches exist
 - 🌳 **Branch indicator** in conversation list with GitBranch icon
 - ✨ **Smooth animations** with Framer Motion
 - 🎯 **Tooltips** showing branch information

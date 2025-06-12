@@ -175,9 +175,24 @@ export const createConversationBranch = mutation({
 
     const now = Date.now();
     
+    // Generate a better title with versioning
+    let branchedTitle: string;
+    if (title) {
+      branchedTitle = title;
+    } else {
+      // Check how many branches exist from this parent
+      const existingBranches = await ctx.db
+        .query("conversations")
+        .filter((q) => q.eq(q.field("parentConversationId"), parentConversationId))
+        .collect();
+      
+      const versionNumber = existingBranches.length + 2; // +2 because original is v1, first branch is v2
+      branchedTitle = `${parentConversation.title} v${versionNumber}`;
+    }
+
     // Create the new branched conversation
     const newConversationId = await ctx.db.insert("conversations", {
-      title: title || `${parentConversation.title} (Branch)`,
+      title: branchedTitle,
       participants: parentConversation.participants,
       lastMessage: branchMessage.content,
       createdAt: now,

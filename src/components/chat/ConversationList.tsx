@@ -302,9 +302,8 @@ export function ConversationList({
                           )}
                           <ConversationBranchIndicator
                             conversationId={conversation._id}
-                            onNavigateToParent={() => {
-                              // TODO: Implement navigation to parent conversation
-                              console.log("Navigate to parent conversation");
+                            onNavigateToParent={(parentId) => {
+                              onSelectConversation(parentId);
                             }}
                           />
                         </div>
@@ -348,9 +347,8 @@ export function ConversationList({
                         <div className="flex items-center gap-2">
                         <ConversationBranchIndicator
                             conversationId={conversation._id}
-                            onNavigateToParent={() => {
-                              // TODO: Implement navigation to parent conversation
-                              console.log("Navigate to parent conversation");
+                            onNavigateToParent={(parentId) => {
+                              onSelectConversation(parentId);
                             }}
                           />
                           <h3 className="text-sm truncate text-ellipsis">

@@ -30,8 +30,8 @@ interface ChatBubbleActionProps {
   onRetry: (event: React.MouseEvent) => void;
   onRetryAlternative: (event: React.MouseEvent) => void;
   onCopy: (event: React.MouseEvent) => void;
-  // onBranchOut: (event: React.MouseEvent) => void;
   onBranchConversation: (event: React.MouseEvent) => void;
+  onDropdownOpenChange?: (isOpen: boolean) => void;
   isAssistant: boolean;
 }
 
@@ -42,6 +42,7 @@ export function ChatBubbleAction({
   onRetryAlternative,
   onCopy,
   onBranchConversation,
+  onDropdownOpenChange,
   isAssistant,
 }: ChatBubbleActionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -140,7 +141,10 @@ export function ChatBubbleAction({
             {isAssistant ? (
               <DropdownMenu
                 open={isRetryDropdownOpen}
-                onOpenChange={setIsRetryDropdownOpen}
+                onOpenChange={(open) => {
+                  setIsRetryDropdownOpen(open);
+                  onDropdownOpenChange?.(open);
+                }}
               >
                 <Tooltip>
                   <TooltipTrigger asChild>

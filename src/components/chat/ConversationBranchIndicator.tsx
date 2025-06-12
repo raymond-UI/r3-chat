@@ -14,7 +14,7 @@ import {
 
 interface ConversationBranchIndicatorProps {
   conversationId: Id<"conversations">;
-  onNavigateToParent?: () => void;
+  onNavigateToParent?: (parentId: Id<"conversations">) => void;
   className?: string;
 }
 
@@ -33,8 +33,8 @@ export function ConversationBranchIndicator({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onNavigateToParent) {
-      onNavigateToParent();
+    if (onNavigateToParent && branchInfo?.parentConversation?._id) {
+      onNavigateToParent(branchInfo.parentConversation._id);
     }
   };
 

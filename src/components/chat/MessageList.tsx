@@ -9,7 +9,7 @@ import { ChatBubbleAction } from "../actions/ChatBubbleAction";
 import { BranchSelector } from "./BranchSelector";
 import { useBranching } from "@/hooks/useBranching";
 import { useConversationBranching } from "@/hooks/useConversationBranching";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 
 interface MessageWithFiles extends Doc<"messages"> {
@@ -31,8 +31,22 @@ interface MessageListProps {
 export function MessageList({ messages, conversationId }: MessageListProps) {
   const { user } = useUser();
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [openDropdownMessageId, setOpenDropdownMessageId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const { switchBranch, regenerateResponse } = useBranching(conversationId);
   const { createConversationBranch } = useConversationBranching();
+
+  // Detect if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -89,8 +103,7 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
       // Create a new conversation branched from this message point
       await createConversationBranch(
         conversationId,
-        messageId as Id<"messages">,
-        `Branched conversation`
+        messageId as Id<"messages">
       );
     } catch (error) {
       console.error("Failed to branch conversation:", error);
@@ -105,16 +118,7 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
     }
   };
 
-  const handleCreateBranch = async (messageId: string) => {
-    try {
-      await regenerateResponse(
-        messageId as Id<"messages">,
-        "Generate new alternative"
-      );
-    } catch (error) {
-      console.error("Failed to create new branch:", error);
-    }
-  };
+
 
   if (messages.length === 0) {
     return (
@@ -261,24 +265,16 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
                 </div>
               )}
 
-              {/* 🌿 Branch Selector - Show for AI messages */}
+              {/* 🌿 Branch Selector - Show for AI messages with branches */}
               {isAI && (
-                <div
-                  className={cn(
-                    "BranchSelector relative flex h-9 w-full bg-muted rounded p-1",
-                    isCurrentUser && !isAI ? "justify-end" : "justify-start"
-                  )}
-                >
-                  <BranchSelector
-                    messageId={message._id as Id<"messages">}
-                    currentBranchIndex={message.branchIndex || 0}
-                    onBranchChange={(branchIndex) =>
-                      handleBranchChange(message._id, branchIndex)
-                    }
-                    onCreateBranch={() => handleCreateBranch(message._id)}
-                    className="debug-branch-selector"
-                  />
-                </div>
+                <BranchSelector
+                  messageId={message._id as Id<"messages">}
+                  currentBranchIndex={message.branchIndex || 0}
+                  onBranchChange={(branchIndex) =>
+                    handleBranchChange(message._id, branchIndex)
+                  }
+                  className="debug-branch-selector"
+                />
               )}
 
               {/* Chat Bubble Actions - Positioned below message */}
@@ -289,7 +285,11 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
                 )}
               >
                 <ChatBubbleAction
-                  visible={hoveredMessageId === message._id}
+                  visible={
+                    isMobile || 
+                    hoveredMessageId === message._id || 
+                    openDropdownMessageId === message._id
+                  }
                   onEdit={(e) => {
                     e.stopPropagation();
                     handleEdit(message._id);
@@ -309,6 +309,9 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
                   onBranchConversation={(e) => {
                     e.stopPropagation();
                     handleBranchConversation(message._id);
+                  }}
+                  onDropdownOpenChange={(isOpen) => {
+                    setOpenDropdownMessageId(isOpen ? message._id : null);
                   }}
                   isAssistant={isAI}
                 />
