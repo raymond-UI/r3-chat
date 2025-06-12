@@ -102,6 +102,7 @@ http.route({
           "Cache-Control": "no-cache",
           "Connection": "keep-alive",
           "X-Message-Id": aiMessageId, // Send message ID to frontend
+          "Access-Control-Expose-Headers": "X-Message-Id"
         },
       });
     } catch (error) {

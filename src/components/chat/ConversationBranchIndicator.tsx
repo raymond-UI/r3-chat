@@ -45,7 +45,7 @@ export function ConversationBranchIndicator({
           <button
             onClick={handleClick}
             className={cn(
-              "p-1 rounded hover:bg-muted/50 transition-colors",
+              "p-1 cursor-pointer rounded hover:bg-muted/50 transition-colors",
               className
             )}
           >

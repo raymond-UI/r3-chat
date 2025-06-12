@@ -31,7 +31,9 @@ interface MessageListProps {
 export function MessageList({ messages, conversationId }: MessageListProps) {
   const { user } = useUser();
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
-  const [openDropdownMessageId, setOpenDropdownMessageId] = useState<string | null>(null);
+  const [openDropdownMessageId, setOpenDropdownMessageId] = useState<
+    string | null
+  >(null);
   const [isMobile, setIsMobile] = useState(false);
   const { switchBranch, regenerateResponse } = useBranching(conversationId);
   const { createConversationBranch } = useConversationBranching();
@@ -39,13 +41,13 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
   // Detect if device is mobile
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+      setIsMobile(window.innerWidth < 768 || "ontouchstart" in window);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const handleCopy = (content: string) => {
@@ -117,8 +119,6 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
       console.error("Failed to switch branch:", error);
     }
   };
-
-
 
   if (messages.length === 0) {
     return (
@@ -268,7 +268,7 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
               {/* 🌿 Branch Selector - Show for AI messages with branches */}
               {isAI && (
                 <BranchSelector
-                  messageId={message._id as Id<"messages">}
+                  messageId={message._id}
                   currentBranchIndex={message.branchIndex || 0}
                   onBranchChange={(branchIndex) =>
                     handleBranchChange(message._id, branchIndex)
@@ -286,8 +286,8 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
               >
                 <ChatBubbleAction
                   visible={
-                    isMobile || 
-                    hoveredMessageId === message._id || 
+                    isMobile ||
+                    hoveredMessageId === message._id ||
                     openDropdownMessageId === message._id
                   }
                   onEdit={(e) => {

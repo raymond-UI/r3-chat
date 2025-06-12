@@ -135,6 +135,20 @@ export function useAI() {
               } catch {
                 console.warn("Failed to parse chunk:", line);
               }
+            } else if (line.startsWith('3:')) {
+              // Error chunk format: 3:"error message"
+              try {
+                const errorMsg = JSON.parse(line.slice(2));
+                console.error("🛑 AI stream error:", errorMsg);
+                // Propagate error via onChunk/onComplete as appropriate
+                onChunk?.(`Error: ${errorMsg}`);
+                onComplete?.(`Error: ${errorMsg}`);
+                // Abort further processing
+                return { fullResponse: `Error: ${errorMsg}`, messageId };
+              } catch {
+                console.error("Failed to parse error chunk", line);
+                return { fullResponse: "Error", messageId };
+              }
             } else if (line.startsWith('d:')) {
               // Done signal - usually the last line
               console.log("🏁 Stream complete");

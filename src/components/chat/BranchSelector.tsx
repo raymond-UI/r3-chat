@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, isValidConvexId } from "@/lib/utils";
 import { useQuery } from "convex/react";
 import { ChevronLeft, ChevronRight, GitBranch } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -11,7 +11,7 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
 interface BranchSelectorProps {
-  messageId: Id<"messages">;
+  messageId: Id<"messages"> | string;
   currentBranchIndex: number;
   onBranchChange: (branchIndex: number) => void;
   className?: string;
@@ -23,13 +23,17 @@ export function BranchSelector({
   onBranchChange,
   className,
 }: BranchSelectorProps) {
-  const branches = useQuery(api.messages.getBranches, {
-    parentMessageId: messageId,
-  });
+  // Only query if we have a valid Convex ID
+  const branches = useQuery(
+    api.messages.getBranches,
+    isValidConvexId(messageId.toString()) 
+      ? { parentMessageId: messageId as Id<"messages"> }
+      : "skip"
+  );
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Only show when there are actual branches (alternatives)
-  if (!branches || branches.length <= 1) {
+  // Only show when there are actual branches (alternatives) and we have valid Convex ID
+  if (!isValidConvexId(messageId.toString()) || !branches || branches.length <= 1) {
     return null;
   }
 

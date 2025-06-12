@@ -81,6 +81,7 @@ export const AI_MODELS = {
     speed: "Fast",
     id: "google/gemini-2.0-flash-001",
     supportVision: true,
+    search: true,
   },
   "google/gemini-2.0-flash-exp:free": {
     name: "Gemini 2.0 Flash (free)",

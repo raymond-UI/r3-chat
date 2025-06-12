@@ -3,13 +3,13 @@
 import { MessageInput } from "@/components/chat/MessageInput";
 import { MessageList } from "@/components/chat/MessageList";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { useAI } from "@/hooks/useAI";
+import { useChat } from "@/hooks/useChat";
 import { useFiles } from "@/hooks/useFiles";
 import { useMessages, useSendMessage } from "@/hooks/useMessages";
 import { usePresence } from "@/hooks/usePresence";
 import { useUser } from "@clerk/nextjs";
 import { ArrowDown } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { AiIndicator } from "../indicators/AiIndicator";
 import { Button } from "../ui/button";
@@ -20,10 +20,12 @@ interface ChatAreaProps {
 }
 
 export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
-  const { messages, isLoading } = useMessages(conversationId);
+  // Use Convex messages for real-time updates and file attachments
+  const { messages: convexMessages, isLoading: convexLoading } = useMessages(conversationId);
   const { send } = useSendMessage();
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
-  const { selectedModel, setSelectedModel, isStreaming, streamToAI } = useAI();
+  
+  // File upload functionality
   const {
     uploadingFiles,
     uploadedFileIds,
@@ -34,14 +36,23 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     clearUploadedFiles,
   } = useFiles(conversationId);
 
-  const [inputValue, setInputValue] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [isWaitingForAI, setIsWaitingForAI] = useState(false);
-  // Track streaming content for active user only (real-time streaming)
-  const [activeStreamingContent, setActiveStreamingContent] = useState<
-    Record<string, string>
-  >({});
+  // AI SDK integration
+  const [selectedModel, setSelectedModel] = useState("google/gemini-2.0-flash-exp:free");
+  const {
+    messages: aiMessages,
+    input,
+    handleInputChange: aiHandleInputChange,
+    handleSubmit: aiHandleSubmit,
+    isLoading: aiIsLoading,
+    error: aiError,
+  } = useChat({
+    conversationId,
+    model: selectedModel,
+  });
 
+  // Local state for UI management
+  const [isSending, setIsSending] = useState(false);
+  
   // Enhanced scroll state management
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -51,59 +62,58 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   const { user } = useUser();
 
-  // Enhanced message display with proper status from database
-  const displayMessages = messages.map((message) => {
-    // Show real-time streaming content for the user who initiated the stream
-    if (
-      message.status === "streaming" &&
-      message.streamingForUser === user?.id
-    ) {
-      // Use a simple key that matches any active streaming
-      const streamingContent = activeStreamingContent["active-stream"];
-
-      return {
-        ...message,
-        content: streamingContent || message.content,
-        isRealTimeStreaming: Boolean(streamingContent),
-      };
-    }
-    return {
-      ...message,
-      isRealTimeStreaming: false,
-    };
-  });
+  // ✅ Fix: Use AI SDK messages consistently to prevent flickering
+  const displayMessages = useMemo(() => {
+    return aiMessages.map(msg => ({
+      _id: msg.id as Id<"messages">,
+      _creationTime: msg.createdAt?.getTime() || Date.now(),
+      conversationId,
+      userId: msg.role === "user" ? user?.id || "" : "ai-assistant", 
+      content: msg.content,
+      type: msg.role === "assistant" ? "ai" as const : msg.role as "user" | "system",
+      timestamp: msg.createdAt?.getTime() || Date.now(),
+      status: "complete" as const,
+      isRealTimeStreaming: aiIsLoading && msg.role === "assistant",
+      attachedFiles: [],
+      aiModel: undefined,
+      streamingForUser: undefined,
+      lastUpdated: undefined,
+      attachments: undefined,
+      parentMessageId: undefined,
+      branchIndex: undefined,
+      isActiveBranch: undefined,
+      branchCreatedBy: undefined,
+      branchCreatedAt: undefined,
+    }));
+  }, [aiMessages, conversationId, user?.id, aiIsLoading]);
 
   // Debounced scroll to bottom function
   const scrollToBottom = useCallback(
     (force = false) => {
       if (!messagesEndRef.current || (!shouldAutoScroll && !force)) return;
 
-      // Use requestAnimationFrame for smoother scrolling
       requestAnimationFrame(() => {
         messagesEndRef.current?.scrollIntoView({
-          behavior: isStreaming ? "auto" : "smooth", // Instant during streaming, smooth otherwise
+          behavior: aiIsLoading ? "auto" : "smooth",
           block: "end",
         });
       });
     },
-    [shouldAutoScroll, isStreaming]
+    [shouldAutoScroll, aiIsLoading]
   );
 
   // Throttled scroll handler to detect user scrolling
   const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current) return;
 
-    const { scrollTop, scrollHeight, clientHeight } =
-      messagesContainerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
 
-    // If user scrolled up significantly, disable auto-scroll
     if (!isAtBottom && !isUserScrolling) {
       setIsUserScrolling(true);
       setShouldAutoScroll(false);
     }
 
-    // If user scrolled back to bottom, re-enable auto-scroll
     if (isAtBottom && isUserScrolling) {
       setIsUserScrolling(false);
       setShouldAutoScroll(true);
@@ -136,13 +146,11 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       clearTimeout(scrollTimeoutRef.current);
     }
 
-    // During streaming, batch scroll updates to avoid excessive scrolling
-    if (isStreaming) {
+    if (aiIsLoading) {
       scrollTimeoutRef.current = setTimeout(() => {
         scrollToBottom();
-      }, 150); // Batch updates every 150ms during streaming
+      }, 150);
     } else {
-      // Immediate scroll for non-streaming messages
       scrollToBottom();
     }
 
@@ -151,99 +159,73 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [displayMessages, scrollToBottom, isStreaming]);
+  }, [displayMessages, scrollToBottom, aiIsLoading]);
 
   // Force scroll to bottom when new user message is sent
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
+    if (displayMessages.length > 0) {
+      const lastMessage = displayMessages[displayMessages.length - 1];
       if (lastMessage?.type === "user") {
         setShouldAutoScroll(true);
         setIsUserScrolling(false);
-        scrollToBottom(true); // Force scroll for new user messages
+        scrollToBottom(true);
       }
     }
-  }, [messages, messages.length, scrollToBottom]);
+  }, [displayMessages, scrollToBottom]);
 
+  // ✅ Fixed message sending with proper AI SDK integration
   const handleSendMessage = useCallback(async () => {
-    if (!user?.id || (!inputValue.trim() && !hasFilesToSend)) return;
+    if (!user?.id || (!input.trim() && !hasFilesToSend) || isSending || aiIsLoading) return;
 
-    const messageContent = inputValue.trim();
-    setInputValue("");
+    const messageContent = input.trim();
     setIsSending(true);
 
     try {
-      // Send user message with uploaded file IDs
-      const userMessage = await send(
-        conversationId,
-        messageContent,
-        "user",
-        undefined,
-        uploadedFileIds.length > 0 ? uploadedFileIds : undefined
-      );
+      // Save user message to Convex in parallel (don't block AI streaming)
+      if (messageContent || hasFilesToSend) {
+        send(
+          conversationId,
+          messageContent,
+          "user",
+          undefined,
+          uploadedFileIds.length > 0 ? uploadedFileIds : undefined
+        ).catch(console.error);
 
-      // Clear uploaded files after message is sent
-      clearUploadedFiles();
+        // Clear uploaded files after message is sent
+        clearUploadedFiles();
+      }
+
       await stopTyping();
 
-      // Real streaming with multi-user coordination
-      if (aiEnabled && messageContent && userMessage) {
-        // Show waiting indicator immediately
-        setIsWaitingForAI(true);
-        
-        try {
-          await streamToAI(
-            conversationId,
-            messageContent,
-            selectedModel,
-            // Real-time chunks for active user
-            (chunk: string) => {
-              // Hide waiting indicator when first chunk arrives
-              setIsWaitingForAI(false);
-              setActiveStreamingContent((prev) => ({
-                ...prev,
-                "active-stream": (prev["active-stream"] || "") + chunk,
-              }));
-            },
-            // Complete handler
-            () => {
-              console.log("✅ Streaming complete");
-              // Clear all streaming content - database message should now be complete
-              setActiveStreamingContent({});
-              setIsWaitingForAI(false);
-            }
-          );
-        } catch (error) {
-          console.error("Streaming error:", error);
-          setActiveStreamingContent({});
-          setIsWaitingForAI(false);
-        }
+      // ✅ Let AI SDK handle streaming naturally if AI is enabled
+      if (aiEnabled && messageContent) {
+        // The AI SDK can handle being called without a real form event
+        await aiHandleSubmit();
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Re-add message to input on error
-      setInputValue(messageContent);
-      // Clear any streaming content
-      setActiveStreamingContent({});
     } finally {
       setIsSending(false);
     }
   }, [
     user?.id,
-    inputValue,
+    input,
     hasFilesToSend,
+    isSending,
+    aiIsLoading,
     uploadedFileIds,
     send,
     conversationId,
     clearUploadedFiles,
     stopTyping,
     aiEnabled,
-    streamToAI,
-    selectedModel,
+    aiHandleSubmit,
   ]);
 
+  // Handle input changes with typing indicators and AI SDK integration
   const handleInputChange = async (value: string) => {
-    setInputValue(value);
+    // Update AI SDK state
+    aiHandleInputChange({ target: { value } } as React.ChangeEvent<HTMLInputElement>);
 
     // Handle typing indicators
     if (value.length > 0) {
@@ -255,16 +237,16 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   // Debounced typing clear
   useEffect(() => {
-    if (inputValue.length === 0) return;
+    if (input.length === 0) return;
 
     const timeout = setTimeout(() => {
       stopTyping();
-    }, 3000); // Stop typing after 3 seconds of inactivity
+    }, 3000);
 
     return () => clearTimeout(timeout);
-  }, [inputValue, stopTyping]);
+  }, [input, stopTyping]);
 
-  if (isLoading) {
+  if (convexLoading) {
     return (
       <div className="flex-1 w-full flex items-center justify-center">
         <div className="flex items-center space-x-1">
@@ -282,6 +264,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto relative"
+        onScroll={handleScroll}
       >
         <MessageList messages={displayMessages} conversationId={conversationId} />
 
@@ -294,7 +277,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
               setIsUserScrolling(false);
               scrollToBottom(true);
             }}
-            className="fixed bottom-32 left-1/2 -translate-y-1/2 z-10 text-xsn group backdrop-blur-sm"
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-10 text-xs group backdrop-blur-sm"
             aria-label="Scroll to bottom"
           >
             <span className="hidden sm:block text-muted-foreground group-hover:text-primary-foreground">
@@ -305,7 +288,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         )}
 
         {/* Multi-user streaming indicators based on database status */}
-        {messages.some(
+        {convexMessages.some(
           (m) => m.status === "streaming" && m.streamingForUser !== user?.id
         ) && (
           <div className="mt-4 -translate-y-6">
@@ -324,16 +307,17 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
           </div>
         )}
 
-        {/* Enhanced streaming indicators */}
-        {(isStreaming || isWaitingForAI) && (
+        {/* AI SDK streaming indicators */}
+        {aiIsLoading && (
           <div className="mt-4">
-            <AiIndicator 
-              message={
-                isWaitingForAI && !isStreaming 
-                  ? "Waiting for AI response..." 
-                  : "Assistant is typing..."
-              } 
-            />
+            <AiIndicator />
+          </div>
+        )}
+
+        {/* AI Error display */}
+        {aiError && (
+          <div className="mt-4 text-red-500 text-sm p-2 bg-red-50 rounded-md">
+            Error: {aiError.message}
           </div>
         )}
 
@@ -348,15 +332,15 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
+      {/* ✅ Restored MessageInput component */}
       <div className="w-full">
         <MessageInput
-          value={inputValue}
+          value={input}
           onChange={handleInputChange}
           onSend={handleSendMessage}
-          disabled={isSending || isStreaming || isWaitingForAI}
+          disabled={isSending || aiIsLoading}
           placeholder={
-            isStreaming || isWaitingForAI ? "AI is responding..." : "Type a message..."
+            aiIsLoading ? "AI is responding..." : "Type a message..."
           }
           uploadingFiles={uploadingFiles}
           onUploadFiles={uploadFiles}
