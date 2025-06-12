@@ -88,14 +88,24 @@ Done so far:
   - Resume interrupted AI responses
 - **Priority**: Must Have
 
-### 7. Alternative Conversation Paths
-**Feature**: Branch conversations to explore different responses
+### 7. Branching Conversation and ai message response
+**Feature**: 
+- Branch conversations to explore different responses
+- Brnach ai response (single message).
 - **User Story**: As a user, I can explore different AI responses without losing my original conversation
+
+
 - **Acceptance Criteria**:
-  - "Regenerate" button for alternative responses
-  - Branch conversation tree visualization
-  - Switch between conversation branches
-  - Merge branches back to main conversation
+    - Branching conversation:
+        - [ChatBubbleAction.tsx](mdc:src/components/actions/ChatBubbleAction.tsx) Using the branch button.
+        - The user can branch out to a new conversation with the history of all previous message from the point it was branched otu only, leaving behind messages below the point of branching.
+        - The new branched conversation, which is a entirely new conversation, on the [ConversationList.tsx](mdc:src/components/chat/ConversationList.tsx) will have a branche icon, that when hovered shows when conversation it was branched from, and when clicked, goes to that branch.
+
+    - Brnach ai response (single message).
+        - Message in conversation branching, alternative response.
+        - using [ChatBubbleAction.tsx](mdc:src/components/actions/ChatBubbleAction.tsx) retry, we show them two options; retry and retry alternative. 
+        - **retry** resends the previous message + the initial response + a system prompt that asks the ai to rethink the initial response and provide a better and improved answer.
+        - **Retry alternative**: This follows the same steps as retry but instead of replacing the initial message with the new response, it create an alternative version of the inital response. On the response, we will now show a branch pagination to go from one to the other, like a slider, back and forth. on desktop, we can show the both options side by side.
 - **Priority**: Must Have
 - **Enhancement Ideas**: Visual conversation tree, branch comparison
 

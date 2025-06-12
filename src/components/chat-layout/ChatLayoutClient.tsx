@@ -60,7 +60,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="h-[calc(100vh-50px)] w-full">
+    <div className="w-full">
       <SignedOut>
         <div className="flex items-center justify-center w-full h-full">
           <div className="text-center space-y-4">
@@ -71,7 +71,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
               Please sign in to start chatting and connect with your team
             </p>
             <Button asChild size="lg">
-              <a href="/auth">Sign In</a>
+              <a href="/auth?">Sign In</a>
             </Button>
           </div>
         </div>
@@ -79,21 +79,19 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
 
       <SignedIn>
         <SidebarProvider>
-          <div className="flex h-screen w-full">
+          <div className="flex sm:h-screen h-[calc(100vh-50px)] w-full overflow-hidden">
             {/* Persistent Sidebar */}
             <CollapsedMenu onNewChat={handleNewChat} onSearch={handleSearch} />
             <ChatSidebar
               activeConversationId={conversationId}
               onSelectConversation={handleSelectConversation}
               onNewChat={handleNewChat}
-              // isCollapsed={sidebarCollapsed}
-              // onToggleCollapse={handleToggleSidebar}
             />
 
-            {/* Main Content Area */}
-            <div className="flex flex-1 flex-col bg-sidebar pt-4 pl-4">
+            {/* Main Content Area - This will automatically resize when sidebar collapses */}
+            <div className="flex flex-1 flex-col bg-sidebar pt-2 px-2 sm:pt-4 sm:pl-4 h-full transition-all duration-300 ease-in-out">
               {/* Dynamic Content */}
-              <main className="bg-background border border-secondary flex-1 w-full overflow-hidden rounded-tl-2xl">{children}</main>
+              <main className="flex-1 bg-background border border-secondary w-full overflow-hidden rounded-t-2xl sm:rounded-tl-2xl">{children}</main>
             </div>
           </div>
         </SidebarProvider>

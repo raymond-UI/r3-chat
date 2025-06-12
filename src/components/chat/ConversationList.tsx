@@ -17,6 +17,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { ConversationListAction } from "../actions/ConversationListAction";
 import { ConfirmationModal } from "../actions/ConfirmationModal";
+import { ConversationBranchIndicator } from "./ConversationBranchIndicator";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -299,6 +300,13 @@ export function ConversationList({
                           {conversation.isCollaborative && (
                             <Users className="h-3 w-3 text-muted-foreground" />
                           )}
+                          <ConversationBranchIndicator
+                            conversationId={conversation._id}
+                            onNavigateToParent={() => {
+                              // TODO: Implement navigation to parent conversation
+                              console.log("Navigate to parent conversation");
+                            }}
+                          />
                         </div>
                         <ConversationListAction
                           visible={hoveredId === conversation._id}
@@ -331,13 +339,20 @@ export function ConversationList({
                         onClick={() => onSelectConversation(conversation._id)}
                         onMouseEnter={() => setHoveredId(conversation._id)}
                         onMouseLeave={() => setHoveredId(null)}
-                        className={`relative p-2 px-4 rounded cursor-pointer transition-colors hover:bg-muted text-foreground ${
+                        className={`relative p-2 rounded-sm cursor-pointer transition-colors hover:bg-muted text-foreground ${
                           activeConversationId === conversation._id
                             ? "bg-background border border-border"
                             : ""
                         }`}
                       >
                         <div className="flex items-center gap-2">
+                        <ConversationBranchIndicator
+                            conversationId={conversation._id}
+                            onNavigateToParent={() => {
+                              // TODO: Implement navigation to parent conversation
+                              console.log("Navigate to parent conversation");
+                            }}
+                          />
                           <h3 className="text-sm truncate text-ellipsis">
                             {conversation.title}
                           </h3>

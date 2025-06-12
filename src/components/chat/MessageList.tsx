@@ -2,11 +2,15 @@
 
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
-import { Doc } from "../../../convex/_generated/dataModel";
+import { Doc, Id } from "../../../convex/_generated/dataModel";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { FilePreview } from "./FilePreview";
+import { FilePreview, FilePreviewCompact } from "./FilePreview";
 import { ChatBubbleAction } from "../actions/ChatBubbleAction";
+import { BranchSelector } from "./BranchSelector";
+import { useBranching } from "@/hooks/useBranching";
+import { useConversationBranching } from "@/hooks/useConversationBranching";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 interface MessageWithFiles extends Doc<"messages"> {
   attachedFiles?: Doc<"files">[];
@@ -21,11 +25,14 @@ type MessageType = EnhancedMessage;
 
 interface MessageListProps {
   messages: MessageType[];
+  conversationId: Id<"conversations">;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, conversationId }: MessageListProps) {
   const { user } = useUser();
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const { switchBranch, regenerateResponse } = useBranching(conversationId);
+  const { createConversationBranch } = useConversationBranching();
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -36,14 +43,77 @@ export function MessageList({ messages }: MessageListProps) {
     console.log("Edit message:", messageId);
   };
 
-  const handleRetry = (messageId: string) => {
-    // TODO: Implement retry functionality
-    console.log("Retry message:", messageId);
+  const handleRetry = async (messageId: string) => {
+    try {
+      // Find the user message that preceded this AI response
+      const messageIndex = messages.findIndex((m) => m._id === messageId);
+      const previousUserMessage = messages
+        .slice(0, messageIndex)
+        .reverse()
+        .find((m) => m.type === "user");
+
+      if (previousUserMessage) {
+        await regenerateResponse(
+          messageId as Id<"messages">,
+          previousUserMessage.content
+        );
+      }
+    } catch (error) {
+      console.error("Failed to retry message:", error);
+    }
   };
 
-  const handleBranchOut = (messageId: string) => {
-    // TODO: Implement branch out functionality
-    console.log("Branch out from message:", messageId);
+  const handleRetryAlternative = async (messageId: string) => {
+    try {
+      // Find the user message that preceded this AI response
+      const messageIndex = messages.findIndex((m) => m._id === messageId);
+      const previousUserMessage = messages
+        .slice(0, messageIndex)
+        .reverse()
+        .find((m) => m.type === "user");
+
+      if (previousUserMessage) {
+        // This creates an alternative branch instead of replacing
+        await regenerateResponse(
+          messageId as Id<"messages">,
+          previousUserMessage.content
+        );
+      }
+    } catch (error) {
+      console.error("Failed to create alternative:", error);
+    }
+  };
+
+  const handleBranchConversation = async (messageId: string) => {
+    try {
+      // Create a new conversation branched from this message point
+      await createConversationBranch(
+        conversationId,
+        messageId as Id<"messages">,
+        `Branched conversation`
+      );
+    } catch (error) {
+      console.error("Failed to branch conversation:", error);
+    }
+  };
+
+  const handleBranchChange = async (messageId: string, branchIndex: number) => {
+    try {
+      await switchBranch(messageId as Id<"messages">, branchIndex);
+    } catch (error) {
+      console.error("Failed to switch branch:", error);
+    }
+  };
+
+  const handleCreateBranch = async (messageId: string) => {
+    try {
+      await regenerateResponse(
+        messageId as Id<"messages">,
+        "Generate new alternative"
+      );
+    } catch (error) {
+      console.error("Failed to create new branch:", error);
+    }
   };
 
   if (messages.length === 0) {
@@ -73,6 +143,16 @@ export function MessageList({ messages }: MessageListProps) {
           "attachedFiles" in message &&
           message.attachedFiles &&
           message.attachedFiles.length > 0;
+
+        if (isSystem) {
+          return (
+            <div key={message._id} className="flex justify-center">
+              <Badge variant="secondary" className="text-xs">
+                {message.content}
+              </Badge>
+            </div>
+          );
+        }
 
         return (
           <div
@@ -140,6 +220,13 @@ export function MessageList({ messages }: MessageListProps) {
                       className="max-w-full"
                     />
                   ))}
+                  {message.attachedFiles?.map((file) => (
+                    <FilePreviewCompact
+                      key={file._id}
+                      file={file}
+                      className="max-w-full"
+                    />
+                  ))}
                 </div>
               )}
 
@@ -174,12 +261,33 @@ export function MessageList({ messages }: MessageListProps) {
                 </div>
               )}
 
+              {/* 🌿 Branch Selector - Show for AI messages */}
+              {isAI && (
+                <div
+                  className={cn(
+                    "BranchSelector relative flex h-9 w-full bg-muted rounded p-1",
+                    isCurrentUser && !isAI ? "justify-end" : "justify-start"
+                  )}
+                >
+                  <BranchSelector
+                    messageId={message._id as Id<"messages">}
+                    currentBranchIndex={message.branchIndex || 0}
+                    onBranchChange={(branchIndex) =>
+                      handleBranchChange(message._id, branchIndex)
+                    }
+                    onCreateBranch={() => handleCreateBranch(message._id)}
+                    className="debug-branch-selector"
+                  />
+                </div>
+              )}
+
               {/* Chat Bubble Actions - Positioned below message */}
- 
-              <div className={cn(
-                "flex h-9 w-full",
-                isCurrentUser && !isAI ? "justify-end" : "justify-start"
-              )}>
+              <div
+                className={cn(
+                  "flex h-9 w-full",
+                  isCurrentUser && !isAI ? "justify-end" : "justify-start"
+                )}
+              >
                 <ChatBubbleAction
                   visible={hoveredMessageId === message._id}
                   onEdit={(e) => {
@@ -190,18 +298,21 @@ export function MessageList({ messages }: MessageListProps) {
                     e.stopPropagation();
                     handleRetry(message._id);
                   }}
+                  onRetryAlternative={(e) => {
+                    e.stopPropagation();
+                    handleRetryAlternative(message._id);
+                  }}
                   onCopy={(e) => {
                     e.stopPropagation();
                     handleCopy(message.content);
                   }}
-                  onBranchOut={(e) => {
+                  onBranchConversation={(e) => {
                     e.stopPropagation();
-                    handleBranchOut(message._id);
+                    handleBranchConversation(message._id);
                   }}
                   isAssistant={isAI}
                 />
               </div>
-
             </div>
           </div>
         );

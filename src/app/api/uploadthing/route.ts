@@ -25,12 +25,13 @@ const ourFileRouter = {
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
       console.log("Upload complete for userId:", metadata.userId);
-      console.log("file url", file.url);
+      console.log("file url", file.ufsUrl);
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return {
         uploadedBy: metadata.userId,
-        url: file.url,
+        key: file.key,
+        url: file.ufsUrl,
         name: file.name,
         size: file.size,
         type: "image",
@@ -45,11 +46,12 @@ const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("PDF Upload complete for userId:", metadata.userId);
-      console.log("file url", file.url);
+      console.log("file url", file.ufsUrl);
 
       return {
         uploadedBy: metadata.userId,
-        url: file.url,
+        key: file.key,
+        url: file.ufsUrl,
         name: file.name,
         size: file.size,
         type: "pdf",

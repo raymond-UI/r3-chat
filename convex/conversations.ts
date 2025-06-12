@@ -147,3 +147,108 @@ export const remove = mutation({
 // Note: Migration completed - threadId field removed from all conversations
 // Agent now handles thread management internally with string identifiers
 // No need to store threadId in conversation table 
+
+// 🌳 Create a new conversation branch from a specific message point
+export const createConversationBranch = mutation({
+  args: {
+    parentConversationId: v.id("conversations"),
+    branchAtMessageId: v.id("messages"),
+    userId: v.string(),
+    title: v.optional(v.string()),
+  },
+  handler: async (ctx, { parentConversationId, branchAtMessageId, userId, title }) => {
+    const parentConversation = await ctx.db.get(parentConversationId);
+    if (!parentConversation) throw new Error("Parent conversation not found");
+
+    const branchMessage = await ctx.db.get(branchAtMessageId);
+    if (!branchMessage) throw new Error("Branch message not found");
+
+    // Get all messages up to and including the branch point
+    const allMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", parentConversationId))
+      .order("asc")
+      .collect();
+
+    // Filter messages up to the branch point (inclusive)
+    const messagesToCopy = allMessages.filter(msg => msg.timestamp <= branchMessage.timestamp);
+
+    const now = Date.now();
+    
+    // Create the new branched conversation
+    const newConversationId = await ctx.db.insert("conversations", {
+      title: title || `${parentConversation.title} (Branch)`,
+      participants: parentConversation.participants,
+      lastMessage: branchMessage.content,
+      createdAt: now,
+      updatedAt: now,
+      isCollaborative: parentConversation.isCollaborative,
+      // 🌳 Branching metadata
+      parentConversationId,
+      branchedAtMessageId: branchAtMessageId,
+      branchedBy: userId,
+      branchedAt: now,
+    });
+
+    // Copy all messages up to the branch point
+    for (const message of messagesToCopy) {
+      await ctx.db.insert("messages", {
+        conversationId: newConversationId,
+        userId: message.userId,
+        content: message.content,
+        type: message.type,
+        aiModel: message.aiModel,
+        timestamp: message.timestamp,
+        status: message.status || "complete",
+        lastUpdated: message.lastUpdated || message.timestamp,
+        attachments: message.attachments,
+        // Reset branching fields for the new conversation
+        parentMessageId: undefined,
+        branchIndex: undefined,
+        isActiveBranch: undefined,
+        branchCreatedBy: undefined,
+        branchCreatedAt: undefined,
+      });
+    }
+
+    return newConversationId;
+  },
+});
+
+// Get conversation branch info
+export const getConversationBranchInfo = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, { conversationId }) => {
+    const conversation = await ctx.db.get(conversationId);
+    if (!conversation) return null;
+
+    if (!conversation.parentConversationId) {
+      return { isBranched: false };
+    }
+
+    const parentConversation = await ctx.db.get(conversation.parentConversationId);
+    const branchMessage = conversation.branchedAtMessageId 
+      ? await ctx.db.get(conversation.branchedAtMessageId)
+      : null;
+
+    return {
+      isBranched: true,
+      parentConversation,
+      branchedAtMessage: branchMessage,
+      branchedBy: conversation.branchedBy,
+      branchedAt: conversation.branchedAt,
+    };
+  },
+});
+
+// Get all child branches of a conversation
+export const getConversationBranches = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, { conversationId }) => {
+    return await ctx.db
+      .query("conversations")
+      .filter((q) => q.eq(q.field("parentConversationId"), conversationId))
+      .order("desc")
+      .collect();
+  },
+}); 

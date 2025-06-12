@@ -334,7 +334,7 @@ export const MessageInput = forwardRef<
                       : "Send message"
                 }
               >
-                {isSending || isStreaming || isUploading || canSend ? (
+                {isSending || isStreaming || isUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4" />

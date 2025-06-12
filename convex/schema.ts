@@ -11,6 +11,11 @@ export default defineSchema({
     isCollaborative: v.boolean(),
     // threadId field kept as optional for backward compatibility with existing data
     threadId: v.optional(v.string()),
+    // 🌳 Conversation branching fields
+    parentConversationId: v.optional(v.id("conversations")), // The conversation this was branched from
+    branchedAtMessageId: v.optional(v.id("messages")), // The message point where this was branched
+    branchedBy: v.optional(v.string()), // User who created the branch
+    branchedAt: v.optional(v.number()), // When this branch was created
   }),
   messages: defineTable({
     conversationId: v.id("conversations"),
@@ -29,8 +34,16 @@ export default defineSchema({
       extracted_content: v.optional(v.string()),
       file_url: v.string(),
     }))),
+    // 🌿 Branching fields
+    parentMessageId: v.optional(v.id("messages")), // The message this branches from
+    branchIndex: v.optional(v.number()), // 0 = original, 1+ = alternatives
+    isActiveBranch: v.optional(v.boolean()), // Which branch is currently active
+    branchCreatedBy: v.optional(v.string()), // Who created this branch
+    branchCreatedAt: v.optional(v.number()), // When this branch was created
   }).index("by_conversation", ["conversationId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_parent", ["parentMessageId"])
+    .index("by_conversation_branch", ["conversationId", "isActiveBranch"]),
   presence: defineTable({
     userId: v.string(),
     conversationId: v.id("conversations"),
@@ -38,6 +51,7 @@ export default defineSchema({
     isTyping: v.boolean(),
   }),
   files: defineTable({
+    key: v.string(),
     name: v.string(),
     type: v.string(), // 'image' | 'pdf' | 'document'
     mimeType: v.string(),

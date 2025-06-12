@@ -1,20 +1,14 @@
-"use client";
-
-import { useState } from "react";
-import { ChatArea } from "@/components/chat/ChatArea";
-import { ChatHeader } from "@/components/chat/ChatHeader";
+import { ChatContainer } from "@/components/chat/ChatContainer";
+import { ChatParams } from "@/types/params";
+import { notFound } from "next/navigation";
+import React from "react";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { useParams, notFound } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
 
-export default function ConversationPage() {
-  const params = useParams();
-  const conversationId = params.id as string;
-  const [aiEnabled, setAiEnabled] = useState(true);
-  const conversation = useQuery(api.conversations.get, {
-    conversationId: conversationId as Id<"conversations">,
-  });
+export default async function ConversationPage(
+  context: ChatParams
+): Promise<React.ReactNode> {
+  const { id } = await context.params;
+  const conversationId = id as Id<"conversations">;
 
   // Validate the conversation ID format
   if (!conversationId || typeof conversationId !== "string") {
@@ -22,17 +16,6 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="flex flex-col items-start justify-start w-full min-w-0 overflow-hidden h-full">
-      <ChatHeader
-        conversationId={conversationId as Id<"conversations">}
-        title={conversation?.title}
-        aiEnabled={aiEnabled}
-        onAiToggle={setAiEnabled}
-      />
-      <ChatArea
-        conversationId={conversationId as Id<"conversations">}
-        aiEnabled={aiEnabled}
-      />
-    </div>
+    <ChatContainer conversationId={conversationId as Id<"conversations">} />
   );
 }

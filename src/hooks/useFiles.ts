@@ -14,6 +14,7 @@ export interface FileWithPreview {
   error?: string;
   // For files uploaded to storage but not yet saved to database
   uploadResult?: {
+    key: string;
     name: string;
     size: number;
     url: string;
@@ -63,6 +64,7 @@ export const useFiles = (conversationId?: Id<"conversations">) => {
       const imageFiles = validFiles.filter(f => f.type.startsWith('image/'));
       const pdfFiles = validFiles.filter(f => f.type === 'application/pdf');
       const allUploadResults: Array<{
+        key: string;
         name: string;
         size: number;
         url: string;
@@ -87,6 +89,7 @@ export const useFiles = (conversationId?: Id<"conversations">) => {
         
         for (const result of allUploadResults) {
           const fileId = await createFile({
+            key: result.key,
             name: result.name,
             type: result.type?.startsWith('image/') ? "image" : "pdf",
             mimeType: result.type || "application/octet-stream",
@@ -162,6 +165,7 @@ export const useFiles = (conversationId?: Id<"conversations">) => {
       for (const fileWithPreview of filesWithUploadResults) {
         const result = fileWithPreview.uploadResult!;
         const fileId = await createFile({
+          key: result.key,
           name: result.name,
           type: result.type.startsWith('image/') ? "image" : "pdf",
           mimeType: result.type,

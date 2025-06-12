@@ -1,20 +1,25 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Doc } from "./_generated/dataModel";
 
-// Get all messages for a conversation
+// Get all messages for a conversation with active branch filtering
 export const list = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    const messages = await ctx.db
+    const allMessages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
       .order("asc")
       .collect();
 
+    // Build conversation tree and return only active branch
+    const messageTree = buildMessageTree(allMessages);
+    const activeBranchMessages = getActiveBranchMessages(messageTree);
+
     // Get attached files for each message
     const messagesWithFiles = await Promise.all(
-      messages.map(async (message) => {
+      activeBranchMessages.map(async (message) => {
         const files = await ctx.db
           .query("files")
           .filter((q) => q.eq(q.field("messageId"), message._id))
@@ -31,7 +36,21 @@ export const list = query({
   },
 });
 
-// Send a new message
+// Get all branches for a specific message
+export const getBranches = query({
+  args: { parentMessageId: v.id("messages") },
+  handler: async (ctx, { parentMessageId }) => {
+    const branches = await ctx.db
+      .query("messages")
+      .withIndex("by_parent", (q) => q.eq("parentMessageId", parentMessageId))
+      .order("asc")
+      .collect();
+
+    return branches.sort((a, b) => (a.branchIndex || 0) - (b.branchIndex || 0));
+  },
+});
+
+// Send a new message (updated to handle branching)
 export const send = mutation({
   args: {
     conversationId: v.id("conversations"),
@@ -42,6 +61,9 @@ export const send = mutation({
     fileIds: v.optional(v.array(v.id("files"))), // File IDs to attach
     status: v.optional(v.union(v.literal("complete"), v.literal("streaming"), v.literal("error"))),
     streamingForUser: v.optional(v.string()),
+    // 🌿 Branching parameters
+    parentMessageId: v.optional(v.id("messages")),
+    branchIndex: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     // Build attachments array if files are provided
@@ -63,6 +85,20 @@ export const send = mutation({
     }
 
     const now = Date.now();
+    
+    // If this is a branch, mark previous branches as inactive
+    if (args.parentMessageId && args.branchIndex !== undefined) {
+      const existingBranches = await ctx.db
+        .query("messages")
+        .withIndex("by_parent", (q) => q.eq("parentMessageId", args.parentMessageId))
+        .collect();
+      
+      // Mark all existing branches as inactive
+      for (const branch of existingBranches) {
+        await ctx.db.patch(branch._id, { isActiveBranch: false });
+      }
+    }
+
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       userId: args.userId,
@@ -74,6 +110,12 @@ export const send = mutation({
       streamingForUser: args.streamingForUser,
       lastUpdated: now,
       attachments,
+      // 🌿 Branching fields
+      parentMessageId: args.parentMessageId,
+      branchIndex: args.branchIndex || 0,
+      isActiveBranch: true, // New messages are always active
+      branchCreatedBy: args.userId,
+      branchCreatedAt: now,
     });
 
     // Update file records with message ID if files are attached
@@ -90,6 +132,82 @@ export const send = mutation({
     });
 
     return messageId;
+  },
+});
+
+// 🌿 Create a new branch from an existing message
+export const createBranch = mutation({
+  args: {
+    parentMessageId: v.id("messages"),
+    userId: v.string(),
+    content: v.string(),
+    type: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
+    aiModel: v.optional(v.string()),
+  },
+  handler: async (ctx, { parentMessageId, userId, content, type, aiModel }) => {
+    const parentMessage = await ctx.db.get(parentMessageId);
+    if (!parentMessage) throw new Error("Parent message not found");
+
+    // Get existing branches to determine next branch index
+    const existingBranches = await ctx.db
+      .query("messages")
+      .withIndex("by_parent", (q) => q.eq("parentMessageId", parentMessageId))
+      .collect();
+
+    // Mark all existing branches as inactive
+    for (const branch of existingBranches) {
+      await ctx.db.patch(branch._id, { isActiveBranch: false });
+    }
+
+    const nextBranchIndex = existingBranches.length + 1;
+    const now = Date.now();
+
+    const branchId = await ctx.db.insert("messages", {
+      conversationId: parentMessage.conversationId,
+      userId,
+      content,
+      type,
+      aiModel,
+      timestamp: now,
+      status: "complete",
+      lastUpdated: now,
+      // 🌿 Branching fields
+      parentMessageId,
+      branchIndex: nextBranchIndex,
+      isActiveBranch: true,
+      branchCreatedBy: userId,
+      branchCreatedAt: now,
+    });
+
+    return branchId;
+  },
+});
+
+// 🌿 Switch to a different branch
+export const switchBranch = mutation({
+  args: {
+    parentMessageId: v.id("messages"),
+    branchIndex: v.number(),
+  },
+  handler: async (ctx, { parentMessageId, branchIndex }) => {
+    const branches = await ctx.db
+      .query("messages")
+      .withIndex("by_parent", (q) => q.eq("parentMessageId", parentMessageId))
+      .collect();
+
+    // Mark all branches as inactive
+    for (const branch of branches) {
+      await ctx.db.patch(branch._id, { isActiveBranch: false });
+    }
+
+    // Mark the selected branch as active
+    const targetBranch = branches.find(b => b.branchIndex === branchIndex);
+    if (targetBranch) {
+      await ctx.db.patch(targetBranch._id, { isActiveBranch: true });
+      return targetBranch._id;
+    }
+
+    throw new Error("Branch not found");
   },
 });
 
@@ -145,4 +263,60 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await ctx.db.delete(args.messageId);
   },
-}); 
+});
+
+// 🌿 Helper functions for message tree handling
+type MessageWithBranches = Doc<"messages"> & {
+  branches: MessageWithBranches[];
+};
+
+type MessageTree = {
+  messageMap: Map<string, MessageWithBranches>;
+  roots: MessageWithBranches[];
+};
+
+function buildMessageTree(messages: Doc<"messages">[]): MessageTree {
+  const messageMap = new Map<string, MessageWithBranches>();
+  const roots: MessageWithBranches[] = [];
+
+  // Create a map of all messages
+  messages.forEach(msg => {
+    messageMap.set(msg._id, { ...msg, branches: [] });
+  });
+
+  // Build the tree structure
+  messages.forEach(msg => {
+    if (msg.parentMessageId) {
+      const parent = messageMap.get(msg.parentMessageId);
+      if (parent) {
+        parent.branches.push(messageMap.get(msg._id)!);
+      }
+    } else {
+      roots.push(messageMap.get(msg._id)!);
+    }
+  });
+
+  return { messageMap, roots };
+}
+
+function getActiveBranchMessages(tree: MessageTree): Doc<"messages">[] {
+  const activeBranchMessages: Doc<"messages">[] = [];
+  
+  function traverse(messages: MessageWithBranches[]): void {
+    for (const msg of messages) {
+      activeBranchMessages.push(msg);
+      
+      // Find active branch among children
+      const activeBranch = msg.branches.find((branch: MessageWithBranches) => branch.isActiveBranch);
+      if (activeBranch) {
+        traverse([activeBranch]);
+      } else if (msg.branches.length > 0) {
+        // If no active branch is marked, use the first one (original)
+        traverse([msg.branches[0]]);
+      }
+    }
+  }
+
+  traverse(tree.roots);
+  return activeBranchMessages;
+} 

@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 // Create a new file record
 export const create = mutation({
   args: {
+    key: v.string(),
     name: v.string(),
     type: v.string(),
     mimeType: v.string(),
@@ -18,6 +19,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const fileId = await ctx.db.insert("files", {
+      key: args.key,
       name: args.name,
       type: args.type,
       mimeType: args.mimeType,

@@ -1,48 +1,29 @@
 "use client";
 
 import { ParticipantsList } from "@/components/chat/ParticipantsList";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { Id } from "../../../convex/_generated/dataModel";
-import { MessagesSquare } from "lucide-react";
 
 interface ChatHeaderProps {
   conversationId: Id<"conversations">;
-  title?: string;
   aiEnabled: boolean;
-  onAiToggle: (enabled: boolean) => void;
+  onAiEnabledChange: (enabled: boolean) => void;
 }
 
 export function ChatHeader({
   conversationId,
-  title,
   aiEnabled,
-  onAiToggle,
+  onAiEnabledChange,
 }: ChatHeaderProps) {
   return (
-    <header className="flex h-12 max-w-4xl mx-auto items-center gap-2 border border-border/50 px-3 mt-1 sticky top-0 bg-background/50 backdrop-blur-sm w-full rounded-lg">
-      {/* Left side: Sidebar trigger and title */}
-      <SidebarTrigger className="sm:hidden" />
-      <div className="flex items-center gap-2">
-        <MessagesSquare className="h-4 w-4 text-muted-foreground/70 hidden sm:block" />
-        <span className="text-sm font-medium text-muted-foreground truncate line-clamp-1">
-          {title && title !== "" ? (
-            title.slice(0, 20) + (title.length > 20 ? "..." : "")
-          ) : (
-            <div className="w-20 sm:w-40 h-4 bg-secondary/30 rounded-full animate-pulse" />
-          )}
-        </span>
-      </div>
-
-      {/* Right side: Participants and AI controls */}
+    <header className="flex absolute top-0 sm:top-0 right-0 z-50 items-center justify-between bg-secondary/25 backdrop-blur-sm border border-border/50 rounded-md rounded-br-none rounded-tl-none px-2 py-1 shadow-sm">
       <div className="flex flex-1 items-center justify-end gap-2">
         <ParticipantsList conversationId={conversationId} />
-
-        <div className="flex items-center gap-2 border rounded-2xl p-1">
+        <div className="flex items-center gap-2 rounded-2xl p-1">
           <span className="text-sm text-muted-foreground">AI</span>
           <Switch
             checked={aiEnabled}
-            onCheckedChange={onAiToggle}
+            onCheckedChange={onAiEnabledChange}
             className="data-[state=checked]:bg-primary"
           />
         </div>

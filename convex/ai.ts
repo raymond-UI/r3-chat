@@ -85,6 +85,9 @@ export const streamAgentResponse = action({
     userMessage: v.string(),
     model: v.string(),
     userId: v.string(),
+    // 🌿 Branching support
+    parentMessageId: v.optional(v.id("messages")),
+    branchIndex: v.optional(v.number()),
   },
   handler: async (
     ctx: ActionCtx,
@@ -94,12 +97,16 @@ export const streamAgentResponse = action({
       userMessage,
       model,
       userId,
+      parentMessageId,
+      branchIndex,
     }: {
       messageId?: Id<"messages">;
       conversationId: Id<"conversations">;
       userMessage: string;
       model: string;
       userId: string;
+      parentMessageId?: Id<"messages">;
+      branchIndex?: number;
     }
   ): Promise<{ messageId: Id<"messages">; fullText: string }> => {
     // Use existing message or create new one
@@ -111,6 +118,9 @@ export const streamAgentResponse = action({
       aiModel: model,
       status: "streaming",
       streamingForUser: userId, // Track who initiated
+      // 🌿 Pass branching parameters
+      parentMessageId,
+      branchIndex,
     });
 
     try {

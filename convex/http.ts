@@ -117,4 +117,12 @@ http.route({
   }),
 });
 
+// http.route({
+//   path: "/api/process-document",
+//   method: "POST",
+//   handler: httpAction(async (ctx, request) => {
+//     const { fileUrl, fileType, fileName } = await request.json();
+//   }),
+// });
+
 export default http;

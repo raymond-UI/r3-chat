@@ -36,6 +36,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isWaitingForAI, setIsWaitingForAI] = useState(false);
   // Track streaming content for active user only (real-time streaming)
   const [activeStreamingContent, setActiveStreamingContent] = useState<
     Record<string, string>
@@ -162,7 +163,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         scrollToBottom(true); // Force scroll for new user messages
       }
     }
-  }, [messages.length, scrollToBottom]);
+  }, [messages, messages.length, scrollToBottom]);
 
   const handleSendMessage = useCallback(async () => {
     if (!user?.id || (!inputValue.trim() && !hasFilesToSend)) return;
@@ -187,6 +188,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
       // Real streaming with multi-user coordination
       if (aiEnabled && messageContent && userMessage) {
+        // Show waiting indicator immediately
+        setIsWaitingForAI(true);
+        
         try {
           await streamToAI(
             conversationId,
@@ -194,6 +198,8 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
             selectedModel,
             // Real-time chunks for active user
             (chunk: string) => {
+              // Hide waiting indicator when first chunk arrives
+              setIsWaitingForAI(false);
               setActiveStreamingContent((prev) => ({
                 ...prev,
                 "active-stream": (prev["active-stream"] || "") + chunk,
@@ -204,11 +210,13 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
               console.log("✅ Streaming complete");
               // Clear all streaming content - database message should now be complete
               setActiveStreamingContent({});
+              setIsWaitingForAI(false);
             }
           );
         } catch (error) {
           console.error("Streaming error:", error);
           setActiveStreamingContent({});
+          setIsWaitingForAI(false);
         }
       }
     } catch (error) {
@@ -269,13 +277,13 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full relative mx-auto overflow-y-auto">
+    <div className="flex-1 flex flex-col w-full h-full mt-11 sm:mt-0 relative mx-auto overflow-y-auto">
       {/* Messages Area */}
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto relative"
       >
-        <MessageList messages={displayMessages} />
+        <MessageList messages={displayMessages} conversationId={conversationId} />
 
         {/* Show scroll-to-bottom button when user has scrolled up */}
         {!shouldAutoScroll && (
@@ -317,9 +325,15 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         )}
 
         {/* Enhanced streaming indicators */}
-        {isStreaming && (
+        {(isStreaming || isWaitingForAI) && (
           <div className="mt-4">
-            <AiIndicator />
+            <AiIndicator 
+              message={
+                isWaitingForAI && !isStreaming 
+                  ? "Waiting for AI response..." 
+                  : "Assistant is typing..."
+              } 
+            />
           </div>
         )}
 
@@ -340,9 +354,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
           value={inputValue}
           onChange={handleInputChange}
           onSend={handleSendMessage}
-          disabled={isSending || isStreaming}
+          disabled={isSending || isStreaming || isWaitingForAI}
           placeholder={
-            isStreaming ? "AI is responding..." : "Type a message..."
+            isStreaming || isWaitingForAI ? "AI is responding..." : "Type a message..."
           }
           uploadingFiles={uploadingFiles}
           onUploadFiles={uploadFiles}

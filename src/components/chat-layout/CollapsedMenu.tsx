@@ -13,9 +13,14 @@ interface CollapsedMenuProps {
 }
 
 export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
-  const { state } = useSidebar();
+  const { state, isMobile, openMobile } = useSidebar();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Determine if menu should be visible
+  // On mobile: show when sidebar sheet is not open
+  // On desktop: show when sidebar is collapsed
+  const shouldShowMenu = isMobile ? !openMobile : state === "collapsed";
 
   // GSAP hover animations for buttons
   useEffect(() => {
@@ -66,7 +71,7 @@ export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
         button.removeEventListener("mouseleave", handleMouseLeave);
       };
     });
-  }, [state]);
+  }, [shouldShowMenu]);
 
   // Container hover effect
   useEffect(() => {
@@ -100,7 +105,7 @@ export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
 
   return (
     <AnimatePresence>
-      {state === "collapsed" && (
+      {shouldShowMenu && (
         <motion.div
           ref={containerRef}
           initial={{ 
@@ -122,7 +127,7 @@ export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
             duration: 0.3,
             ease: "easeOut"
           }}
-          className="flex absolute top-2 left-2 z-50 items-center justify-between bg-secondary/25 backdrop-blur-sm border rounded-lg px-2 py-1 shadow-sm"
+          className="flex absolute top-2 sm:top-4 left-2 sm:left-4 z-50 items-center justify-between bg-secondary/25 backdrop-blur-sm border border-border/50  rounded-lg rounded-bl-none rounded-tr-none px-2 py-1 shadow-sm"
         >
           <motion.div
             initial={{ opacity: 0 }}
