@@ -16,6 +16,16 @@ export default defineSchema({
     branchedAtMessageId: v.optional(v.id("messages")), // The message point where this was branched
     branchedBy: v.optional(v.string()), // User who created the branch
     branchedAt: v.optional(v.number()), // When this branch was created
+    // 🔗 Sharing and collaboration fields
+    createdBy: v.optional(v.string()), // Clerk user ID of creator
+    sharing: v.optional(v.object({
+      isPublic: v.boolean(),
+      shareId: v.string(),
+      requiresPassword: v.boolean(),
+      password: v.optional(v.string()),
+      allowAnonymous: v.boolean(),
+      expiresAt: v.optional(v.number()),
+    })),
   }),
   messages: defineTable({
     conversationId: v.id("conversations"),

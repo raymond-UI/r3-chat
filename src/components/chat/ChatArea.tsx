@@ -5,7 +5,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useChat } from "@/hooks/useChat";
 import { useFiles } from "@/hooks/useFiles";
-import { useMessages, useSendMessage } from "@/hooks/useMessages";
+import { useMessages } from "@/hooks/useMessages";
 import { usePresence } from "@/hooks/usePresence";
 import { useUser } from "@clerk/nextjs";
 import { ArrowDown } from "lucide-react";
@@ -22,7 +22,6 @@ interface ChatAreaProps {
 export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   // Use Convex messages for real-time updates and file attachments
   const { messages: convexMessages, isLoading: convexLoading } = useMessages(conversationId);
-  const { send } = useSendMessage();
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
   
   // File upload functionality
@@ -43,6 +42,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     input,
     handleInputChange: aiHandleInputChange,
     handleSubmit: aiHandleSubmit,
+    submitWithFiles,
     isLoading: aiIsLoading,
     error: aiError,
   } = useChat({
@@ -181,26 +181,22 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     setIsSending(true);
 
     try {
-      // Save user message to Convex in parallel (don't block AI streaming)
-      if (messageContent || hasFilesToSend) {
-        send(
-          conversationId,
-          messageContent,
-          "user",
-          undefined,
-          uploadedFileIds.length > 0 ? uploadedFileIds : undefined
-        ).catch(console.error);
-
-        // Clear uploaded files after message is sent
-        clearUploadedFiles();
-      }
-
       await stopTyping();
 
-      // ✅ Let AI SDK handle streaming naturally if AI is enabled
+      // ✅ Use the enhanced useChat hook that handles both files and regular messages
       if (aiEnabled && messageContent) {
-        // The AI SDK can handle being called without a real form event
-        await aiHandleSubmit();
+        if (hasFilesToSend && uploadedFileIds.length > 0) {
+          // Use submitWithFiles for messages with attachments
+          await submitWithFiles(uploadedFileIds);
+        } else {
+          // Use regular submit for text-only messages  
+          await aiHandleSubmit();
+        }
+      }
+
+      // Clear uploaded files after successful submission
+      if (hasFilesToSend) {
+        clearUploadedFiles();
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -214,12 +210,11 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     isSending,
     aiIsLoading,
     uploadedFileIds,
-    send,
-    conversationId,
     clearUploadedFiles,
     stopTyping,
     aiEnabled,
     aiHandleSubmit,
+    submitWithFiles,
   ]);
 
   // Handle input changes with typing indicators and AI SDK integration

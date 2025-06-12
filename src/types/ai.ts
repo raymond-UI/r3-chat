@@ -116,6 +116,7 @@ export interface AIModel {
   speed: string;
   id: string;
   supportVision: boolean;
+  search?: boolean;
 }
 
 // Helper function to convert AI_MODELS to AIModel array

@@ -27,20 +27,32 @@ export const get = query({
 // Create a new conversation
 export const create = mutation({
   args: {
-    title: v.string(),
-    participants: v.array(v.string()),
-    isCollaborative: v.boolean(),
+    title: v.optional(v.string()),
+    isCollaborative: v.optional(v.boolean()),
+    participants: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, { title, participants, isCollaborative }) => {
-    const now = Date.now();
-    return await ctx.db.insert("conversations", {
-      title,
-      participants,
-      lastMessage: undefined,
-      createdAt: now,
-      updatedAt: now,
-      isCollaborative,
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversationId = await ctx.db.insert("conversations", {
+      title: args.title || "New Chat",
+      participants: [identity.subject, ...(args.participants || [])],
+      isCollaborative: args.isCollaborative || false,
+      createdBy: identity.subject,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      // Add sharing configuration
+      sharing: {
+        isPublic: false,
+        shareId: crypto.randomUUID(),
+        requiresPassword: false,
+        allowAnonymous: false,
+        expiresAt: undefined,
+      }
     });
+
+    return conversationId;
   },
 });
 
@@ -198,11 +210,20 @@ export const createConversationBranch = mutation({
       createdAt: now,
       updatedAt: now,
       isCollaborative: parentConversation.isCollaborative,
+      createdBy: userId,
       // 🌳 Branching metadata
       parentConversationId,
       branchedAtMessageId: branchAtMessageId,
       branchedBy: userId,
       branchedAt: now,
+      // 🔗 Sharing - inherit from parent but make it private by default
+      sharing: {
+        isPublic: false,
+        shareId: crypto.randomUUID(),
+        requiresPassword: false,
+        allowAnonymous: false,
+        expiresAt: undefined,
+      }
     });
 
     // Copy all messages up to the branch point
@@ -265,5 +286,91 @@ export const getConversationBranches = query({
       .filter((q) => q.eq(q.field("parentConversationId"), conversationId))
       .order("desc")
       .collect();
+  },
+});
+
+// Update sharing settings
+export const updateSharing = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    sharing: v.object({
+      isPublic: v.boolean(),
+      requiresPassword: v.boolean(),
+      password: v.optional(v.string()),
+      allowAnonymous: v.boolean(),
+      expiresAt: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    // Check if user is participant or creator
+    if (!conversation.participants.includes(identity.subject) && 
+        conversation.createdBy !== identity.subject) {
+      throw new Error("Not authorized");
+    }
+
+    const currentSharing = conversation.sharing || {
+      isPublic: false,
+      shareId: crypto.randomUUID(),
+      requiresPassword: false,
+      allowAnonymous: false,
+      expiresAt: undefined,
+    };
+
+    const updatedSharing = {
+      ...currentSharing,
+      ...args.sharing,
+      // Generate new shareId if making public for first time
+      shareId: currentSharing.shareId || crypto.randomUUID(),
+    };
+
+    await ctx.db.patch(args.conversationId, {
+      sharing: updatedSharing,
+      updatedAt: Date.now(),
+    });
+
+    return updatedSharing;
+  },
+});
+
+// Get conversation by share ID (public access)
+export const getByShareId = query({
+  args: { shareId: v.string(), password: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db
+      .query("conversations")
+      .filter(q => q.eq(q.field("sharing.shareId"), args.shareId))
+      .first();
+
+    if (!conversation || !conversation.sharing) return null;
+
+    // Check if sharing is enabled
+    if (!conversation.sharing.isPublic) return null;
+
+    // Check expiration
+    if (conversation.sharing.expiresAt && Date.now() > conversation.sharing.expiresAt) {
+      return null;
+    }
+
+    // Check password if required
+    if (conversation.sharing.requiresPassword) {
+      if (!args.password || args.password !== conversation.sharing.password) {
+        return { requiresPassword: true };
+      }
+    }
+
+    return {
+      ...conversation,
+      // Don't expose sensitive sharing details in public view
+      sharing: {
+        isPublic: true,
+        allowAnonymous: conversation.sharing.allowAnonymous,
+      }
+    };
   },
 }); 

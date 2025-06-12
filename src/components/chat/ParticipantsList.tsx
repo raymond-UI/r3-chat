@@ -10,8 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, UserPlus, Copy, Check } from "lucide-react";
+import { Users, UserPlus, Copy, Check, Share } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ShareConversationDialog } from "./ShareConversationDialog";
 
 interface ParticipantsListProps {
   conversationId: Id<"conversations">;
@@ -24,6 +25,7 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   // Get conversation details
   const conversation = useQuery(api.conversations.get, { conversationId });
@@ -124,27 +126,45 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
               </Button>
             </div>
 
-            {/* Share Link */}
-            <Button
-              variant="outline"
-              onClick={handleCopyInviteLink}
-              className="w-full flex items-center gap-2"
-            >
-              {linkCopied ? (
-                <>
-                  <Check className="h-4 w-4 text-green-600" />
-                  Link Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  Copy Invite Link
-                </>
-              )}
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCopyInviteLink}
+                className="flex-1 flex items-center gap-2"
+              >
+                {linkCopied ? (
+                  <>
+                    <Check className="h-4 w-4 text-green-600" />
+                    Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copy Invite Link
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => setShowShareDialog(true)}
+                className="flex-1 flex items-center gap-2"
+              >
+                <Share className="h-4 w-4" />
+                Share Public
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
+      
+      {/* Share Dialog */}
+      <ShareConversationDialog
+        conversationId={conversationId}
+        isOpen={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+      />
     </Dialog>
   );
 } 

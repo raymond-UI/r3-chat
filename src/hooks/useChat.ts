@@ -129,19 +129,27 @@ export function useChat({
 
   // Custom submit handler that saves user message to Convex
   const handleSubmit = useCallback(
-    async (e?: React.FormEvent<HTMLFormElement>, chatRequestOptions?: { data?: { messages?: Array<{ content: string }> } }) => {
+    async (e?: React.FormEvent<HTMLFormElement>, chatRequestOptions?: { 
+      data?: { 
+        messages?: Array<{ content: string }>;
+        fileIds?: Id<"files">[];
+      } 
+    }) => {
       if (!user?.id || !conversationId) {
         return originalHandleSubmit(e, chatRequestOptions);
       }
 
       // Save user message to Convex first
       const userMessage = chatRequestOptions?.data?.messages?.[0]?.content || input;
+      const fileIds = chatRequestOptions?.data?.fileIds;
+      
       if (userMessage?.trim()) {
         await sendMessage({
           conversationId,
           userId: user.id,
           content: userMessage.trim(),
           type: "user",
+          fileIds, // Include file IDs if provided
         });
       }
 
@@ -149,6 +157,19 @@ export function useChat({
       return originalHandleSubmit(e, chatRequestOptions);
     },
     [user?.id, conversationId, input, sendMessage, originalHandleSubmit]
+  );
+
+  // Enhanced submit function that accepts file IDs
+  const submitWithFiles = useCallback(
+    async (fileIds?: Id<"files">[]) => {
+      return handleSubmit(undefined, {
+        data: {
+          messages: [{ content: input }],
+          fileIds,
+        },
+      });
+    },
+    [handleSubmit, input]
   );
 
   // Sync messages when Convex data changes
@@ -163,6 +184,7 @@ export function useChat({
     input,
     handleInputChange,
     handleSubmit,
+    submitWithFiles, // New function for submitting with files
     isLoading,
     error,
     reload,
