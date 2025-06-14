@@ -19,6 +19,7 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { ConversationListAction } from "../actions/ConversationListAction";
 import { ConfirmationModal } from "../actions/ConfirmationModal";
 import { ConversationBranchIndicator } from "./ConversationBranchIndicator";
+import { ConversationShowcaseDialog } from "../profile/ConversationShowcaseDialog";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -36,6 +37,13 @@ type ConversationGroup = {
     lastMessage?: string;
     updatedAt: number;
     isCollaborative?: boolean;
+    showcase?: {
+      isShownOnProfile: boolean;
+      isFeatured: boolean;
+      tags: string[];
+      description?: string;
+      excerpt?: string;
+    };
   }>;
 };
 
@@ -59,6 +67,9 @@ export function ConversationList({
   const [conversationToDelete, setConversationToDelete] =
     useState<Id<"conversations"> | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showcaseDialogOpen, setShowcaseDialogOpen] = useState(false);
+  const [showcaseConversationId, setShowcaseConversationId] = 
+    useState<Id<"conversations"> | null>(null);
   const router = useRouter();
 
   const handleClearSearch = useCallback(() => {
@@ -100,6 +111,13 @@ export function ConversationList({
     event.stopPropagation();
     setConversationToDelete(id);
     setIsDeleteModalOpen(true);
+  };
+
+  // Showcase logic
+  const handleShowcase = (id: Id<"conversations">, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setShowcaseConversationId(id);
+    setShowcaseDialogOpen(true);
   };
 
   const confirmDelete = async () => {
@@ -307,20 +325,25 @@ export function ConversationList({
                           />
                         </div>
                         {/* Only show actions for authenticated users */}
-                        {/* {user && ( */}
+                        {user && (
                           <ConversationListAction
                             visible={hoveredId === conversation._id}
                             isPinned={pinnedConversations.includes(
                               conversation._id
                             )}
+                            isShownOnProfile={conversation.showcase?.isShownOnProfile}
+                            isFeatured={conversation.showcase?.isFeatured}
                             onPin={(event) =>
                               handlePin(conversation._id, event)
                             }
                             onDelete={(event) =>
                               handleDelete(conversation._id, event)
                             }
+                            onShowcase={(event) =>
+                              handleShowcase(conversation._id, event)
+                            }
                           />
-                        {/* )} */}
+                        )}
                       </div>
                     ))}
                   </div>
@@ -363,16 +386,23 @@ export function ConversationList({
                           )}
                         </div>
                         {/* Only show actions for authenticated users */}
-                        <ConversationListAction
-                          visible={hoveredId === conversation._id}
-                          isPinned={pinnedConversations.includes(
-                            conversation._id
-                          )}
-                          onPin={(event) => handlePin(conversation._id, event)}
-                          onDelete={(event) =>
-                            handleDelete(conversation._id, event)
-                          }
-                        />
+                        {user && (
+                          <ConversationListAction
+                            visible={hoveredId === conversation._id}
+                            isPinned={pinnedConversations.includes(
+                              conversation._id
+                            )}
+                            isShownOnProfile={conversation.showcase?.isShownOnProfile}
+                            isFeatured={conversation.showcase?.isFeatured}
+                            onPin={(event) => handlePin(conversation._id, event)}
+                            onDelete={(event) =>
+                              handleDelete(conversation._id, event)
+                            }
+                            onShowcase={(event) =>
+                              handleShowcase(conversation._id, event)
+                            }
+                          />
+                        )}
                       </div>
                     ))}
                 </div>
@@ -395,6 +425,18 @@ export function ConversationList({
           children: isDeleting ? "Deleting..." : "Delete",
         }}
       />
+      
+      {/* Showcase Dialog */}
+      {showcaseConversationId && (
+        <ConversationShowcaseDialog
+          conversationId={showcaseConversationId}
+          isOpen={showcaseDialogOpen}
+          onClose={() => {
+            setShowcaseDialogOpen(false);
+            setShowcaseConversationId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

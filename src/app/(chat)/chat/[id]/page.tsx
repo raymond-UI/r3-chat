@@ -1,11 +1,11 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
-import { ChatParams } from "@/types/params";
+import { PageParams } from "@/types/params";
 import { notFound } from "next/navigation";
 import React from "react";
 import { Id } from "../../../../../convex/_generated/dataModel";
 
 export default async function ConversationPage(
-  context: ChatParams
+  context: PageParams
 ): Promise<React.ReactNode> {
   const { id } = await context.params;
   const conversationId = id as Id<"conversations">;

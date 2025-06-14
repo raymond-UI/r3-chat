@@ -217,4 +217,9 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-secondary/50 rounded-full;
   }
+
+  .bg-dot {
+    background-image: radial-gradient(circle, var(--secondary) 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
 }

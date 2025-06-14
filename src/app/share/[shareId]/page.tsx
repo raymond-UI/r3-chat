@@ -1,8 +1,8 @@
 import SharePageClient from "./SharePageClient";
-import { ChatParams } from "@/types/params";
+import { PageParams } from "@/types/params";
 
 export default async function SharePage(
-  context: ChatParams
+  context: PageParams
 ): Promise<React.ReactNode> {
   const { shareId } = await context.params;
 

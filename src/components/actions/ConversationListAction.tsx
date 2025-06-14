@@ -1,21 +1,27 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useRef, useEffect } from "react";
-import { Pin, PinOff, X } from "lucide-react";
+import { Pin, PinOff, X, Globe, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gsap } from "gsap";
 
 interface ConversationListActionProps {
   visible: boolean;
   isPinned: boolean;
+  isShownOnProfile?: boolean;
+  isFeatured?: boolean;
   onPin: (event: React.MouseEvent) => void;
   onDelete: (event: React.MouseEvent) => void;
+  onShowcase?: (event: React.MouseEvent) => void;
 }
 
 export function ConversationListAction({
   visible,
   isPinned,
+  isShownOnProfile,
+  isFeatured,
   onPin,
   onDelete,
+  onShowcase,
 }: ConversationListActionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -105,9 +111,32 @@ export function ConversationListAction({
               <Pin className="h-4 w-4" />
             )}
           </Button>
+          
+          {/* Showcase Button */}
+          {onShowcase && (
+            <Button
+              ref={(el) => {
+                buttonRefs.current[1] = el;
+              }}
+              variant="ghost"
+              size="icon"
+              title="Showcase settings"
+              onClick={onShowcase}
+              className={`hover:bg-primary/10 transition-colors ${
+                isShownOnProfile ? 'text-blue-600' : ''
+              }`}
+            >
+              {isFeatured ? (
+                <Star className="h-4 w-4 fill-current text-yellow-500" />
+              ) : (
+                <Globe className={`h-4 w-4 ${isShownOnProfile ? 'text-blue-600' : ''}`} />
+              )}
+            </Button>
+          )}
+          
           <Button
             ref={(el) => {
-              buttonRefs.current[1] = el;
+              buttonRefs.current[2] = el;
             }}
             variant="ghost"
             size="icon"

@@ -1,8 +1,12 @@
-import { Plus, User, LogIn } from "lucide-react";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
-
 import { ConversationList } from "@/components/chat/ConversationList";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -11,8 +15,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { LogIn, MoreVertical, Plus, Settings, User } from "lucide-react";
+import Link from "next/link";
 import { Id } from "../../../convex/_generated/dataModel";
 
 interface ChatSidebarProps {
@@ -26,17 +34,13 @@ export function ChatSidebar({
   onSelectConversation,
   onNewChat,
 }: ChatSidebarProps) {
+  const { hasProfile, profileUrl } = useUserProfile();
 
   return (
-    <Sidebar
-    className="border-none"
-      collapsible="offcanvas"
-      side="left"
-    >
+    <Sidebar className="border-none" collapsible="offcanvas" side="left">
       {/* Header */}
       <SidebarHeader className="border-b border-border/50 px-4">
         <div className="flex items-center justify-between">
-
           {/* Desktop trigger - hidden on mobile, visible when expanded */}
           <SidebarTrigger className="flex group-data-[collapsible=icon]:block" />
           <div className="text-center w-full group-data-[collapsible=icon]:hidden">
@@ -85,17 +89,59 @@ export function ChatSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SignedIn>
-              <SidebarMenuButton tooltip="Profile">
-                <User className="h-4 w-4" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  Profile
-                </span>
-              </SidebarMenuButton>
+              <div className="flex items-center justify-between gap-2">
+                {/* Profile Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <User className="w-4 h-4" />
+                      Profile
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {hasProfile && profileUrl ? (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={profileUrl}
+                          className="flex items-center gap-2"
+                        >
+                          <User className="w-4 h-4" />
+                          View Profile
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/profile/edit"
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        {hasProfile ? "Edit Profile" : "Create Profile"}
+                      </Link>
+                    </DropdownMenuItem>
+                    {!hasProfile && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          Create a profile to showcase your conversations
+                        </div>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline">
+                  <MoreVertical />
+                </Button>
+              </div>
             </SignedIn>
             <SignedOut>
-              <SidebarMenuButton 
-                tooltip="Sign In" 
-                onClick={() => window.location.href = '/auth'}
+              <SidebarMenuButton
+                tooltip="Sign In"
+                onClick={() => (window.location.href = "/auth")}
                 className="group-data-[collapsible=icon]:hidden"
               >
                 <LogIn className="h-4 w-4" />
@@ -110,7 +156,7 @@ export function ChatSidebar({
                   size="sm"
                   className="w-full h-10 p-0 flex items-center justify-center"
                   title="Sign Up"
-                  onClick={() => window.location.href = '/auth'}
+                  onClick={() => (window.location.href = "/auth")}
                 >
                   <LogIn className="h-4 w-4" />
                 </Button>
