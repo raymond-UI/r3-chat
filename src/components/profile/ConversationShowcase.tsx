@@ -236,6 +236,7 @@ export function ConversationShowcase({
               key={conversation._id}
               conversation={conversation}
               isOwnProfile={isOwnProfile}
+              username={username}
             />
           ))}
         </div>

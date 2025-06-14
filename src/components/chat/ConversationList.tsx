@@ -14,14 +14,15 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
-import { Id } from "../../../convex/_generated/dataModel";
-import { ConversationListAction } from "../actions/ConversationListAction";
-import { ConfirmationModal } from "../actions/ConfirmationModal";
-import { ConversationBranchIndicator } from "./ConversationBranchIndicator";
-import { ConversationShowcaseDialog } from "../profile/ConversationShowcaseDialog";
 import { useRouter } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Id } from "../../../convex/_generated/dataModel";
+import { ConfirmationModal } from "../actions/ConfirmationModal";
+import { ConversationContextMenu } from "../actions/ConversationContextMenu";
+import { ConversationListAction } from "../actions/ConversationListAction";
+import { ConversationShowcaseDialog } from "../profile/ConversationShowcaseDialog";
+import { ConversationBranchIndicator } from "./ConversationBranchIndicator";
 
 interface ConversationListProps {
   activeConversationId?: Id<"conversations">;
@@ -68,7 +69,7 @@ export function ConversationList({
     useState<Id<"conversations"> | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showcaseDialogOpen, setShowcaseDialogOpen] = useState(false);
-  const [showcaseConversationId, setShowcaseConversationId] = 
+  const [showcaseConversationId, setShowcaseConversationId] =
     useState<Id<"conversations"> | null>(null);
   const router = useRouter();
 
@@ -99,25 +100,59 @@ export function ConversationList({
   }, [conversations, debouncedSearchQuery]);
 
   // Pin/unpin logic
-  const handlePin = (id: Id<"conversations">, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent conversation selection
+  const handlePin = (id: Id<"conversations">, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation(); // Prevent conversation selection
+    }
     pin(id).catch((error) => {
       console.error("Failed to toggle pin:", error);
     });
   };
 
   // Delete logic
-  const handleDelete = (id: Id<"conversations">, event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleDelete = (id: Id<"conversations">, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
     setConversationToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
   // Showcase logic
-  const handleShowcase = (id: Id<"conversations">, event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handleShowcase = (
+    id: Id<"conversations">,
+    event?: React.MouseEvent
+  ) => {
+    if (event) {
+      event.stopPropagation();
+    }
     setShowcaseConversationId(id);
     setShowcaseDialogOpen(true);
+  };
+
+  // Context menu handlers
+  const handleContextMenuPin = (conversationId: Id<"conversations">) => {
+    handlePin(conversationId);
+  };
+
+  const handleContextMenuRename = (conversationId: Id<"conversations">) => {
+    console.log("rename", conversationId);
+    // TODO: Implement rename functionality
+    toast.info("Rename functionality coming soon!");
+  };
+
+  const handleContextMenuDelete = (conversationId: Id<"conversations">) => {
+    handleDelete(conversationId);
+  };
+
+  const handleContextMenuExport = (conversationId: Id<"conversations">) => {
+    console.log("export", conversationId);
+    // TODO: Implement export functionality
+    toast.info("Export functionality coming soon!");
+  };
+
+  const handleContextMenuShowcase = (conversationId: Id<"conversations">) => {
+    handleShowcase(conversationId);
   };
 
   const confirmDelete = async () => {
@@ -196,6 +231,82 @@ export function ConversationList({
 
   const conversationToDeleteObj = conversations.find(
     (c) => c._id === conversationToDelete
+  );
+
+  // Conversation item component to reduce duplication
+  const ConversationItem = ({
+    conversation,
+    isPinned = false,
+  }: {
+    conversation: ConversationGroup["conversations"][0];
+    isPinned?: boolean;
+  }) => (
+  <ConversationContextMenu
+    conversationId={conversation._id}
+    conversationTitle={conversation.title}
+    isPinned={pinnedConversations.includes(conversation._id)}
+    isCollaborative={conversation.isCollaborative}
+    isShownOnProfile={conversation.showcase?.isShownOnProfile}
+    isFeatured={conversation.showcase?.isFeatured}
+    onPin={() => handleContextMenuPin(conversation._id)}
+    onRename={() => handleContextMenuRename(conversation._id)}
+    onDelete={() => handleContextMenuDelete(conversation._id)}
+    onExport={() => handleContextMenuExport(conversation._id)}
+    onShowcase={() => handleContextMenuShowcase(conversation._id)}
+  >
+    <div
+      onClick={(e) => {
+        // Only trigger selection on left click, not right click
+        if (e.button === 0) {
+          onSelectConversation(conversation._id);
+        }
+      }}
+      onMouseEnter={() => setHoveredId(conversation._id)}
+      onMouseLeave={() => setHoveredId(null)}
+      className={`relative p-2 ${isPinned ? "px-4" : ""} rounded${isPinned ? "" : "-sm"} cursor-pointer transition-colors hover:bg-muted text-foreground ${
+        activeConversationId === conversation._id
+          ? "bg-background border border-border"
+          : ""
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {!isPinned && (
+          <ConversationBranchIndicator
+            conversationId={conversation._id}
+            onNavigateToParent={(parentId) => {
+              onSelectConversation(parentId);
+            }}
+          />
+        )}
+        <h3 className="text-sm truncate text-ellipsis">
+          {conversation.title}
+        </h3>
+        {conversation.isCollaborative && (
+          <Users className="h-3 w-3 text-muted-foreground" />
+        )}
+        {isPinned && (
+          <ConversationBranchIndicator
+            conversationId={conversation._id}
+            onNavigateToParent={(parentId) => {
+              onSelectConversation(parentId);
+            }}
+          />
+        )}
+      </div>
+      {/* Only show actions for authenticated users */}
+      {user && (
+        <ConversationListAction
+          visible={hoveredId === conversation._id}
+          isPinned={pinnedConversations.includes(conversation._id)}
+          isShownOnProfile={conversation.showcase?.isShownOnProfile}
+          isFeatured={conversation.showcase?.isFeatured}
+          onPin={(event) => handlePin(conversation._id, event)}
+          onDelete={(event) => handleDelete(conversation._id, event)}
+          onShowcase={(event) => handleShowcase(conversation._id, event)}
+        />
+      )}
+    </div>
+  </ConversationContextMenu>
   );
 
   if (isLoading) {
@@ -299,52 +410,11 @@ export function ConversationList({
                 {pinnedOpen && (
                   <div className="space-y-1">
                     {pinnedConversationsList.map((conversation) => (
-                      <div
+                      <ConversationItem
                         key={conversation._id}
-                        onClick={() => onSelectConversation(conversation._id)}
-                        onMouseEnter={() => setHoveredId(conversation._id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        className={`relative p-2 px-4 rounded cursor-pointer transition-colors hover:bg-muted text-foreground ${
-                          activeConversationId === conversation._id
-                            ? "bg-background border border-border"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm truncate text-ellipsis">
-                            {conversation.title}
-                          </h3>
-                          {conversation.isCollaborative && (
-                            <Users className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          <ConversationBranchIndicator
-                            conversationId={conversation._id}
-                            onNavigateToParent={(parentId) => {
-                              onSelectConversation(parentId);
-                            }}
-                          />
-                        </div>
-                        {/* Only show actions for authenticated users */}
-                        {user && (
-                          <ConversationListAction
-                            visible={hoveredId === conversation._id}
-                            isPinned={pinnedConversations.includes(
-                              conversation._id
-                            )}
-                            isShownOnProfile={conversation.showcase?.isShownOnProfile}
-                            isFeatured={conversation.showcase?.isFeatured}
-                            onPin={(event) =>
-                              handlePin(conversation._id, event)
-                            }
-                            onDelete={(event) =>
-                              handleDelete(conversation._id, event)
-                            }
-                            onShowcase={(event) =>
-                              handleShowcase(conversation._id, event)
-                            }
-                          />
-                        )}
-                      </div>
+                        conversation={conversation}
+                        isPinned={true}
+                      />
                     ))}
                   </div>
                 )}
@@ -353,57 +423,18 @@ export function ConversationList({
             {/* Regular groups */}
             {groupedConversations.map((group) => (
               <div key={group.label} className="mt-2 p-2">
-                <h3 className="text-xs font-medium text-primary  tracking-wider px-2 font-mono mb-2">
+                <h3 className="text-xs font-medium text-primary tracking-wider px-2 font-mono mb-2">
                   {group.label}
                 </h3>
                 <div className="space-y-1">
                   {group.conversations
                     .filter((c) => !pinnedConversations.includes(c._id))
                     .map((conversation) => (
-                      <div
+                      <ConversationItem
                         key={conversation._id}
-                        onClick={() => onSelectConversation(conversation._id)}
-                        onMouseEnter={() => setHoveredId(conversation._id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        className={`relative p-2 rounded-sm cursor-pointer transition-colors hover:bg-muted text-foreground ${
-                          activeConversationId === conversation._id
-                            ? "bg-background border border-border"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ConversationBranchIndicator
-                            conversationId={conversation._id}
-                            onNavigateToParent={(parentId) => {
-                              onSelectConversation(parentId);
-                            }}
-                          />
-                          <h3 className="text-sm truncate text-ellipsis">
-                            {conversation.title}
-                          </h3>
-                          {conversation.isCollaborative && (
-                            <Users className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </div>
-                        {/* Only show actions for authenticated users */}
-                        {user && (
-                          <ConversationListAction
-                            visible={hoveredId === conversation._id}
-                            isPinned={pinnedConversations.includes(
-                              conversation._id
-                            )}
-                            isShownOnProfile={conversation.showcase?.isShownOnProfile}
-                            isFeatured={conversation.showcase?.isFeatured}
-                            onPin={(event) => handlePin(conversation._id, event)}
-                            onDelete={(event) =>
-                              handleDelete(conversation._id, event)
-                            }
-                            onShowcase={(event) =>
-                              handleShowcase(conversation._id, event)
-                            }
-                          />
-                        )}
-                      </div>
+                        conversation={conversation}
+                        isPinned={false}
+                      />
                     ))}
                 </div>
               </div>
@@ -411,6 +442,7 @@ export function ConversationList({
           </div>
         )}
       </div>
+
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
@@ -425,7 +457,7 @@ export function ConversationList({
           children: isDeleting ? "Deleting..." : "Delete",
         }}
       />
-      
+
       {/* Showcase Dialog */}
       {showcaseConversationId && (
         <ConversationShowcaseDialog

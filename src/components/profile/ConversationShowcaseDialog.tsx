@@ -85,6 +85,7 @@ export function ConversationShowcaseDialog({
   const updateShowcase = useMutation(
     api.userProfiles.updateConversationShowcase
   );
+  const updateSharing = useMutation(api.conversations.updateSharing);
 
   // Memoized derived state
   const isFormDirty = useMemo(() => {
@@ -124,6 +125,8 @@ export function ConversationShowcaseDialog({
       });
     }
   }, [conversation?.showcase]);
+
+
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -214,6 +217,7 @@ export function ConversationShowcaseDialog({
 
     setIsSubmitting(true);
     try {
+      // First update showcase settings
       await updateShowcase({
         conversationId,
         showcase: {
@@ -223,6 +227,22 @@ export function ConversationShowcaseDialog({
         },
       });
 
+      // If adding to profile, also make it publicly accessible
+      if (showcaseData.isShownOnProfile) {
+        await updateSharing({
+          conversationId,
+          sharing: {
+            isPublic: true,
+            allowAnonymous: true, // Allow anonymous viewing for public profiles
+            requiresPassword: false,
+            password: undefined,
+            expiresAt: undefined,
+          },
+        });
+      }
+      // If removing from profile, optionally make it private
+      // (Note: We don't automatically make it private as user might have shared it separately)
+
       toast.success("Showcase settings updated!");
       onClose();
     } catch (error) {
@@ -231,13 +251,14 @@ export function ConversationShowcaseDialog({
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, conversationId, showcaseData, updateShowcase, onClose]);
+  }, [isSubmitting, conversationId, showcaseData, updateShowcase, updateSharing, onClose]);
 
   const handleRemoveFromProfile = useCallback(async () => {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
+      // Remove from showcase
       await updateShowcase({
         conversationId,
         showcase: {
@@ -246,6 +267,10 @@ export function ConversationShowcaseDialog({
           tags: [],
         },
       });
+
+      // Note: We don't automatically make it private when removing from profile
+      // as the user might have shared it separately via the share dialog
+      // Users can manage sharing settings separately via the share dialog
 
       toast.success("Conversation removed from profile");
       onClose();
@@ -300,7 +325,7 @@ export function ConversationShowcaseDialog({
                     Show on Public Profile
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Make this conversation visible on your public profile
+                    Make this conversation visible and accessible on your public profile
                   </p>
                 </div>
                 <Switch
@@ -312,6 +337,22 @@ export function ConversationShowcaseDialog({
                   disabled={isSubmitting}
                 />
               </div>
+
+              {/* Public Access Notice */}
+              {showcaseData.isShownOnProfile && (
+                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="flex gap-2">
+                    <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-800 dark:text-blue-200">
+                      <p className="font-medium">Public Access</p>
+                      <p className="mt-1">
+                        This conversation will be publicly accessible to anyone who visits your profile. 
+                        Anonymous viewers will be able to read the conversation content.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Featured Toggle - only show if conversation is on profile */}
               {showcaseData.isShownOnProfile && (

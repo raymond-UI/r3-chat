@@ -22,6 +22,7 @@ interface ConversationWithStats extends Doc<"conversations"> {
 interface ConversationCardProps {
   conversation: ConversationWithStats;
   isOwnProfile: boolean;
+  username: string;
   onShowcaseSettings?: (conversationId: Id<"conversations">) => void;
 }
 
@@ -43,6 +44,7 @@ const formatRelativeTime = (createdAt: number): string => {
 export function ConversationCard({
   conversation,
   isOwnProfile,
+  username,
   onShowcaseSettings,
 }: ConversationCardProps) {
   const { user } = useUser();
@@ -64,8 +66,8 @@ export function ConversationCard({
     [conversation.createdAt]
   );
   const conversationUrl = useMemo(
-    () => `/chat/${conversation._id}`,
-    [conversation._id]
+    () => `/u/${username}/${conversation._id}`,
+    [username, conversation._id]
   );
   const isFeatured = useMemo(
     () => Boolean(conversation.showcase?.isFeatured),
