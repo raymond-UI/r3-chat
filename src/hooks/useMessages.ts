@@ -4,14 +4,16 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 export function useMessages(conversationId: Id<"conversations"> | undefined) {
-  const messages = useQuery(
+  const queryResult = useQuery(
     api.messages.list,
     conversationId ? { conversationId } : "skip"
   );
 
   return {
-    messages: messages || [],
-    isLoading: messages === undefined,
+    messages: queryResult?.success ? queryResult.messages : [],
+    isLoading: queryResult === undefined,
+    error: queryResult?.error || null,
+    hasAccess: queryResult?.success || false,
   };
 }
 
@@ -27,11 +29,12 @@ export function useSendMessage() {
     aiModel?: string,
     fileIds?: Id<"files">[]
   ) => {
-    if (!user?.id) throw new Error("User not authenticated");
+    // Support both authenticated and anonymous users
+    const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
     
     return await sendMessage({
       conversationId,
-      userId: user.id,
+      userId,
       content,
       type,
       aiModel,

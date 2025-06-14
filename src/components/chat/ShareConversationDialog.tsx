@@ -23,7 +23,8 @@ export function ShareConversationDialog({
   isOpen, 
   onClose 
 }: ShareConversationDialogProps) {
-  const conversation = useQuery(api.conversations.get, { conversationId });
+  const conversationResult = useQuery(api.conversations.get, { conversationId });
+  const conversation = conversationResult?.success ? conversationResult.conversation : null;
   const updateSharing = useMutation(api.conversations.updateSharing);
   
   const [isPublic, setIsPublic] = useState(conversation?.sharing?.isPublic || false);

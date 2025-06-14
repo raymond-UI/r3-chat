@@ -1,4 +1,5 @@
-import { Plus, User } from "lucide-react";
+import { Plus, User, LogIn } from "lucide-react";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 import { ConversationList } from "@/components/chat/ConversationList";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export function ChatSidebar({
   onSelectConversation,
   onNewChat,
 }: ChatSidebarProps) {
+
   return (
     <Sidebar
     className="border-none"
@@ -57,6 +59,17 @@ export function ChatSidebar({
       </div>
 
       <SidebarContent className="px-2 py-4 border-none">
+        {/* Anonymous user notice */}
+        <SignedOut>
+          <div className="group-data-[collapsible=icon]:hidden mb-4 p-3 bg-muted/50 rounded-lg">
+            <h3 className="font-semibold text-sm text-muted-foreground mb-1">
+              Anonymous Chat
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Sign up to save conversations
+            </p>
+          </div>
+        </SignedOut>
 
         {/* Conversation List Container */}
         <div className="flex-1 overflow-hidden">
@@ -71,12 +84,38 @@ export function ChatSidebar({
       <SidebarFooter className="border-t border-border/50 p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Profile">
-              <User className="h-4 w-4" />
-              <span className="group-data-[collapsible=icon]:hidden">
-                Profile
-              </span>
-            </SidebarMenuButton>
+            <SignedIn>
+              <SidebarMenuButton tooltip="Profile">
+                <User className="h-4 w-4" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  Profile
+                </span>
+              </SidebarMenuButton>
+            </SignedIn>
+            <SignedOut>
+              <SidebarMenuButton 
+                tooltip="Sign In" 
+                onClick={() => window.location.href = '/auth'}
+                className="group-data-[collapsible=icon]:hidden"
+              >
+                <LogIn className="h-4 w-4" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  Sign Up Free
+                </span>
+              </SidebarMenuButton>
+              {/* Collapsed state for anonymous users */}
+              <div className="group-data-[collapsible=icon]:block hidden">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-10 p-0 flex items-center justify-center"
+                  title="Sign Up"
+                  onClick={() => window.location.href = '/auth'}
+                >
+                  <LogIn className="h-4 w-4" />
+                </Button>
+              </div>
+            </SignedOut>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

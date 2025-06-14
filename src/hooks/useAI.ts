@@ -20,7 +20,8 @@ export function useAI() {
 
   // Get conversation messages for context
   const useMessages = (conversationId: Id<"conversations">) => {
-    return useQuery(api.messages.list, { conversationId });
+    const queryResult = useQuery(api.messages.list, { conversationId });
+    return queryResult?.success ? queryResult.messages : [];
   };
 
   const sendToAI = async (

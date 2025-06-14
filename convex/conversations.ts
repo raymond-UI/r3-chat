@@ -1,5 +1,7 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+import { mutation, query } from "./_generated/server";
+import { checkConversationAccess } from "./messages";
 
 // Get all conversations for a user
 export const list = query({
@@ -16,13 +18,72 @@ export const list = query({
   },
 });
 
-// Get a single conversation by ID
+// Get conversations by their IDs (for anonymous users)
+export const getByIds = query({
+  args: { conversationIds: v.array(v.string()) },
+  handler: async (ctx, { conversationIds }) => {
+    const conversations = [];
+    
+    for (const idStr of conversationIds) {
+      try {
+        const conversation = await ctx.db.get(idStr as Id<"conversations">);
+        if (conversation && conversation._id) {
+          conversations.push(conversation);
+        }
+      } catch {
+        // Skip invalid IDs
+        console.warn(`Invalid conversation ID: ${idStr}`);
+      }
+    }
+    
+    // Sort by updatedAt descending, with fallback to _creationTime
+    return conversations.sort((a, b) => {
+      const aTime = "updatedAt" in a && a.updatedAt ? a.updatedAt : a._creationTime;
+      const bTime = "updatedAt" in b && b.updatedAt ? b.updatedAt : b._creationTime;
+      return bTime - aTime;
+    });
+  },
+});
+
+// Get a single conversation by ID with proper access control
 export const get = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, { conversationId }) => {
-    return await ctx.db.get(conversationId);
+    const identity = await ctx.auth.getUserIdentity();
+    const conversation = await ctx.db.get(conversationId);
+    
+    if (!conversation) {
+      return {
+        success: false,
+        error: "Conversation not found",
+        conversation: null,
+        canAccess: false,
+      };
+    }
+
+    // Check if user has access to this conversation
+    const hasAccess = await checkConversationAccess(ctx, conversation, identity);
+    
+    if (!hasAccess) {
+      return {
+        success: false,
+        error: "Access denied: You don't have permission to view this conversation",
+        conversation: null,
+        canAccess: false,
+      };
+    }
+
+    return {
+      success: true,
+      error: null,
+      conversation,
+      canAccess: true,
+    };
   },
 });
+
+
+
 
 // Create a new conversation
 export const create = mutation({
@@ -30,16 +91,32 @@ export const create = mutation({
     title: v.optional(v.string()),
     isCollaborative: v.optional(v.boolean()),
     participants: v.optional(v.array(v.string())),
+    isAnonymous: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    
+    // Support anonymous users
+    let createdBy: string;
+    let participants: string[];
+    
+    if (!identity && args.isAnonymous) {
+      // Anonymous user - create a temporary unique identifier
+      createdBy = `anonymous_${crypto.randomUUID()}`;
+      participants = [createdBy, ...(args.participants || [])];
+    } else if (identity) {
+      // Authenticated user
+      createdBy = identity.subject;
+      participants = [identity.subject, ...(args.participants || [])];
+    } else {
+      throw new Error("Not authenticated");
+    }
 
     const conversationId = await ctx.db.insert("conversations", {
       title: args.title || "New Chat",
-      participants: [identity.subject, ...(args.participants || [])],
+      participants,
       isCollaborative: args.isCollaborative || false,
-      createdBy: identity.subject,
+      createdBy,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       // Add sharing configuration
@@ -63,8 +140,22 @@ export const addParticipant = mutation({
     userId: v.string()
   },
   handler: async (ctx, { conversationId, userId }) => {
+    const identity = await ctx.auth.getUserIdentity();
     const conversation = await ctx.db.get(conversationId);
-    if (!conversation) throw new Error("Conversation not found");
+    
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+    
+    // Only allow existing participants or creator to add new participants
+    if (!identity) {
+      throw new Error("Authentication required");
+    }
+    
+    if (!conversation.participants.includes(identity.subject) && 
+        conversation.createdBy !== identity.subject) {
+      throw new Error("Access denied: You don't have permission to add participants to this conversation");
+    }
     
     if (!conversation.participants.includes(userId)) {
       await ctx.db.patch(conversationId, {
@@ -82,6 +173,23 @@ export const updateTitle = mutation({
     title: v.string(),
   },
   handler: async (ctx, { conversationId, title }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const conversation = await ctx.db.get(conversationId);
+    
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+    
+    // Only allow participants or creator to update title
+    if (!identity) {
+      throw new Error("Authentication required");
+    }
+    
+    if (!conversation.participants.includes(identity.subject) && 
+        conversation.createdBy !== identity.subject) {
+      throw new Error("Access denied: You don't have permission to modify this conversation");
+    }
+    
     await ctx.db.patch(conversationId, {
       title,
       updatedAt: Date.now(),

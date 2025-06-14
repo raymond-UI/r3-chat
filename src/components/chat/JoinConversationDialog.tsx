@@ -32,10 +32,12 @@ export function JoinConversationDialog({
   const [joinError, setJoinError] = useState<string | null>(null);
 
   // Get conversation details
-  const conversation = useQuery(
+  const conversationResult = useQuery(
     api.conversations.get,
     conversationId ? { conversationId } : "skip"
   );
+  
+  const conversation = conversationResult?.success ? conversationResult.conversation : null;
 
   // Get presence info for participants
   const presence = useQuery(
@@ -77,7 +79,7 @@ export function JoinConversationDialog({
   };
 
   // Show loading state while conversation is being fetched
-  if (conversationId && conversation === undefined) {
+  if (conversationId && conversationResult === undefined) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
@@ -106,7 +108,7 @@ export function JoinConversationDialog({
   }
 
   // Show error state when conversation is null (not found)
-  if (conversationId && conversation === null) {
+  if (conversationId && conversationResult && !conversationResult.success) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
@@ -116,7 +118,7 @@ export function JoinConversationDialog({
               Conversation Not Found
             </DialogTitle>
             <DialogDescription>
-              This conversation doesn&apos;t exist or you don&apos;t have permission to view it.
+              {conversationResult?.error || "This conversation doesn't exist or you don't have permission to view it."}
             </DialogDescription>
           </DialogHeader>
           

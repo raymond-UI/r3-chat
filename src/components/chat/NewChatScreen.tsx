@@ -1,28 +1,15 @@
 "use client";
 
-import { Sparkles, Code, BookOpen, Search } from "lucide-react";
-import { MessageInput } from "./MessageInput";
+import { LoginPromptDialog } from "@/components/auth/LoginPromptDialog";
+import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { useFiles } from "@/hooks/useFiles";
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { gsap } from "gsap";
-import { Button } from "../ui/button";
+import { TabId, tabs } from "@/utils/suggestionData";
 import { useUser } from "@clerk/nextjs";
-
-type TabId = "create" | "explore" | "code" | "learn";
-
-interface Suggestion {
-  id: string;
-  text: string;
-  description?: string;
-}
-
-interface Tab {
-  id: TabId;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  suggestions: Suggestion[];
-}
+import { gsap } from "gsap";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "../ui/button";
+import { MessageInput } from "./MessageInput";
 
 export function NewChatScreen() {
   const { user } = useUser();
@@ -36,121 +23,20 @@ export function NewChatScreen() {
     clearUploadedFiles,
   } = useFiles();
 
+  const {
+    isSignedIn,
+    remainingMessages,
+    canSendMessage,
+    showLoginPrompt,
+    handleLoginPromptClose,
+    messageLimit,
+    setShowLoginPrompt,
+  } = useAnonymousMessaging();
+
   const [activeTab, setActiveTab] = useState<TabId>("create");
   const suggestionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const inputRef = useRef<{ fillInput: (text: string) => void }>(null);
-
-  const tabs: Tab[] = [
-    {
-      id: "create",
-      label: "Create",
-      icon: Sparkles,
-      suggestions: [
-        {
-          id: "1",
-          text: "Write a creative story about time travel",
-          description: "Generate an engaging narrative",
-        },
-        {
-          id: "2",
-          text: "Create a marketing plan for a tech startup",
-          description: "Business strategy and planning",
-        },
-        {
-          id: "3",
-          text: "Design a workout routine for beginners",
-          description: "Health and fitness planning",
-        },
-        {
-          id: "4",
-          text: "Generate ideas for a mobile app",
-          description: "Innovation and brainstorming",
-        },
-      ],
-    },
-    {
-      id: "explore",
-      label: "Explore",
-      icon: Search,
-      suggestions: [
-        {
-          id: "5",
-          text: "Explain the CAP theorem in distributed systems",
-          description: "Computer science concepts",
-        },
-        {
-          id: "6",
-          text: "What are the implications of quantum computing?",
-          description: "Future technology exploration",
-        },
-        {
-          id: "7",
-          text: "How do neural networks actually work?",
-          description: "AI and machine learning",
-        },
-        {
-          id: "8",
-          text: "Are black holes real?",
-          description: "Space and physics",
-        },
-      ],
-    },
-    {
-      id: "code",
-      label: "Code",
-      icon: Code,
-      suggestions: [
-        {
-          id: "9",
-          text: "Beginner's guide to TypeScript",
-          description: "Programming tutorial",
-        },
-        {
-          id: "10",
-          text: "Build a REST API with Node.js and Express",
-          description: "Backend development",
-        },
-        {
-          id: "11",
-          text: "Optimize React app performance",
-          description: "Frontend optimization",
-        },
-        {
-          id: "12",
-          text: "Database design best practices",
-          description: "Data architecture",
-        },
-      ],
-    },
-    {
-      id: "learn",
-      label: "Learn",
-      icon: BookOpen,
-      suggestions: [
-        {
-          id: "13",
-          text: "Why is AI so expensive?",
-          description: "Technology economics",
-        },
-        {
-          id: "14",
-          text: "How to improve critical thinking skills",
-          description: "Personal development",
-        },
-        {
-          id: "15",
-          text: "Understanding cryptocurrency and blockchain",
-          description: "Financial technology",
-        },
-        {
-          id: "16",
-          text: "The psychology of decision making",
-          description: "Behavioral science",
-        },
-      ],
-    },
-  ];
 
   const currentTab = tabs.find((tab) => tab.id === activeTab)!;
 
@@ -248,7 +134,8 @@ export function NewChatScreen() {
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              How can I help you? {user?.firstName}
+              How can I help you
+              {isSignedIn && user?.firstName ? `, ${user.firstName}` : ""}?
             </h1>
           </motion.div>
 
@@ -289,53 +176,55 @@ export function NewChatScreen() {
           </motion.div>
 
           {/* Suggestions */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2"
-              >
-                {currentTab.suggestions.map((suggestion, index) => (
-                  <motion.button
-                    key={suggestion.id}
-                    ref={(el) => {
-                      suggestionRefs.current[index] = el;
-                    }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.4,
-                      delay: index * 0.1,
-                      ease: "easeOut",
-                    }}
-                    onClick={() => handleSuggestionClick(suggestion.text)}
-                    className="w-full cursor-pointer text-left p-4 rounded-xl bg-card hover:bg-muted/60 border border-border/50 hover:border-border transition-all duration-200 group"
-                  > 
-                      <p className="font-medium text-foreground group-hover:text-primary transition-colors">
-                        {suggestion.text}
-                      </p>
-                      {suggestion.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {suggestion.description}
-                        </p>
-                      )}     
-                  </motion.button>
-                ))}
-              </motion.div>
-            </AnimatePresence>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2"
+            >
+              {currentTab.suggestions.map((suggestion, index) => (
+                <motion.button
+                  key={suggestion.id}
+                  ref={(el) => {
+                    suggestionRefs.current[index] = el;
+                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: index * 0.1,
+                    ease: "easeOut",
+                  }}
+                  onClick={() => handleSuggestionClick(suggestion.text)}
+                  className="w-full cursor-pointer text-left p-4 rounded-xl bg-card hover:bg-muted/60 border border-border/50 hover:border-border transition-all duration-200 group"
+                >
+                  <p className="font-medium text-foreground group-hover:text-primary transition-colors">
+                    {suggestion.text}
+                  </p>
+                  {suggestion.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {suggestion.description}
+                    </p>
+                  )}
+                </motion.button>
+              ))}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Message Input */}
       <motion.div
-        className="w-full"
+        className="w-full relative"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
       >
+      
+
         <MessageInput
           ref={inputRef}
           isNewChat={true}
@@ -346,8 +235,18 @@ export function NewChatScreen() {
           hasFilesToSend={hasFilesToSend}
           clearUploadedFiles={clearUploadedFiles}
           uploadStagedFiles={saveUploadedFilesToDatabase}
+          disabled={!canSendMessage}
+          showSignUpPrompt={() => setShowLoginPrompt(true)}
         />
       </motion.div>
+
+      {/* Login Prompt Dialog */}
+      <LoginPromptDialog
+        isOpen={showLoginPrompt}
+        onClose={handleLoginPromptClose}
+        messagesUsed={messageLimit - (remainingMessages || 0)}
+        messageLimit={messageLimit}
+      />
     </div>
   );
 }

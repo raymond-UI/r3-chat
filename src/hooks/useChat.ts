@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo } from "react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { ModelLimitManager } from "@/utils/MessageLimitManager";
 
 interface UseChatOptions {
   conversationId?: Id<"conversations">;
@@ -42,10 +43,12 @@ export function useChat({
   const sendMessage = useMutation(api.messages.send);
   
   // Get messages from Convex if conversationId is provided
-  const convexMessages = useQuery(
+  const convexMessagesResult = useQuery(
     api.messages.list,
     conversationId ? { conversationId } : "skip"
   );
+  
+  const convexMessages = convexMessagesResult?.success ? convexMessagesResult.messages : null;
 
   // Transform Convex messages to enhanced AI SDK format
   const transformedMessages = useMemo(() => {
@@ -86,12 +89,12 @@ export function useChat({
     body: {
       model,
       conversationId,
-      userId: user?.id,
+      userId: user?.id || "anonymous",
     },
     onFinish: useCallback(
       async (message: { content: string }) => {
         // Save AI response to Convex when streaming completes
-        if (conversationId && user?.id) {
+        if (conversationId) {
           await sendMessage({
             conversationId,
             userId: "ai-assistant",
@@ -103,7 +106,7 @@ export function useChat({
         }
         onFinish?.(message);
       },
-      [conversationId, user?.id, sendMessage, model, onFinish]
+      [conversationId, sendMessage, model, onFinish]
     ),
   });
 
@@ -127,7 +130,7 @@ export function useChat({
     });
   }, [aiMessages, transformedMessages]);
 
-  // Custom submit handler that saves user message to Convex
+  // Custom submit handler that saves user message to Convex and tracks anonymous usage
   const handleSubmit = useCallback(
     async (e?: React.FormEvent<HTMLFormElement>, chatRequestOptions?: { 
       data?: { 
@@ -135,22 +138,30 @@ export function useChat({
         fileIds?: Id<"files">[];
       } 
     }) => {
-      if (!user?.id || !conversationId) {
+      if (!conversationId) {
         return originalHandleSubmit(e, chatRequestOptions);
       }
 
       // Save user message to Convex first
       const userMessage = chatRequestOptions?.data?.messages?.[0]?.content || input;
       const fileIds = chatRequestOptions?.data?.fileIds;
+      const actualUserId = user?.id || "anonymous";
       
       if (userMessage?.trim()) {
         await sendMessage({
           conversationId,
-          userId: user.id,
+          userId: actualUserId,
           content: userMessage.trim(),
           type: "user",
           fileIds, // Include file IDs if provided
         });
+
+        // Track anonymous message if user is not signed in
+        if (!user?.id) {
+          ModelLimitManager.incrementAnonymousMessageCount();
+          // Ensure conversation is tracked for anonymous user
+          ModelLimitManager.addAnonymousConversation(conversationId);
+        }
       }
 
       // Then proceed with AI SDK submission

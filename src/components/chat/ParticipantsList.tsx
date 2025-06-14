@@ -28,7 +28,8 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
   const [showShareDialog, setShowShareDialog] = useState(false);
 
   // Get conversation details
-  const conversation = useQuery(api.conversations.get, { conversationId });
+  const conversationResult = useQuery(api.conversations.get, { conversationId });
+  const conversation = conversationResult?.success ? conversationResult.conversation : null;
   
   // Get presence info for participants
   const presence = useQuery(api.presence.list, { conversationId });

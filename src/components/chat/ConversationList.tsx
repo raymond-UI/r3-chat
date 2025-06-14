@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConversations } from "@/hooks/useConversations";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useUser } from "@clerk/nextjs";
 import {
   ChevronDown,
   ChevronUp,
@@ -43,6 +44,7 @@ export function ConversationList({
   onSelectConversation,
   onNewChat,
 }: ConversationListProps) {
+  const { user } = useUser();
   const { conversations, pinnedConversations, remove, pin, isLoading } =
     useConversations();
   const [searchQuery, setSearchQuery] = useState("");
@@ -232,14 +234,11 @@ export function ConversationList({
           <div className="p-4 text-center text-muted-foreground">
             <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
             <p>No conversations yet</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onNewChat}
-              className="mt-2"
-            >
-              Start your first chat
-            </Button>
+            {!user && (
+              <p className="text-xs mt-1 mb-2">
+                Anonymous conversations are temporary
+              </p>
+            )}
           </div>
         ) : groupedConversations.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
@@ -261,8 +260,8 @@ export function ConversationList({
           </div>
         ) : (
           <div className="space-y-4 mt-8">
-            {/* Pinned group */}
-            {pinnedConversationsList.length > 0 && (
+            {/* Pinned group - Only show for authenticated users */}
+            {user && pinnedConversationsList.length > 0 && (
               <div className="mt-2 p-2">
                 <div
                   className="flex items-center justify-between px-2 cursor-pointer select-none"
@@ -307,16 +306,21 @@ export function ConversationList({
                             }}
                           />
                         </div>
-                        <ConversationListAction
-                          visible={hoveredId === conversation._id}
-                          isPinned={pinnedConversations.includes(
-                            conversation._id
-                          )}
-                          onPin={(event) => handlePin(conversation._id, event)}
-                          onDelete={(event) =>
-                            handleDelete(conversation._id, event)
-                          }
-                        />
+                        {/* Only show actions for authenticated users */}
+                        {/* {user && ( */}
+                          <ConversationListAction
+                            visible={hoveredId === conversation._id}
+                            isPinned={pinnedConversations.includes(
+                              conversation._id
+                            )}
+                            onPin={(event) =>
+                              handlePin(conversation._id, event)
+                            }
+                            onDelete={(event) =>
+                              handleDelete(conversation._id, event)
+                            }
+                          />
+                        {/* )} */}
                       </div>
                     ))}
                   </div>
@@ -345,7 +349,7 @@ export function ConversationList({
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                        <ConversationBranchIndicator
+                          <ConversationBranchIndicator
                             conversationId={conversation._id}
                             onNavigateToParent={(parentId) => {
                               onSelectConversation(parentId);
@@ -358,6 +362,7 @@ export function ConversationList({
                             <Users className="h-3 w-3 text-muted-foreground" />
                           )}
                         </div>
+                        {/* Only show actions for authenticated users */}
                         <ConversationListAction
                           visible={hoveredId === conversation._id}
                           isPinned={pinnedConversations.includes(
@@ -376,6 +381,7 @@ export function ConversationList({
           </div>
         )}
       </div>
+      {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

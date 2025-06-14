@@ -20,8 +20,9 @@ interface ChatAreaProps {
 }
 
 export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
+  
   // Use Convex messages for real-time updates and file attachments
-  const { messages: convexMessages, isLoading: convexLoading } = useMessages(conversationId);
+  const { messages: convexMessages } = useMessages(conversationId);
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
   
   // File upload functionality
@@ -241,24 +242,15 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     return () => clearTimeout(timeout);
   }, [input, stopTyping]);
 
-  if (convexLoading) {
-    return (
-      <div className="flex-1 w-full flex items-center justify-center">
-        <div className="flex items-center space-x-1">
-          <div className="size-3 bg-current rounded-full animate-bounce"></div>
-          <div className="size-4 bg-current rounded-full animate-bounce delay-100"></div>
-          <div className="size-3 bg-current rounded-full animate-bounce delay-200"></div>
-        </div>
-      </div>
-    );
-  }
+
+
 
   return (
     <div className="flex-1 flex flex-col w-full h-full mt-11 sm:mt-0 relative mx-auto overflow-y-auto">
       {/* Messages Area */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto relative"
+        className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto relative z-0"
         onScroll={handleScroll}
       >
         <MessageList messages={displayMessages} conversationId={conversationId} />
@@ -327,8 +319,8 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ✅ Restored MessageInput component */}
-      <div className="w-full">
+
+      <div className="w-full relative z-10">
         <MessageInput
           value={input}
           onChange={handleInputChange}

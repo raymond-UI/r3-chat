@@ -1,12 +1,37 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 
-// Get all messages for a conversation with active branch filtering
+// Get all messages for a conversation with active branch filtering and access control
 export const list = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
+    // First, verify the user has access to this conversation
+    const identity = await ctx.auth.getUserIdentity();
+    const conversation = await ctx.db.get(args.conversationId);
+    
+    if (!conversation) {
+      return {
+        success: false,
+        error: "Conversation not found",
+        messages: [],
+        canAccess: false,
+      };
+    }
+    
+    // Check if user has access to this conversation
+    const hasAccess = await checkConversationAccess(ctx, conversation, identity);
+    
+    if (!hasAccess) {
+      return {
+        success: false,
+        error: "Access denied: You don't have permission to view this conversation",
+        messages: [],
+        canAccess: false,
+      };
+    }
+
     const allMessages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
@@ -32,7 +57,12 @@ export const list = query({
       })
     );
 
-    return messagesWithFiles;
+    return {
+      success: true,
+      error: null,
+      messages: messagesWithFiles,
+      canAccess: true,
+    };
   },
 });
 
@@ -319,4 +349,40 @@ function getActiveBranchMessages(tree: MessageTree): Doc<"messages">[] {
 
   traverse(tree.roots);
   return activeBranchMessages;
+}
+
+// Helper function to check conversation access (shared with conversations.ts logic)
+export async function checkConversationAccess(
+  ctx: QueryCtx,
+  conversation: Doc<"conversations">,
+  identity: { subject: string } | null
+): Promise<boolean> {
+  // 1. Allow if conversation is publicly shared
+  if (conversation.sharing?.isPublic) {
+    return true;
+  }
+  
+  // 2. Allow if user is authenticated and is a participant
+  if (identity && conversation.participants.includes(identity.subject)) {
+    return true;
+  }
+  
+  // 3. Allow if user is the creator
+  if (identity && conversation.createdBy === identity.subject) {
+    return true;
+  }
+  
+  // 4. Allow anonymous access if conversation allows it and is public
+  if (!identity && conversation.sharing?.isPublic && conversation.sharing?.allowAnonymous) {
+    return true;
+  }
+  
+  // 5. Allow anonymous users access to their own conversations
+  if (!identity && conversation.createdBy?.startsWith("anonymous_")) {
+    // This is tricky - we can't verify anonymous ownership server-side
+    // The client should handle this case by tracking anonymous conversation IDs
+    return true;
+  }
+  
+  return false;
 } 

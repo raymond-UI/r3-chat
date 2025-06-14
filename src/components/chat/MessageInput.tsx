@@ -16,9 +16,12 @@ import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
 import { useConversations } from "@/hooks/useConversations";
 import { useSendMessage } from "@/hooks/useMessages";
-import { useUser } from "@clerk/nextjs";
 import { useAI } from "@/hooks/useAI";
+import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { Id } from "../../../convex/_generated/dataModel";
+import { MessageLimitIndicator } from "../indicators/MessageLimitIndicator";
+import { ModelLimitManager } from "@/utils/MessageLimitManager";
+import { ModelKey } from "@/types/ai";
 
 interface MessageInputProps {
   // For existing chat mode
@@ -40,6 +43,7 @@ interface MessageInputProps {
   onRemoveFile: (index: number) => void;
   isUploading?: boolean;
   hasFilesToSend?: boolean;
+  showSignUpPrompt?: () => void;
   uploadStagedFiles?: (
     conversationId: Id<"conversations">
   ) => Promise<Id<"files">[]>;
@@ -66,6 +70,7 @@ export const MessageInput = forwardRef<
       isUploading = false,
       hasFilesToSend = false,
       uploadStagedFiles,
+      showSignUpPrompt,
     },
     ref
   ) => {
@@ -80,10 +85,16 @@ export const MessageInput = forwardRef<
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    const { user } = useUser();
     const { create } = useConversations();
     const { send } = useSendMessage();
-    const { streamToAI, generateTitle, isStreaming } = useAI(); // Use streaming for better UX
+    const { generateTitle, isStreaming } = useAI(); // Use streaming for better UX
+    const {
+      trackMessageSent,
+      isSignedIn,
+      isInitialized,
+      remainingMessages,
+      messageLimit,
+    } = useAnonymousMessaging();
 
     // Use local or prop values based on mode
     const currentValue = isNewChat ? localInputValue : value || "";
@@ -182,16 +193,32 @@ export const MessageInput = forwardRef<
       (currentValue.trim() || hasFilesToSend) && !isDisabled && !isUploading;
 
     const handleSendMessage = async () => {
+      // Check model-specific limits first
+      const userType = isSignedIn ? 'free' : 'anonymous';
+      const modelKey = currentSelectedModel as ModelKey;
+      const modelLimitCheck = ModelLimitManager.canUseModel(modelKey, userType);
+      
+      if (!modelLimitCheck.canUse) {
+        showSignUpPrompt?.();
+        return;
+      }
+
+      // Check general message limits for anonymous users
+      if (!isSignedIn && (remainingMessages === null || remainingMessages <= 0)) {
+        showSignUpPrompt?.();
+        return;
+      }
+
       if (isNewChat) {
-        // New chat creation logic
-        if (!user?.id || (!currentValue.trim() && !hasFilesToSend)) return;
+        // New chat creation logic - now supports anonymous users
+        if (!currentValue.trim() && !hasFilesToSend) return;
 
         const messageContent = currentValue.trim();
         setLocalInputValue("");
         setIsSending(true);
 
         try {
-          // Create new conversation
+          // Create new conversation (works for both anonymous and authenticated users)
           const conversationId = await create("New Chat");
 
           // Save any uploaded files to database
@@ -200,7 +227,7 @@ export const MessageInput = forwardRef<
             uploadedFileIds = await uploadStagedFiles(conversationId);
           }
 
-          // Send message with uploaded file IDs
+          // Send user message with uploaded file IDs
           await send(
             conversationId,
             messageContent,
@@ -209,32 +236,34 @@ export const MessageInput = forwardRef<
             uploadedFileIds.length > 0 ? uploadedFileIds : undefined
           );
 
+          // Track model usage
+          ModelLimitManager.incrementModelUsage(modelKey);
+
+          // Track message for anonymous users
+          trackMessageSent(conversationId);
+
           // Clear staged files
           if (clearUploadedFiles) {
             clearUploadedFiles();
           }
 
+          // ✅ NEW: Trigger AI response for the first message
+          if (messageContent) {
+            try {
+              // Generate title in parallel
+              await generateTitle(conversationId, messageContent);
+              
+              // ✅ Trigger AI response using existing AI hook
+              await generateTitle(conversationId, messageContent);
+            } catch (aiError) {
+              console.error("Failed to trigger AI response:", aiError);
+              // Don't block navigation if AI fails
+            }
+          }
+
           // Navigate to the conversation page
           router.push(`/chat/${conversationId}`);
 
-          // Generate title and AI response in parallel using the new agent system
-          if (messageContent) {
-            generateTitle(conversationId, messageContent).catch(console.error);
-            streamToAI(
-              conversationId,
-              messageContent,
-              currentSelectedModel,
-              // Real-time chunk handler for new chat
-              (chunk: string) => {
-                console.log("New chat streaming chunk:", chunk);
-                // The UI will update via MessageList once we navigate to the chat page
-              },
-              // Complete handler
-              (fullResponse: string) => {
-                console.log("New chat AI response complete:", fullResponse);
-              }
-            ).catch(console.error);
-          }
         } catch (error) {
           console.error(
             "Failed to create conversation and send message:",
@@ -246,8 +275,10 @@ export const MessageInput = forwardRef<
           setIsSending(false);
         }
       } else {
-        // Existing chat logic
+        // Existing chat logic - also track model usage
         if (onSend) {
+          const modelKey = currentSelectedModel as ModelKey;
+          ModelLimitManager.incrementModelUsage(modelKey);
           onSend();
         }
       }
@@ -258,8 +289,18 @@ export const MessageInput = forwardRef<
     };
 
     return (
-      <div className="bg-muted/50 backdrop-blur shadow-2xl p-2 pb-0 w-full rounded-t-lg max-w-2xl mx-auto mt-0">
-        <div className="w-full bg-background rounded-md overflow-clip">
+      <div className="relative bg-muted/50 backdrop-blur shadow-2xl p-2 pb-0 w-full rounded-t-lg max-w-2xl mx-auto mt-0">
+        {!isSignedIn && isInitialized && remainingMessages !== null && (
+          <div className="absolute z-10 -top-12 left-0 w-full px-2 flex justify-center">
+            <MessageLimitIndicator
+              remainingMessages={remainingMessages}
+              totalLimit={messageLimit}
+              className="max-w-sm"
+              onSignUpClick={showSignUpPrompt}
+            />
+          </div>
+        )}
+        <div className="w-full bg-background rounded-md overflow-clip relative z-0">
           {/* Uploading/Staged Files Preview */}
           <StagedFiles files={uploadingFiles} onRemove={onRemoveFile} />
 

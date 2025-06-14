@@ -2,10 +2,9 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn } from "@clerk/nextjs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { ChatSidebar } from "@/components/chat-layout/ChatSidebar";
 import { JoinConversationDialog } from "@/components/chat/JoinConversationDialog";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -61,42 +60,28 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="w-full">
-      <SignedOut>
-        <div className="flex items-center justify-center w-full h-full">
-          <div className="text-center space-y-4">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Welcome to R3 Chat
-            </h1>
-            <p className="text-muted-foreground max-w-md">
-              Please sign in to start chatting and connect with your team
-            </p>
-            <Button asChild size="lg">
-              <a href="/auth?">Sign In</a>
-            </Button>
+      <SidebarProvider>
+        <div className="flex sm:h-screen h-[100vh] w-full overflow-hidden">
+          {/* Persistent Sidebar */}
+          <CollapsedMenu onNewChat={handleNewChat} onSearch={handleSearch} />
+          
+          {/* Unified ChatSidebar for all users */}
+          <ChatSidebar
+            activeConversationId={conversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
+          />
+
+
+          <div className="flex flex-1 flex-col bg-sidebar pt-2 px-2 sm:pt-4 sm:pl-4 h-full transition-all duration-300 ease-in-out">
+            {/* Dynamic Content */}
+            <main className="flex-1 bg-background border border-secondary w-full overflow-hidden rounded-t-2xl sm:rounded-tl-2xl">{children}</main>
           </div>
         </div>
-      </SignedOut>
+      </SidebarProvider>
 
+      {/* Join Conversation Dialog - Only for signed in users */}
       <SignedIn>
-        <SidebarProvider>
-          <div className="flex sm:h-screen h-[calc(100vh-50px)] w-full overflow-hidden">
-            {/* Persistent Sidebar */}
-            <CollapsedMenu onNewChat={handleNewChat} onSearch={handleSearch} />
-            <ChatSidebar
-              activeConversationId={conversationId}
-              onSelectConversation={handleSelectConversation}
-              onNewChat={handleNewChat}
-            />
-
-            {/* Main Content Area - This will automatically resize when sidebar collapses */}
-            <div className="flex flex-1 flex-col bg-sidebar pt-2 px-2 sm:pt-4 sm:pl-4 h-full transition-all duration-300 ease-in-out">
-              {/* Dynamic Content */}
-              <main className="flex-1 bg-background border border-secondary w-full overflow-hidden rounded-t-2xl sm:rounded-tl-2xl">{children}</main>
-            </div>
-          </div>
-        </SidebarProvider>
-
-        {/* Join Conversation Dialog */}
         <JoinConversationDialog
           conversationId={pendingInviteId}
           isOpen={joinDialogOpen}
