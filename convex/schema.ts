@@ -38,6 +38,7 @@ export default defineSchema({
   messages: defineTable({
     conversationId: v.id("conversations"),
     userId: v.string(),
+    senderName: v.optional(v.string()), // Store sender's display name
     content: v.string(),
     aiModel: v.optional(v.string()),
     timestamp: v.number(),
@@ -150,4 +151,19 @@ export default defineSchema({
   }).index("by_conversation", ["conversationId"])
     .index("by_user", ["userId"])
     .index("by_user_conversation", ["userId", "conversationId"]),
+
+  // Invites table for managing conversation invitations
+  invites: defineTable({
+    conversationId: v.id("conversations"),
+    inviteCode: v.string(), // Unique invite code
+    createdBy: v.string(), // User who created the invite
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()), // Optional expiration
+    maxUses: v.optional(v.number()), // Optional usage limit
+    usedCount: v.number(), // How many times it's been used
+    isActive: v.boolean(), // Whether invite is still active
+  })
+    .index("by_code", ["inviteCode"])
+    .index("by_conversation", ["conversationId"])
+    .index("by_creator", ["createdBy"]),
 }); 

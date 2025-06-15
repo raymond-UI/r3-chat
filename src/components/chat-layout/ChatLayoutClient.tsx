@@ -12,8 +12,7 @@ import { CollapsedMenu } from "./CollapsedMenu";
 
 function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
-  const [pendingInviteId, setPendingInviteId] =
-    useState<Id<"conversations"> | null>(null);
+  const [pendingInviteCode, setPendingInviteCode] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -27,9 +26,9 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
 
   // Handle invite links
   useEffect(() => {
-    const inviteId = searchParams.get("invite");
-    if (inviteId) {
-      setPendingInviteId(inviteId as Id<"conversations">);
+    const inviteParam = searchParams.get("invite");
+    if (inviteParam) {
+      setPendingInviteCode(inviteParam);
       setJoinDialogOpen(true);
     }
   }, [searchParams]);
@@ -45,12 +44,19 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
   const handleJoinConversation = (id: Id<"conversations">) => {
     router.push(`/chat/${id}`);
     setJoinDialogOpen(false);
-    setPendingInviteId(null);
+    setPendingInviteCode(null);
   };
 
   const handleCloseJoinDialog = () => {
     setJoinDialogOpen(false);
-    setPendingInviteId(null);
+    setPendingInviteCode(null);
+    
+    // Clear the invite parameter from URL when closing the dialog
+    if (searchParams.get("invite")) {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("invite");
+      router.replace(newUrl.pathname + newUrl.search);
+    }
   };
 
   const handleSearch = () => {
@@ -83,7 +89,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Join Conversation Dialog - Only for signed in users */}
       <SignedIn>
         <JoinConversationDialog
-          conversationId={pendingInviteId}
+          inviteCode={pendingInviteCode}
           isOpen={joinDialogOpen}
           onClose={handleCloseJoinDialog}
           onJoin={handleJoinConversation}

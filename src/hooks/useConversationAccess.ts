@@ -12,13 +12,14 @@ interface UseConversationAccessResult {
 }
 
 export function useConversationAccess(
-  conversationId: Id<"conversations"> | undefined
+  conversationId: Id<"conversations"> | undefined,
+  isInviteAccess?: boolean
 ): UseConversationAccessResult {
   const { user } = useUser();
   
   const queryResult = useQuery(
     api.conversations.get,
-    conversationId ? { conversationId } : "skip"
+    conversationId ? { conversationId, isInviteAccess } : "skip"
   );
 
   if (!conversationId) {

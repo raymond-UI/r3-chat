@@ -47,8 +47,11 @@ export const getByIds = query({
 
 // Get a single conversation by ID with proper access control
 export const get = query({
-  args: { conversationId: v.id("conversations") },
-  handler: async (ctx, { conversationId }) => {
+  args: { 
+    conversationId: v.id("conversations"),
+    isInviteAccess: v.optional(v.boolean())
+  },
+  handler: async (ctx, { conversationId, isInviteAccess }) => {
     const identity = await ctx.auth.getUserIdentity();
     const conversation = await ctx.db.get(conversationId);
     
@@ -62,7 +65,7 @@ export const get = query({
     }
 
     // Check if user has access to this conversation
-    const hasAccess = await checkConversationAccess(ctx, conversation, identity);
+    const hasAccess = await checkConversationAccess(ctx, conversation, identity, isInviteAccess);
     
     if (!hasAccess) {
       return {
@@ -81,9 +84,6 @@ export const get = query({
     };
   },
 });
-
-
-
 
 // Create a new conversation
 export const create = mutation({
@@ -502,5 +502,247 @@ export const getByShareId = query({
         allowAnonymous: conversation.sharing.allowAnonymous,
       }
     };
+  },
+});
+
+// Create an invite code for a conversation
+export const createInvite = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    expiresIn: v.optional(v.number()), // Hours until expiration
+    maxUses: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    // Check if user can create invites (participant or creator)
+    if (!conversation.participants.includes(identity.subject) && 
+        conversation.createdBy !== identity.subject) {
+      throw new Error("Access denied: You don't have permission to create invites for this conversation");
+    }
+
+    // Generate unique invite code
+    const inviteCode = crypto.randomUUID().replace(/-/g, '').substring(0, 12);
+    
+    const expiresAt = args.expiresIn 
+      ? Date.now() + (args.expiresIn * 60 * 60 * 1000) // Convert hours to ms
+      : undefined;
+
+    const inviteId = await ctx.db.insert("invites", {
+      conversationId: args.conversationId,
+      inviteCode,
+      createdBy: identity.subject,
+      createdAt: Date.now(),
+      expiresAt,
+      maxUses: args.maxUses,
+      usedCount: 0,
+      isActive: true,
+    });
+
+    return { inviteCode, inviteId };
+  },
+});
+
+// Join a conversation using an invite code
+export const joinViaInvite = mutation({
+  args: {
+    inviteCode: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    // Find the invite
+    const invite = await ctx.db
+      .query("invites")
+      .withIndex("by_code", (q) => q.eq("inviteCode", args.inviteCode))
+      .first();
+
+    if (!invite) {
+      throw new Error("Invalid invite code");
+    }
+
+    // Check if invite is still valid
+    if (!invite.isActive) {
+      throw new Error("This invite has been deactivated");
+    }
+
+    if (invite.expiresAt && Date.now() > invite.expiresAt) {
+      throw new Error("This invite has expired");
+    }
+
+    if (invite.maxUses && invite.usedCount >= invite.maxUses) {
+      throw new Error("This invite has reached its usage limit");
+    }
+
+    // Get the conversation
+    const conversation = await ctx.db.get(invite.conversationId);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    // Check if user is already a participant
+    if (conversation.participants.includes(identity.subject)) {
+      return { 
+        conversationId: invite.conversationId,
+        message: "You are already a participant in this conversation"
+      };
+    }
+
+    // Add user to conversation
+    await ctx.db.patch(invite.conversationId, {
+      participants: [...conversation.participants, identity.subject],
+      updatedAt: Date.now(),
+    });
+
+    // Update invite usage count
+    await ctx.db.patch(invite._id, {
+      usedCount: invite.usedCount + 1,
+    });
+
+    return { 
+      conversationId: invite.conversationId,
+      message: "Successfully joined the conversation"
+    };
+  },
+});
+
+// Get invite details (for displaying in join dialog)
+export const getInviteDetails = query({
+  args: { inviteCode: v.string() },
+  handler: async (ctx, args) => {
+    const invite = await ctx.db
+      .query("invites")
+      .withIndex("by_code", (q) => q.eq("inviteCode", args.inviteCode))
+      .first();
+
+    if (!invite) {
+      return {
+        success: false,
+        error: "Invalid invite code",
+        invite: null,
+        conversation: null,
+      };
+    }
+
+    // Check if invite is still valid
+    if (!invite.isActive) {
+      return {
+        success: false,
+        error: "This invite has been deactivated",
+        invite: null,
+        conversation: null,
+      };
+    }
+
+    if (invite.expiresAt && Date.now() > invite.expiresAt) {
+      return {
+        success: false,
+        error: "This invite has expired",
+        invite: null,
+        conversation: null,
+      };
+    }
+
+    if (invite.maxUses && invite.usedCount >= invite.maxUses) {
+      return {
+        success: false,
+        error: "This invite has reached its usage limit",
+        invite: null,
+        conversation: null,
+      };
+    }
+
+    // Get conversation details
+    const conversation = await ctx.db.get(invite.conversationId);
+    if (!conversation) {
+      return {
+        success: false,
+        error: "Conversation not found",
+        invite: null,
+        conversation: null,
+      };
+    }
+
+    return {
+      success: true,
+      error: null,
+      invite: {
+        inviteCode: invite.inviteCode,
+        createdAt: invite.createdAt,
+        expiresAt: invite.expiresAt,
+        maxUses: invite.maxUses,
+        usedCount: invite.usedCount,
+      },
+      conversation: {
+        _id: conversation._id,
+        title: conversation.title,
+        isCollaborative: conversation.isCollaborative,
+        participants: conversation.participants,
+        createdBy: conversation.createdBy,
+      },
+    };
+  },
+});
+
+// List invites for a conversation (for management)
+export const listInvites = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    // Check if user can view invites (participant or creator)
+    if (!conversation.participants.includes(identity.subject) && 
+        conversation.createdBy !== identity.subject) {
+      throw new Error("Access denied");
+    }
+
+    const invites = await ctx.db
+      .query("invites")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    return invites.map((invite) => ({
+      _id: invite._id,
+      inviteCode: invite.inviteCode,
+      createdBy: invite.createdBy,
+      createdAt: invite.createdAt,
+      expiresAt: invite.expiresAt,
+      maxUses: invite.maxUses,
+      usedCount: invite.usedCount,
+    }));
+  },
+});
+
+// Deactivate an invite
+export const deactivateInvite = mutation({
+  args: { inviteId: v.id("invites") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) throw new Error("Invite not found");
+
+    const conversation = await ctx.db.get(invite.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    // Check if user can deactivate invites (creator or invite creator)
+    if (conversation.createdBy !== identity.subject && invite.createdBy !== identity.subject) {
+      throw new Error("Access denied");
+    }
+
+    await ctx.db.patch(args.inviteId, {
+      isActive: false,
+    });
   },
 }); 

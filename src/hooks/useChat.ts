@@ -93,6 +93,7 @@ export function useChat({
           await sendMessage({
             conversationId,
             userId: "ai-assistant",
+            senderName: "Assistant",
             content: message.content,
             type: "ai",
             aiModel: selectedModel,
@@ -118,6 +119,7 @@ export function useChat({
         await sendMessage({
           conversationId,
           userId: user.id,
+          senderName: user.firstName || user.username || "Anonymous User",
           content: messageContent,
           type: "user",
           fileIds: fileIds || [],
@@ -139,7 +141,7 @@ export function useChat({
         throw error;
       }
     },
-    [handleSubmit, input, conversationId, selectedModel, user?.id, sendMessage]
+    [handleSubmit, input, conversationId, selectedModel, user?.id, user?.firstName, user?.username, sendMessage]
   );
 
   // Enhanced submit function that saves user message to Convex first
@@ -155,6 +157,7 @@ export function useChat({
         await sendMessage({
           conversationId,
           userId: user.id,
+          senderName: user.firstName || user.username || "Anonymous User",
           content: messageContent,
           type: "user",
         });
@@ -174,7 +177,7 @@ export function useChat({
         throw error;
       }
     },
-    [handleSubmit, input, conversationId, selectedModel, user?.id, sendMessage]
+    [handleSubmit, input, conversationId, selectedModel, user?.id, user?.firstName, user?.username, sendMessage]
   );
 
   // Generate conversation title (works for both logged-in and anonymous users)

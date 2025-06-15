@@ -3,10 +3,10 @@ import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
-export function useMessages(conversationId: Id<"conversations"> | undefined) {
+export function useMessages(conversationId: Id<"conversations"> | undefined, isInviteAccess?: boolean) {
   const queryResult = useQuery(
     api.messages.list,
-    conversationId ? { conversationId } : "skip"
+    conversationId ? { conversationId, isInviteAccess } : "skip"
   );
 
   return {
@@ -31,10 +31,12 @@ export function useSendMessage() {
   ) => {
     // Support both authenticated and anonymous users
     const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+    const senderName = user?.firstName || user?.username || "Anonymous User";
     
     return await sendMessage({
       conversationId,
       userId,
+      senderName,
       content,
       type,
       aiModel,

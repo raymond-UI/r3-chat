@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Id } from "../../../convex/_generated/dataModel";
 import { ChatArea } from "./ChatArea";
 import { ChatHeader } from "./ChatHeader";
@@ -17,14 +18,19 @@ interface ChatContainerProps {
 
 export function ChatContainer({ conversationId }: ChatContainerProps) {
   const [aiEnabled, setAiEnabled] = useState(true);
-  const { isLoading: accessLoading } = useConversationAccess(conversationId);
-  const { isLoading: convexLoading } = useMessages(conversationId);
+  const searchParams = useSearchParams();
+  
+  // Check if this is invite access
+  const isInviteAccess = searchParams.get("invite") === conversationId;
+  
+  const { isLoading: accessLoading } = useConversationAccess(conversationId, isInviteAccess);
+  const { isLoading: convexLoading } = useMessages(conversationId, isInviteAccess);
 
   const {
     canAccess,
     error: accessError,
     accessReason,
-  } = useConversationAccess(conversationId);
+  } = useConversationAccess(conversationId, isInviteAccess);
 
   return (
     <div className="flex relative flex-col items-start justify-start w-full min-w-0 overflow-hidden h-full">

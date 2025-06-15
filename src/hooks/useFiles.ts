@@ -5,6 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useUploadThing } from "@/lib/uploadthing";
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 export interface FileWithPreview {
   file: File;
@@ -39,7 +40,30 @@ export const useFiles = (conversationId?: Id<"conversations">) => {
 
   // Upload files immediately to storage (works for both new and existing chats)
   const uploadFiles = async (files: File[]) => {
-    const validFiles = validateFiles(files);
+    const { validFiles, errors } = validateFiles(files);
+    
+    // Show validation errors to user if any
+    if (errors.length > 0) {
+      console.error("File validation errors:", errors);
+      
+      // Show toast notifications for validation errors
+      if (errors.length === 1) {
+        toast.error(errors[0]);
+      } else {
+        toast.error(`${errors.length} files rejected`, {
+          description: errors.join('\n'),
+          duration: 5000, // Show longer for multiple errors
+        });
+      }
+      
+      // If no valid files, return early
+      if (validFiles.length === 0) {
+        throw new Error(`Upload failed:\n${errors.join('\n')}`);
+      } else {
+        // Some files were valid, show info about partial success
+        toast.info(`${validFiles.length} files will be uploaded (${errors.length} rejected)`);
+      }
+    }
     
     // Create preview objects for each file
     const filesWithPreview: FileWithPreview[] = validFiles.map(file => {
@@ -141,6 +165,11 @@ export const useFiles = (conversationId?: Id<"conversations">) => {
       }
     } catch (error) {
       console.error("Failed to upload files:", error);
+      
+      // Show toast notification for upload failure
+      toast.error("Failed to upload files", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      });
       
       // Mark files as failed
       setUploadingFiles(prev => 
@@ -252,8 +281,9 @@ export const useFiles = (conversationId?: Id<"conversations">) => {
   };
 };
 
-export const validateFiles = (files: File[]): File[] => {
+export const validateFiles = (files: File[]): { validFiles: File[]; errors: string[] } => {
   const validFiles: File[] = [];
+  const errors: string[] = [];
   
   for (const file of files) {
     // Check file type
@@ -261,21 +291,23 @@ export const validateFiles = (files: File[]): File[] => {
     const isPdf = file.type === 'application/pdf';
     
     if (!isImage && !isPdf) {
-      console.warn(`Unsupported file type: ${file.type}`);
+      errors.push(`${file.name}: Unsupported file type (${file.type}). Only images and PDFs are allowed.`);
       continue;
     }
     
     // Check file size
     const maxSize = isImage ? 4 * 1024 * 1024 : 16 * 1024 * 1024; // 4MB for images, 16MB for PDFs
+    const maxSizeLabel = isImage ? '4MB' : '16MB';
+    
     if (file.size > maxSize) {
-      console.warn(`File too large: ${file.name} (${formatFileSize(file.size)})`);
+      errors.push(`${file.name}: File too large (${formatFileSize(file.size)}). Maximum size is ${maxSizeLabel}.`);
       continue;
     }
     
     validFiles.push(file);
   }
   
-  return validFiles;
+  return { validFiles, errors };
 };
 
 export const formatFileSize = (bytes: number): string => {

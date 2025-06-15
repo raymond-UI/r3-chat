@@ -14,11 +14,13 @@ import { Badge } from "@/components/ui/badge";
 
 interface MessageWithFiles extends Doc<"messages"> {
   attachedFiles?: Doc<"files">[];
+  senderName?: string;
 }
 
 // 🆕 Enhanced message type with streaming status
 interface EnhancedMessage extends MessageWithFiles {
   isRealTimeStreaming?: boolean;
+  senderName?: string;
 }
 
 type MessageType = EnhancedMessage;
@@ -190,14 +192,13 @@ export function MessageList({ messages, conversationId, readOnly = false }: Mess
             >
               {isAI ? (
                 <span className="text-xs text-muted-foreground order-1">
-                  {/*  streaming indicator */}
                   Assistant:
                 </span>
               ) : isSystem ? (
                 <span className="text-xs text-muted-foreground">System:</span>
               ) : (
                 <span className="text-xs text-muted-foreground">
-                  {user?.firstName || "U"}:
+                  {message.senderName || user?.firstName || "U"}:
                 </span>
               )}
               <div

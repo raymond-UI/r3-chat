@@ -44,7 +44,10 @@ function getRateLimitConfig(limitName: string) {
 
 // Get all messages for a conversation with active branch filtering and access control
 export const list = query({
-  args: { conversationId: v.id("conversations") },
+  args: { 
+    conversationId: v.id("conversations"),
+    isInviteAccess: v.optional(v.boolean())
+  },
   handler: async (ctx, args) => {
     // First, verify the user has access to this conversation
     const identity = await ctx.auth.getUserIdentity();
@@ -60,7 +63,7 @@ export const list = query({
     }
     
     // Check if user has access to this conversation
-    const hasAccess = await checkConversationAccess(ctx, conversation, identity);
+    const hasAccess = await checkConversationAccess(ctx, conversation, identity, args.isInviteAccess);
     
     if (!hasAccess) {
       return {
@@ -138,6 +141,7 @@ export const send = mutation({
   args: {
     conversationId: v.id("conversations"),
     userId: v.string(),
+    senderName: v.optional(v.string()),
     content: v.string(),
     type: v.union(v.literal("user"), v.literal("ai"), v.literal("system")),
     aiModel: v.optional(v.string()),
@@ -235,6 +239,7 @@ export const send = mutation({
     const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       userId: args.userId,
+      senderName: args.senderName,
       content: args.content,
       type: args.type,
       aiModel: args.aiModel,
@@ -458,7 +463,8 @@ function getActiveBranchMessages(tree: MessageTree): Doc<"messages">[] {
 export async function checkConversationAccess(
   ctx: QueryCtx,
   conversation: Doc<"conversations">,
-  identity: { subject: string } | null
+  identity: { subject: string } | null,
+  isInviteAccess?: boolean
 ): Promise<boolean> {
   // 1. Allow if conversation is publicly shared
   if (conversation.sharing?.isPublic) {
@@ -484,6 +490,11 @@ export async function checkConversationAccess(
   if (!identity && conversation.createdBy?.startsWith("anonymous_")) {
     // This is tricky - we can't verify anonymous ownership server-side
     // The client should handle this case by tracking anonymous conversation IDs
+    return true;
+  }
+  
+  // 6. 🎫 Allow invite access - users can view conversation details when accessing via invite
+  if (isInviteAccess && identity) {
     return true;
   }
   

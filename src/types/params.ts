@@ -7,5 +7,6 @@ export type PageParams = {
       page?: string;
       tag?: string;
       featured?: string;
+      invite?: string;
     }>;
   };

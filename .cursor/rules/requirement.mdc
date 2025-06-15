@@ -12,7 +12,7 @@ alwaysApply: true
 - ✅ **Syntax Highlighting** (Code formatting implemented) 
 - ✅ **AI SDK Integration** (Fixed streaming, eliminated duplicate saves)
 
-- ⚠️ **File upload integration** - basic upload, nothing working yet, still need proper passing to vision model, pdf text extraction or direct passing to supported model, whichever is easy.
+- ⚠️ **File upload integration** - basic upload, pdf direct passing to ai working, still need proper passing to vision models.
 
 - ✅ **Message persistence** (Unified Convex + AI SDK system)
 - ✅ **Real-time streaming** (Fixed bugs, now stable)
@@ -21,6 +21,9 @@ alwaysApply: true
 -  ✅  **Conversation branching** Working - can be enhanced.
 -  ✅ **Message branching** - Buggy, not working.
 - ⌛ **Public/private sharing system** Working but needs update on view permission
+- ✅ **Conversation Branching** - Alternative responses and conversation forking
+- ✅ **Conversation Sharing** - Public/private sharing system
+- ✅ **Public profile** - Public/private sharing system
 
 ### 🔧 Recent Technical Fixes (Latest Session):
 - **Fixed Duplicate Message Bug**: Eliminated double-saving messages to database
@@ -32,10 +35,8 @@ alwaysApply: true
 ### 🎯 Next Priority Items - Phase 2
 
 #### 🚀 Core Feature Completion (Current Focus)
-1. **Enhanced File Processing** - Complete PDF analysis and image OCR/or direct pass to vision and file models.
+1. **Enhanced File Processing** - Complete PDF analysis and direct pass to vision and file models.
 2. **AI Image Generation** - Text-to-image capabilities 
-3. **Conversation Branching** - Alternative responses and conversation forking
-5. **Conversation Sharing** - Public/private sharing system
 
 #### ⚡ Stack Advantages Being Leveraged
 - **Real-time Everything**: Convex subscriptions for instant updates

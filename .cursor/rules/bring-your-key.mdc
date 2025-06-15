@@ -1,0 +1,303 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 🔑 Enhanced "Bring Your Own Key" Implementation Plan
+
+## 📋 Updated Overview
+Allow users to configure their own API keys for different AI providers **including OpenRouter**, while maintaining the current OpenRouter integration as the default fallback. This provides maximum flexibility - users can use their own OpenRouter key to access all models, or configure individual provider keys for specific models.
+
+## 🎯 Enhanced User Stories
+- **As a cost-conscious user**, I want to use my own OpenRouter key to control costs while keeping access to all models
+- **As a privacy-focused user**, I want direct provider access OR my own OpenRouter account for billing transparency
+- **As a power user**, I want to mix and match - my own OpenAI key for GPT models, but OpenRouter for others
+- **As a default user**, I want the system to work seamlessly without any configuration
+
+## 🏗️ Updated Technical Architecture
+
+### 1. Enhanced API Key Management System
+
+#### Database Schema (Convex)
+```typescript
+// users table extension
+apiKeys: {
+  openai?: string,
+  anthropic?: string, 
+  google?: string,
+  openrouter?: string, // User's own OpenRouter key
+  // encrypted at rest
+}
+
+// user preferences
+preferences: {
+  keyConfiguration: "default" | "own-openrouter" | "mixed" | "direct-only",
+  fallbackToDefault: boolean,
+  preferredProvider?: "openai" | "anthropic" | "google" | "openrouter"
+}
+```
+
+#### Key Configuration Options
+```typescript
+type KeyConfiguration = 
+  | "default"        // Use system OpenRouter key
+  | "own-openrouter" // Use user's OpenRouter key for everything
+  | "mixed"          // Use direct keys where available, OpenRouter for rest
+  | "direct-only";   // Only use direct provider keys, no OpenRouter fallback
+```
+
+### 2. Enhanced Provider Abstraction Layer
+
+#### Updated Flow
+```
+User Message → Provider Router → Decision Logic → AI SDK → Models
+
+Decision Logic:
+1. Check user's key configuration preference
+2. Check model availability with user's keys
+3. Route to appropriate provider (direct or OpenRouter)
+4. Handle fallbacks based on user preference
+```
+
+#### Enhanced Provider Router Logic
+```typescript
+interface ProviderConfig {
+  provider: 'openai' | 'anthropic' | 'google' | 'openrouter';
+  apiKey: string;
+  baseURL?: string;
+  model: string;
+  source: 'user-direct' | 'user-openrouter' | 'system-default';
+}
+
+async function getProviderConfig(
+  userId: string, 
+  modelId: string
+): Promise<ProviderConfig> {
+  const userKeys = await getUserApiKeys(userId);
+  const userPrefs = await getUserPreferences(userId);
+  const modelProvider = MODEL_PROVIDERS[modelId];
+
+  // Strategy 1: User wants to use their own OpenRouter key for everything
+  if (userPrefs.keyConfiguration === "own-openrouter" && userKeys.openrouter) {
+    return {
+      provider: 'openrouter',
+      apiKey: userKeys.openrouter,
+      baseURL: 'https://openrouter.ai/api/v1',
+      model: modelId,
+      source: 'user-openrouter'
+    };
+  }
+
+  // Strategy 2: Direct provider keys only
+  if (userPrefs.keyConfiguration === "direct-only") {
+    if (!userKeys[modelProvider]) {
+      throw new Error(`No direct API key configured for ${modelProvider}`);
+    }
+    return {
+      provider: modelProvider,
+      apiKey: userKeys[modelProvider],
+      model: modelId,
+      source: 'user-direct'
+    };
+  }
+
+  // Strategy 3: Mixed approach - prefer direct, fallback to user's OpenRouter
+  if (userPrefs.keyConfiguration === "mixed") {
+    // Try direct provider first
+    if (userKeys[modelProvider]) {
+      return {
+        provider: modelProvider,
+        apiKey: userKeys[modelProvider],
+        model: modelId,
+        source: 'user-direct'
+      };
+    }
+    
+    // Fallback to user's OpenRouter
+    if (userKeys.openrouter) {
+      return {
+        provider: 'openrouter',
+        apiKey: userKeys.openrouter,
+        baseURL: 'https://openrouter.ai/api/v1',
+        model: modelId,
+        source: 'user-openrouter'
+      };
+    }
+
+    // Final fallback to system default if user allows
+    if (userPrefs.fallbackToDefault) {
+      return getSystemDefaultConfig(modelId);
+    }
+
+    throw new Error("No suitable API key configuration found");
+  }
+
+  // Strategy 4: Default - use system OpenRouter key
+  return getSystemDefaultConfig(modelId);
+}
+```
+
+## 🎨 Enhanced User Interface Design
+
+### 1. Updated Settings Page Structure
+```
+┌─ API Keys & Models ─────────────────────────────────────┐
+│                                                         │
+│ ⚙️ How do you want to use AI models?                    │
+│                                                         │
+│ ○ Use Default System (Recommended)                      │
+│   • No setup required • All models available           │
+│   • Managed by us • No billing complexity              │
+│                                                         │
+│ ○ Use Your OpenRouter Key                               │
+│   • All models available • Your billing control        │
+│   • Same interface • Lower complexity                  │
+│                                                         │
+│ ○ Mixed Approach (Advanced)                             │
+│   • Direct keys for specific providers                 │
+│   • OpenRouter for remaining models                    │
+│   • Maximum flexibility                                │
+│                                                         │
+│ ○ Direct Provider Keys Only                             │
+│   • Maximum privacy • Lowest latency                   │
+│   • Limited to your configured providers               │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ 🔧 API Key Configuration                                │
+│                                                         │
+│ ┌─ OpenRouter ─────────────────────────────────────┐   │
+│ │ 🔑 API Key: [sk-or-v1-••••••••••••] [Test]     │   │
+│ │ ✅ All models available (200+ models)           │   │
+│ │ 💡 Simplest option for full model access        │   │
+│ └─────────────────────────────────────────────────┘   │
+│                                                         │
+│ ┌─ OpenAI Direct ──────────────────────────────────┐   │
+│ │ 🔑 API Key: [sk-••••••••••••] [Test]           │   │
+│ │ ✅ GPT-4o, GPT-4o-mini available               │   │
+│ │ 💰 ~20% cost savings vs OpenRouter             │   │
+│ └─────────────────────────────────────────────────┘   │
+│                                                         │
+│ ┌─ Anthropic Direct ───────────────────────────────┐   │
+│ │ 🔑 API Key: [Not configured]                   │   │
+│ │ ⚪ Claude models unavailable                    │   │
+│ │ 💰 ~15% cost savings vs OpenRouter             │   │
+│ └─────────────────────────────────────────────────┘   │
+│                                                         │
+│ ☑️ Fallback to system default if my keys fail         │
+└─────────────────────────────────────────────────────────┘
+```
+### 2. Enhanced Model Selector
+```typescript
+interface ModelOption {
+  id: string;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'google';
+  availableSources: Array<{
+    type: 'user-direct' | 'user-openrouter' | 'system-default';
+    configured: boolean;
+    costMultiplier?: number; // relative to system default
+  }>;
+  currentSource: 'user-direct' | 'user-openrouter' | 'system-default';
+  available: boolean;
+}
+
+// Example model selector display:
+// GPT-4o [Your OpenAI Key] 💰 (20% savings)
+// Claude-3-Opus [Your OpenRouter] ✅ (Available)  
+// Gemini-Pro [System Default] 🔧 (Configure direct key for savings)
+```
+
+## 🔄 Updated Implementation Phases
+
+### Phase 1: Enhanced Foundation (Week 1)
+1. **Extended Database Schema**: Add OpenRouter key support
+2. **Configuration Options**: Implement 4 key configuration strategies
+3. **Enhanced Provider Router**: Support all routing strategies
+4. **Basic Settings UI**: Configuration selection interface
+
+### Phase 2: Core Integration (Week 2)
+1. **OpenRouter User Key Integration**: Modify AI SDK integration
+2. **Mixed Strategy Logic**: Implement smart fallback logic
+3. **Key Validation**: Test all key types (including OpenRouter)
+4. **Error Handling**: Strategy-specific error handling
+
+### Phase 3: UX Enhancement (Week 3)
+1. **Smart Configuration Wizard**: Guide users to best setup
+2. **Cost Comparison**: Show savings potential per strategy
+3. **Model Availability Matrix**: Clear view of what's available
+4. **Usage Analytics**: Per-strategy usage tracking
+
+### Phase 4: Advanced Features (Week 4)
+1. **Dynamic Strategy Switching**: Change strategies mid-conversation
+2. **Cost Optimization**: Auto-suggest most cost-effective routing
+3. **Provider Health Dashboard**: Show status of all configured keys
+4. **Advanced Fallback Rules**: Custom fallback preferences
+
+## 📊 Enhanced Configuration Examples
+
+### Configuration Strategy Examples
+
+#### 1. "Own OpenRouter" Strategy
+```typescript
+// User wants control but maximum simplicity
+{
+  keyConfiguration: "own-openrouter",
+  apiKeys: {
+    openrouter: "sk-or-v1-user-key-here"
+  }
+}
+// Result: All models route through user's OpenRouter account
+```
+
+#### 2. "Mixed" Strategy (Most Flexible)
+```typescript
+{
+  keyConfiguration: "mixed",
+  fallbackToDefault: true,
+  apiKeys: {
+    openai: "sk-user-openai-key",      // Direct for cost savings
+    openrouter: "sk-or-user-key",      // For models not available direct
+    // anthropic: undefined             // Will use OpenRouter fallback
+  }
+}
+// Result: OpenAI direct → OpenRouter for others → System default if needed
+```
+
+#### 3. "Direct Only" Strategy (Maximum Privacy)
+```typescript
+{
+  keyConfiguration: "direct-only",
+  fallbackToDefault: false,
+  apiKeys: {
+    openai: "sk-user-openai-key",
+    anthropic: "sk-ant-user-key",
+    google: "user-google-key"
+  }
+}
+// Result: Only direct provider access, no OpenRouter at all
+```
+
+## 🎯 Benefits of This Approach
+
+### For Users Who Want Simplicity
+- **Own OpenRouter Key**: One key, all models, full control, familiar interface
+- **Clear billing**: All usage appears on their OpenRouter account
+- **No complexity**: Same experience as default, just with their billing
+
+### For Cost-Conscious Users
+- **Mixed Strategy**: Use direct keys where savings are significant
+- **Automatic optimization**: System can suggest best routing for cost
+- **Transparent pricing**: Show actual cost savings per strategy
+
+### For Privacy-Focused Users
+- **Direct Only**: No intermediary services
+- **Full control**: Choose exactly which providers to use
+- **Audit trail**: Clear visibility into which provider handles what
+
+### For Default Users
+- **Zero configuration**: Current experience unchanged
+- **Always available**: System keys ensure reliability
+- **Upgrade path**: Easy migration to own keys when ready
+
+This enhanced approach gives users the perfect balance of control and simplicity, with OpenRouter remaining a key part of the ecosystem both as a system default and as a user-configurable option.

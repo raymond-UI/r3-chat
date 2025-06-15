@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import {
     createUploadthing,
-    type FileRouter as UploadThingFileRouter,
+    type FileRouter,
 } from "uploadthing/next";
 
 const f = createUploadthing();
@@ -21,9 +21,21 @@ export const ourFileRouter = {
       // Whatever is returned here is accessible in onUploadComplete as `metadata`
       return { userId: userId };
     })
+    .onUploadError(({ error, fileKey }) => {
+      console.error("Image upload error:", error.message);
+      console.error("Failed file key:", fileKey);
+      
+      // Log specific error details for debugging
+      if (error.code === "TOO_LARGE") {
+        console.error(`Image file exceeds 4MB limit`);
+      } else if (error.code === "BAD_REQUEST") {
+        console.error(`Invalid image type`);
+      } else {
+        console.error(`Image upload failed:`, error.code, error.message);
+      }
+    })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
-      // TODO: return the key which is used to construct the url and passed to the AI SDK
       console.log("Upload complete for userId:", metadata.userId);
       console.log("file url", file.ufsUrl);
 
@@ -44,10 +56,22 @@ export const ourFileRouter = {
       if (!userId) throw new Error("Unauthorized");
       return { userId: userId };
     })
+    .onUploadError(({ error, fileKey }) => {
+      console.error("PDF upload error:", error.message);
+      console.error("Failed file key:", fileKey);
+      
+      // Log specific error details for debugging
+      if (error.code === "TOO_LARGE") {
+        console.error(`PDF file exceeds 16MB limit`);
+      } else if (error.code === "BAD_REQUEST") {
+        console.error(`Invalid PDF file or request`);
+      } else {
+        console.error(`PDF upload failed:`, error.code, error.message);
+      }
+    })
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("PDF Upload complete for userId:", metadata.userId);
       console.log("file url", file.ufsUrl);
-      // TODO: return the key which is used to construct the url and passed to the AI SDK
 
       return {
         uploadedBy: metadata.userId,
@@ -58,6 +82,6 @@ export const ourFileRouter = {
         type: "pdf",
       };
     }),
-} satisfies UploadThingFileRouter;
+} satisfies FileRouter;
 
-export type FileRouter = typeof ourFileRouter;
+export type OurFileRouter = typeof ourFileRouter;

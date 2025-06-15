@@ -73,6 +73,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       _creationTime: msg.createdAt?.getTime() || Date.now(),
       conversationId,
       userId: msg.role === "user" ? user?.id || "" : "ai-assistant",
+      senderName: msg.role === "user" 
+        ? user?.firstName || user?.username || "Anonymous User"
+        : "Assistant",
       content: msg.content,
       type:
         msg.role === "assistant"
@@ -92,7 +95,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       branchCreatedBy: undefined,
       branchCreatedAt: undefined,
     }));
-  }, [aiMessages, conversationId, user?.id, aiIsLoading]);
+  }, [aiMessages, conversationId, user?.id, user?.firstName, user?.username, aiIsLoading]);
 
   // Debounced scroll to bottom function
   const scrollToBottom = useCallback(
