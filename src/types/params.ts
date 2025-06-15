@@ -1,6 +1,7 @@
 export type PageParams = {
     params: Promise<{
       id: string;
+      slug: string;
       shareId: string;
       username: string;
       page?: string;

@@ -26,9 +26,10 @@ type MessageType = EnhancedMessage;
 interface MessageListProps {
   messages: MessageType[];
   conversationId: Id<"conversations">;
+  readOnly?: boolean;
 }
 
-export function MessageList({ messages, conversationId }: MessageListProps) {
+export function MessageList({ messages, conversationId, readOnly = false }: MessageListProps) {
   const { user } = useUser();
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [openDropdownMessageId, setOpenDropdownMessageId] = useState<
@@ -314,6 +315,7 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
                     setOpenDropdownMessageId(isOpen ? message._id : null);
                   }}
                   isAssistant={isAI}
+                  readOnly={readOnly}
                 />
               </div>
             </div>

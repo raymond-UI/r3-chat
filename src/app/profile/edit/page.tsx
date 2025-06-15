@@ -272,15 +272,16 @@ export default function ProfileEditPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex flex-col items-start gap-4 mb-8">
           <Button variant="ghost" size="sm" asChild>
+            {/* go back to previous screen */}
             <Link href="/chat" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back to Chat
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Edit Profile</h1>
+            <h1 className="text-2xl font-bold">Edit Profile</h1>
             <p className="text-muted-foreground">
               {hasProfile
                 ? "Update your public profile settings"
@@ -294,15 +295,15 @@ export default function ProfileEditPage() {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">
                 <User className="w-4 h-4 mr-2" />
-                Basic Info
+                Basic
               </TabsTrigger>
               <TabsTrigger value="social">
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Social Links
+                Social
               </TabsTrigger>
               <TabsTrigger value="showcase">
                 <Settings className="w-4 h-4 mr-2" />
-                Showcase Settings
+                Settings
               </TabsTrigger>
             </TabsList>
 

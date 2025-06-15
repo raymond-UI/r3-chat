@@ -41,10 +41,10 @@ export function ProfileDemo() {
             </Link>
           </Button>
           <Button variant="outline" asChild size="lg">
-            <a href="/u/demo" className="flex items-center gap-2">
+            <Link href="/u/demo" className="flex items-center gap-2">
               <Eye className="w-4 h-4" />
               View Demo Profile
-            </a>
+            </Link>
           </Button>
         </div>
       </div>

@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { MessageList } from "@/components/chat/MessageList";
+import { MessageListLoading } from "@/components/chat/ui/MessageListLoading";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, Globe, Eye, Clock, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "convex/react";
+import { AlertTriangle, Clock, Globe, Lock } from "lucide-react";
 import Link from "next/link";
-import { MessageList } from "@/components/chat/MessageList";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 interface SharePageClientProps {
@@ -32,7 +34,7 @@ export default function SharePageClient({ shareId }: SharePageClientProps) {
       ? { conversationId: conversation._id }
       : "skip"
   );
-  
+
   const messages = messagesResult?.success ? messagesResult.messages : null;
 
   // Transform messages to match the expected format for MessageList
@@ -54,12 +56,17 @@ export default function SharePageClient({ shareId }: SharePageClientProps) {
   }, [conversation]);
 
   // Loading state
-  if (conversation === undefined) {
+  if (conversation === undefined || messagesResult === undefined) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="text-muted-foreground">Loading conversation...</p>
+      <div className="flex flex-col justify-start min-h-screen">
+        <div className="border-b bg-dot backdrop-blur-sm sticky top-0 z-10 w-full">
+          <div className="max-w-4xl mx-auto px-4 py-4 gap-2 flex flex-col items-start">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-10" />
+          </div>
+        </div>
+        <div className="max-w-4xl w-full mx-auto px-4 py-6">
+          <MessageListLoading />
         </div>
       </div>
     );
@@ -146,24 +153,18 @@ export default function SharePageClient({ shareId }: SharePageClientProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="border-b bg-dot backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-xl font-semibold flex items-center gap-2">
-                <Globe className="h-5 w-5 text-blue-500" />
                 {conversation.title}
               </h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Eye className="h-4 w-4" />
-                  Shared conversation
-                </span>
-                <span className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   {new Date(conversation.createdAt).toLocaleDateString()}
                 </span>
-                <span>{messages?.length || 0} messages</span>
               </div>
             </div>
           </div>
@@ -176,10 +177,11 @@ export default function SharePageClient({ shareId }: SharePageClientProps) {
           <MessageList
             messages={displayMessages}
             conversationId={conversation._id}
+            readOnly={true}
           />
         ) : (
           <div className="text-center py-12">
-            <div className="text-muted-foreground">
+            <div className="text-muted-foreground text-balance">
               <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>This conversation doesn&apos;t have any messages yet.</p>
             </div>

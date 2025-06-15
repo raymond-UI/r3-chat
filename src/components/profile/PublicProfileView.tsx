@@ -181,7 +181,7 @@ export function PublicProfileView({ username }: PublicProfileViewProps) {
                   <SocialLinksSection socialLinks={profile.socialLinks} />
                 </div>
               )}
-              <div className="flex sm:flex-row sm:items-center sm:justify-end gap-2 p-2 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 p-2 w-full">
                 <Button
                   variant="outline"
                   size="sm"

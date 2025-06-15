@@ -1,49 +1,69 @@
 "use client";
 
 import { MessageList } from "@/components/chat/MessageList";
+import { MessageListLoading } from "@/components/chat/ui/MessageListLoading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from "convex/react";
 import {
-  AlertTriangle,
-  ArrowLeft,
-  Clock,
-  Globe,
-  Star,
-  User,
-} from "lucide-react";
+  findConversationIdByShortId,
+  parseConversationSlug,
+} from "@/lib/slugs";
+import { useQuery } from "convex/react";
+import { AlertTriangle, ArrowLeft, Clock, Globe, User } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PublicConversationClientProps {
   username: string;
-  conversationId: string;
+  slug: string;
 }
 
 export default function PublicConversationClient({
   username,
-  conversationId,
+  slug,
 }: PublicConversationClientProps) {
+  // Parse the slug to extract the short ID
+  const { shortId } = useMemo(() => {
+    try {
+      return parseConversationSlug(slug);
+    } catch {
+      return { titleSlug: "", shortId: "" };
+    }
+  }, [slug]);
+
   // Get the profile first to get userId
   const profile = useQuery(
     api.userProfiles.getProfileBySlug,
     username ? { slug: username } : "skip"
   );
 
-  // Get the conversation
-  const conversationResult = useQuery(
-    api.conversations.get,
-    conversationId
-      ? { conversationId: conversationId as Id<"conversations"> }
+  // Get all conversations for this profile to find the matching one
+  const profileConversations = useQuery(
+    api.userProfiles.getProfileConversations,
+    profile?.userId
+      ? {
+          userId: profile.userId,
+          limit: 1000, // Get all to search through
+          offset: 0,
+          featuredOnly: false,
+        }
       : "skip"
   );
 
-  const conversation = conversationResult?.success
-    ? conversationResult.conversation
-    : null;
+  // Find the conversation that matches our short ID
+  const conversation = useMemo(() => {
+    if (!profileConversations?.conversations || !shortId) return null;
+
+    return (
+      profileConversations.conversations.find((conv) =>
+        findConversationIdByShortId(shortId, conv._id)
+      ) || null
+    );
+  }, [profileConversations?.conversations, shortId]);
 
   // Get messages
   const messagesResult = useQuery(
@@ -78,12 +98,21 @@ export default function PublicConversationClient({
   }, [conversation, profile]);
 
   // Loading state
-  if (profile === undefined || conversationResult === undefined) {
+  if (
+    profile === undefined ||
+    profileConversations === undefined ||
+    messagesResult === undefined
+  ) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="text-muted-foreground">Loading conversation...</p>
+      <div className="flex flex-col justify-start min-h-screen">
+        <div className="border-b bg-dot backdrop-blur-sm sticky top-0 z-10 w-full">
+          <div className="max-w-4xl mx-auto px-4 py-4 gap-2 flex flex-col items-start">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-10" />
+          </div>
+        </div>
+        <div className="max-w-4xl w-full mx-auto px-4 py-6">
+          <MessageListLoading />
         </div>
       </div>
     );
@@ -160,18 +189,21 @@ export default function PublicConversationClient({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 bg-dot">
+      <div className="border-b bg-dot backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between ">
             <div className="space-y-1">
               <h1 className="text-xl font-semibold flex items-center gap-2">
                 {conversation.title}
               </h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
+                <Link
+                  href={`/u/${username}`}
+                  className="flex items-center gap-1 hover:underline"
+                >
                   <User className="h-4 w-4" />
                   by {profile.displayName || username}
-                </span>
+                </Link>
                 <span className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   {new Date(conversation.createdAt).toLocaleDateString()}
@@ -200,10 +232,11 @@ export default function PublicConversationClient({
           <MessageList
             messages={displayMessages}
             conversationId={conversation._id}
+            readOnly={true}
           />
         ) : (
           <div className="text-center py-12">
-            <div className="text-muted-foreground">
+            <div className="text-muted-foreground text-balance">
               <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>This conversation doesn&apos;t have any messages yet.</p>
             </div>

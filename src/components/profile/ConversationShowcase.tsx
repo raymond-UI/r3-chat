@@ -2,11 +2,18 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
-import { ChevronLeft, ChevronRight, MessageSquare, Star } from "lucide-react";
-import Link from "next/link";
+import { MessageSquare, Star } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { ConversationCard } from "./ConversationCard";
@@ -18,7 +25,7 @@ interface ConversationShowcaseProps {
   featuredOnly: boolean;
 }
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 4;
 const MAX_POPULAR_TAGS = 10;
 
 export function ConversationShowcase({
@@ -27,7 +34,6 @@ export function ConversationShowcase({
   tag,
   featuredOnly,
 }: ConversationShowcaseProps) {
-  const { user: currentUser } = useUser();
   const [selectedTag, setSelectedTag] = useState<string | undefined>(tag);
   const [showFeatured, setShowFeatured] = useState(featuredOnly);
 
@@ -75,7 +81,7 @@ export function ConversationShowcase({
 
   // Memoized handlers for better performance
   const updateURL = useCallback(
-    (params: Record<string, string | undefined>) => {
+    (params: Record<string, string | undefined>, isPageNavigation = false) => {
       try {
         const url = new URL(window.location.href);
 
@@ -88,11 +94,17 @@ export function ConversationShowcase({
           }
         });
 
-        // Always reset to first page when filters change
-        url.searchParams.delete("page");
+        // Only reset to first page when filters change, not for page navigation
+        if (!isPageNavigation) {
+          url.searchParams.delete("page");
+        }
 
-        // Use replaceState for filter changes to avoid cluttering history
-        window.history.replaceState({}, "", url.toString());
+        // Use pushState for page navigation, replaceState for filter changes
+        if (isPageNavigation) {
+          window.history.pushState({}, "", url.toString());
+        } else {
+          window.history.replaceState({}, "", url.toString());
+        }
       } catch (error) {
         console.error("Failed to update URL:", error);
       }
@@ -121,11 +133,6 @@ export function ConversationShowcase({
   );
 
   // Memoized derived state
-  const isOwnProfile = useMemo(
-    () => currentUser?.id === profile?.userId,
-    [currentUser?.id, profile?.userId]
-  );
-
   const conversationCount = useMemo(
     () => conversationsQuery?.total ?? 0,
     [conversationsQuery?.total]
@@ -134,6 +141,12 @@ export function ConversationShowcase({
   const hasConversations = useMemo(
     () => (conversationsQuery?.conversations?.length ?? 0) > 0,
     [conversationsQuery?.conversations?.length]
+  );
+
+  // Calculate total pages for pagination
+  const totalPages = useMemo(
+    () => Math.ceil(conversationCount / ITEMS_PER_PAGE),
+    [conversationCount]
   );
 
   // Loading state
@@ -146,7 +159,7 @@ export function ConversationShowcase({
     return null;
   }
 
-  const { conversations, hasMore } = conversationsQuery;
+  const { conversations } = conversationsQuery;
 
   return (
     <div className="space-y-8">
@@ -220,11 +233,7 @@ export function ConversationShowcase({
 
       {/* Conversations Grid */}
       {!hasConversations ? (
-        <EmptyState
-          isOwnProfile={isOwnProfile}
-          showFeatured={showFeatured}
-          selectedTag={selectedTag}
-        />
+        <EmptyState showFeatured={showFeatured} selectedTag={selectedTag} />
       ) : (
         <div
           className="grid grid-cols-1 gap-4 bg-dot border border-border/30 rounded-xl p-4 sm:p-8"
@@ -235,37 +244,38 @@ export function ConversationShowcase({
             <ConversationCard
               key={conversation._id}
               conversation={conversation}
-              isOwnProfile={isOwnProfile}
               username={username}
             />
           ))}
         </div>
       )}
 
-      {/* Pagination */}
-      {(sanitizedInputs.page > 1 || hasMore) && (
-        <PaginationControls
-          currentPage={sanitizedInputs.page}
-          hasMore={hasMore}
-          username={sanitizedInputs.username}
-          selectedTag={selectedTag}
-          showFeatured={showFeatured}
-        />
+      {/* Pagination with shadcn/ui */}
+      {totalPages > 1 && (
+        <div className="flex justify-center px-4 sm:px-8 pb-4">
+          <PaginationComponent
+            currentPage={sanitizedInputs.page}
+            totalPages={totalPages}
+            username={sanitizedInputs.username}
+            selectedTag={selectedTag}
+            showFeatured={showFeatured}
+          />
+        </div>
       )}
     </div>
   );
 }
 
-// Extracted pagination component for better maintainability
-function PaginationControls({
+// New shadcn/ui Pagination component
+function PaginationComponent({
   currentPage,
-  hasMore,
+  totalPages,
   username,
   selectedTag,
   showFeatured,
 }: {
   currentPage: number;
-  hasMore: boolean;
+  totalPages: number;
   username: string;
   selectedTag?: string;
   showFeatured: boolean;
@@ -278,78 +288,110 @@ function PaginationControls({
     [selectedTag, showFeatured]
   );
 
-  const prevQuery = useMemo(
-    () => ({
+  const createPageQuery = useCallback(
+    (page: number) => ({
       ...baseQuery,
-      page: currentPage - 1,
+      ...(page > 1 && { page: page.toString() }),
     }),
-    [baseQuery, currentPage]
+    [baseQuery]
   );
 
-  const nextQuery = useMemo(
-    () => ({
-      ...baseQuery,
-      page: currentPage + 1,
+  const createPageUrl = useCallback(
+    (page: number) => ({
+      pathname: `/u/${username}`,
+      query: createPageQuery(page),
     }),
-    [baseQuery, currentPage]
+    [username, createPageQuery]
   );
+
+  // Generate page numbers to show
+  const getVisiblePages = useMemo(() => {
+    const delta = 2; // Number of pages to show on each side of current page
+    const pages: (number | "ellipsis")[] = [];
+
+    // Always show first page
+    pages.push(1);
+
+    // Add ellipsis if there's a gap
+    if (currentPage - delta > 2) {
+      pages.push("ellipsis");
+    }
+
+    // Add pages around current page
+    const start = Math.max(2, currentPage - delta);
+    const end = Math.min(totalPages - 1, currentPage + delta);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    // Add ellipsis if there's a gap
+    if (currentPage + delta < totalPages - 1) {
+      pages.push("ellipsis");
+    }
+
+    // Always show last page (if it's not the same as first page)
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+
+    return pages;
+  }, [currentPage, totalPages]);
 
   return (
-    <nav className="flex items-center justify-between" aria-label="Pagination">
-      <Button
-        variant="outline"
-        disabled={currentPage <= 1}
-        asChild={currentPage > 1}
-        aria-label="Go to previous page"
-      >
-        {currentPage > 1 ? (
-          <Link
-            href={{
-              pathname: `/u/${username}`,
-              query: prevQuery,
-            }}
-            className="flex items-center gap-2"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Previous
-          </Link>
-        ) : (
-          <span className="flex items-center gap-2">
-            <ChevronLeft className="w-4 h-4" />
-            Previous
-          </span>
-        )}
-      </Button>
+    <Pagination>
+      <PaginationContent>
+        {/* Previous button */}
+        <PaginationItem>
+          {currentPage > 1 ? (
+            <PaginationPrevious
+              href={createPageUrl(currentPage - 1).pathname}
+              aria-label="Go to previous page"
+            />
+          ) : (
+            <PaginationPrevious
+              href="#"
+              aria-disabled="true"
+              className="pointer-events-none opacity-50"
+            />
+          )}
+        </PaginationItem>
 
-      <span className="text-sm text-muted-foreground" aria-current="page">
-        Page {currentPage}
-      </span>
+        {/* Page numbers */}
+        {getVisiblePages.map((page, index) => (
+          <PaginationItem key={index}>
+            {page === "ellipsis" ? (
+              <PaginationEllipsis />
+            ) : (
+              <PaginationLink
+                href={createPageUrl(page).pathname}
+                isActive={page === currentPage}
+                aria-label={`Go to page ${page}`}
+                aria-current={page === currentPage ? "page" : undefined}
+              >
+                {page}
+              </PaginationLink>
+            )}
+          </PaginationItem>
+        ))}
 
-      <Button
-        variant="outline"
-        disabled={!hasMore}
-        asChild={hasMore}
-        aria-label="Go to next page"
-      >
-        {hasMore ? (
-          <Link
-            href={{
-              pathname: `/u/${username}`,
-              query: nextQuery,
-            }}
-            className="flex items-center gap-2"
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        ) : (
-          <span className="flex items-center gap-2">
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </span>
-        )}
-      </Button>
-    </nav>
+        {/* Next button */}
+        <PaginationItem>
+          {currentPage < totalPages ? (
+            <PaginationNext
+              href={createPageUrl(currentPage + 1).pathname}
+              aria-label="Go to next page"
+            />
+          ) : (
+            <PaginationNext
+              href="#"
+              aria-disabled="true"
+              className="pointer-events-none opacity-50"
+            />
+          )}
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   );
 }
 
@@ -384,11 +426,9 @@ const ShowcaseSkeleton = React.memo(function ShowcaseSkeleton() {
 });
 
 function EmptyState({
-  isOwnProfile,
   showFeatured,
   selectedTag,
 }: {
-  isOwnProfile: boolean;
   showFeatured: boolean;
   selectedTag?: string;
 }) {
@@ -399,24 +439,14 @@ function EmptyState({
   }, [showFeatured, selectedTag]);
 
   const description = useMemo(() => {
-    if (isOwnProfile) {
-      return showFeatured
-        ? "Mark some conversations as featured to showcase your best work."
-        : "Share your AI conversations with the world by making them public.";
-    }
     return "This user hasn't shared any conversations yet.";
-  }, [isOwnProfile, showFeatured]);
+  }, []);
 
   return (
     <div className="text-center py-12">
       <MessageSquare className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
       <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>
       <p className="text-muted-foreground mb-4">{description}</p>
-      {isOwnProfile && (
-        <Button variant="outline" asChild>
-          <Link href="/chat">Start a New Conversation</Link>
-        </Button>
-      )}
     </div>
   );
 }

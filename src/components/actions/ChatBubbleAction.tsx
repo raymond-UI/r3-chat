@@ -33,6 +33,7 @@ interface ChatBubbleActionProps {
   onBranchConversation: (event: React.MouseEvent) => void;
   onDropdownOpenChange?: (isOpen: boolean) => void;
   isAssistant: boolean;
+  readOnly?: boolean;
 }
 
 export function ChatBubbleAction({
@@ -44,6 +45,7 @@ export function ChatBubbleAction({
   onBranchConversation,
   onDropdownOpenChange,
   isAssistant,
+  readOnly = false,
 }: ChatBubbleActionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -116,7 +118,7 @@ export function ChatBubbleAction({
       {visible && (
         <motion.div ref={menuRef} className="flex gap-1 rounded-lg p-1 w-auto">
           <TooltipProvider>
-            {!isAssistant && (
+            {!readOnly && !isAssistant && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -137,8 +139,7 @@ export function ChatBubbleAction({
               </Tooltip>
             )}
 
-            {/* Enhanced Retry Button with Dropdown for AI messages */}
-            {isAssistant ? (
+            {!readOnly && isAssistant ? (
               <DropdownMenu
                 open={isRetryDropdownOpen}
                 onOpenChange={(open) => {
@@ -196,7 +197,7 @@ export function ChatBubbleAction({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : !readOnly && !isAssistant ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -215,7 +216,7 @@ export function ChatBubbleAction({
                   <p>Retry</p>
                 </TooltipContent>
               </Tooltip>
-            )}
+            ) : null}
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -236,8 +237,7 @@ export function ChatBubbleAction({
               </TooltipContent>
             </Tooltip>
 
-            {/* Branch Conversation Button */}
-            {isAssistant && (
+            {!readOnly && isAssistant && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
