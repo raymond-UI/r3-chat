@@ -2,44 +2,54 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ModelLimitManager, UserType } from "@/utils/MessageLimitManager";
 
 export function useAnonymousMessaging() {
   const { isSignedIn, user } = useUser();
-  const [remainingMessages, setRemainingMessages] = useState<number | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
 
   const migrateConversations = useMutation(api.anonymousMigration.migrateAnonymousConversations);
 
-  const userType: UserType = isSignedIn 
-    ? (user?.publicMetadata?.plan as UserType || 'free')
+  // Get rate limit status from Convex
+  const rateLimitStatus = useQuery(api.rateLimitChecks.getRateLimitStatus);
+
+  const userType = isSignedIn 
+    ? (user?.publicMetadata?.plan as "free" | "paid" || 'free')
     : 'anonymous';
 
-  const updateRemainingMessages = useCallback(() => {
-    if (isSignedIn) {
-      setRemainingMessages(null); // Unlimited for signed-in users
-    } else {
-      // For anonymous users, we'll use a simple message count approach
-      // This maintains backward compatibility with the existing migration system
-      const currentCount = ModelLimitManager.getAnonymousMessageCount();
-      const limit = ModelLimitManager.getMessageLimit('anonymous');
-      const remaining = Math.max(0, limit - currentCount);
-      console.log("=== DEBUG: Anonymous user remaining messages:", remaining);
-      setRemainingMessages(remaining);
-    }
-  }, [isSignedIn]);
+  // Get anonymous conversations from localStorage (still needed for migration)
+  const getAnonymousConversations = useCallback(() => {
+    if (typeof window === "undefined") return [];
+    const conversations = localStorage.getItem("anonymous_conversations");
+    return conversations ? JSON.parse(conversations) : [];
+  }, []);
 
-  // Initialize message count on client side and handle migration
+  // Add anonymous conversation ID to localStorage (still needed for migration)
+  const addAnonymousConversation = useCallback((conversationId: string) => {
+    if (typeof window === "undefined") return;
+    const conversations = getAnonymousConversations();
+    if (!conversations.includes(conversationId)) {
+      conversations.push(conversationId);
+      localStorage.setItem("anonymous_conversations", JSON.stringify(conversations));
+    }
+  }, [getAnonymousConversations]);
+
+  // Clear anonymous data
+  const clearAnonymousData = useCallback(() => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("anonymous_conversations");
+  }, []);
+
+  // Initialize and handle migration
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const handleSignInMigration = async () => {
         if (isSignedIn && user?.id) {
           // Check if we have anonymous conversations to migrate
-          const anonymousConversations = ModelLimitManager.getAnonymousConversations();
+          const anonymousConversations = getAnonymousConversations();
           
           if (anonymousConversations.length > 0) {
             setIsMigrating(true);
@@ -49,7 +59,7 @@ export function useAnonymousMessaging() {
               });
 
               // Clear anonymous data after successful migration
-              ModelLimitManager.clearAnonymousData();
+              clearAnonymousData();
               
               console.log('Migration completed:', results);
             } catch (error) {
@@ -63,67 +73,48 @@ export function useAnonymousMessaging() {
       };
 
       handleSignInMigration();
-      updateRemainingMessages();
       setIsInitialized(true);
     }
-  }, [isSignedIn, user?.id, migrateConversations, updateRemainingMessages]);
+  }, [isSignedIn, user?.id, migrateConversations, getAnonymousConversations, clearAnonymousData]);
 
+  // Rate limiting is now handled server-side, so we can always allow sending
+  // The actual check happens in the Convex mutation
   const canSendMessage = useMemo(() => {
     if (isSignedIn) return true;
-    
-    const canSend = ModelLimitManager.canSendMessage('anonymous');
-    console.log("=== DEBUG: Anonymous user canSendMessage:", canSend);
-    console.log("=== DEBUG: Current message count:", ModelLimitManager.getAnonymousMessageCount());
-    console.log("=== DEBUG: Message limit:", ModelLimitManager.getMessageLimit('anonymous'));
-    
-    return canSend;
+    // For anonymous users, we'll let the server-side rate limiting handle it
+    // The UI can show warnings based on rateLimitStatus if needed
+    return true;
   }, [isSignedIn]);
 
+  // Track message sent (now just tracks conversation for migration)
   const trackMessageSent = useCallback((conversationId?: string) => {
-    if (!isSignedIn) {
-      const newCount = ModelLimitManager.incrementAnonymousMessageCount();
-      
-      // Track the conversation for migration later
-      if (conversationId) {
-        ModelLimitManager.addAnonymousConversation(conversationId);
-      }
-      
-      updateRemainingMessages();
-      
-      // Check if we've hit the limit
-      const limit = ModelLimitManager.getMessageLimit('anonymous');
-      if (newCount >= limit) {
-        setShowLoginPrompt(true);
-      }
+    if (!isSignedIn && conversationId) {
+      // Only track the conversation for migration, not the message count
+      // Message count is now tracked server-side
+      addAnonymousConversation(conversationId);
     }
-  }, [isSignedIn, updateRemainingMessages]);
+  }, [isSignedIn, addAnonymousConversation]);
 
   const handleLoginPromptClose = useCallback(() => {
     setShowLoginPrompt(false);
   }, []);
 
-  const resetAnonymousData = useCallback(() => {
-    ModelLimitManager.clearAnonymousData();
-    updateRemainingMessages();
-  }, [updateRemainingMessages]);
-
-  const getAnonymousConversations = useCallback(() => {
-    return ModelLimitManager.getAnonymousConversations();
-  }, []);
-
   return {
     isSignedIn,
     userType,
-    remainingMessages,
     canSendMessage,
+    rateLimitStatus, // Expose the full rate limit status
+    // Conversation tracking (for migration)
     trackMessageSent,
+    getAnonymousConversations,
+    // UI state
     showLoginPrompt,
     handleLoginPromptClose,
-    resetAnonymousData,
-    getAnonymousConversations,
-    messageLimit: ModelLimitManager.getMessageLimit(userType),
+    setShowLoginPrompt,
+    // Migration
     isInitialized,
     isMigrating,
-    setShowLoginPrompt,
+    // Cleanup
+    resetAnonymousData: clearAnonymousData,
   };
 }

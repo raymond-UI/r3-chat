@@ -1,6 +1,5 @@
 "use client";
 
-import { LoginPromptDialog } from "@/components/auth/LoginPromptDialog";
 import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { useFiles } from "@/hooks/useFiles";
 import { TabId, tabs } from "@/utils/suggestionData";
@@ -10,6 +9,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { MessageInput } from "./MessageInput";
+import { LoginPromptDialog } from "../auth/LoginPromptDialog";
 
 export function NewChatScreen() {
   const { user } = useUser();
@@ -25,11 +25,9 @@ export function NewChatScreen() {
 
   const {
     isSignedIn,
-    remainingMessages,
     canSendMessage,
     showLoginPrompt,
     handleLoginPromptClose,
-    messageLimit,
     setShowLoginPrompt,
   } = useAnonymousMessaging();
 
@@ -244,8 +242,6 @@ export function NewChatScreen() {
       <LoginPromptDialog
         isOpen={showLoginPrompt}
         onClose={handleLoginPromptClose}
-        messagesUsed={messageLimit - (remainingMessages || 0)}
-        messageLimit={messageLimit}
       />
     </div>
   );

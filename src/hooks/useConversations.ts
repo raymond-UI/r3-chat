@@ -2,8 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ModelLimitManager } from "@/utils/MessageLimitManager";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export function useConversations() {
   const { user } = useUser();
@@ -11,19 +10,44 @@ export function useConversations() {
   const [anonymousConversationIds, setAnonymousConversationIds] = useState<string[]>([]);
   const [isAnonymousInitialized, setIsAnonymousInitialized] = useState(false);
 
+  // Helper functions for anonymous conversation management
+  const getAnonymousConversations = useCallback(() => {
+    if (typeof window === "undefined") return [];
+    const conversations = localStorage.getItem("anonymous_conversations");
+    return conversations ? JSON.parse(conversations) : [];
+  }, []);
+
+  const addAnonymousConversation = useCallback((conversationId: string) => {
+    if (typeof window === "undefined") return;
+    const conversations = getAnonymousConversations();
+    if (!conversations.includes(conversationId)) {
+      conversations.push(conversationId);
+      localStorage.setItem("anonymous_conversations", JSON.stringify(conversations));
+      setAnonymousConversationIds(conversations);
+    }
+  }, [getAnonymousConversations]);
+
+  const removeAnonymousConversation = useCallback((conversationId: string) => {
+    if (typeof window === "undefined") return;
+    const conversations = getAnonymousConversations();
+    const filteredConversations = conversations.filter((id: string) => id !== conversationId);
+    localStorage.setItem("anonymous_conversations", JSON.stringify(filteredConversations));
+    setAnonymousConversationIds(filteredConversations);
+  }, [getAnonymousConversations]);
+
   // Get anonymous conversation IDs from localStorage on client side
   useEffect(() => {
     if (!userId) {
       // Only run on client side
       if (typeof window !== 'undefined') {
-        const ids = ModelLimitManager.getAnonymousConversations();
+        const ids = getAnonymousConversations();
         setAnonymousConversationIds(ids);
         setIsAnonymousInitialized(true);
       }
     } else {
       setIsAnonymousInitialized(true);
     }
-  }, [userId]);
+  }, [userId, getAnonymousConversations]);
 
   // Query for authenticated users
   const authenticatedConversations = useQuery(
@@ -70,9 +94,7 @@ export function useConversations() {
       
       // Track the conversation for anonymous user
       if (conversationId) {
-        ModelLimitManager.addAnonymousConversation(conversationId);
-        // Update local state to include new conversation
-        setAnonymousConversationIds(prev => [...prev, conversationId]);
+        addAnonymousConversation(conversationId);
       }
       
       return conversationId;
@@ -92,15 +114,7 @@ export function useConversations() {
     
     // For anonymous users, also remove from localStorage
     if (!userId) {
-      const updatedIds = anonymousConversationIds.filter(id => id !== conversationId);
-      setAnonymousConversationIds(updatedIds);
-      // Update localStorage using ModelLimitManager method
-      if (typeof window !== 'undefined') {
-        // Get current list, filter out the deleted one, and save back
-        const allIds = ModelLimitManager.getAnonymousConversations();
-        const filteredIds = allIds.filter(id => id !== conversationId);
-        localStorage.setItem('anonymous_conversations', JSON.stringify(filteredIds));
-      }
+      removeAnonymousConversation(conversationId);
     }
     
     return result;

@@ -36,16 +36,17 @@ export function ConversationShowcase({
 }: ConversationShowcaseProps) {
   const [selectedTag, setSelectedTag] = useState<string | undefined>(tag);
   const [showFeatured, setShowFeatured] = useState(featuredOnly);
+  const [currentPage, setCurrentPage] = useState(page);
 
   // Memoize sanitized inputs to prevent unnecessary re-renders
   const sanitizedInputs = useMemo(
     () => ({
       username: username?.trim(),
-      page: Math.max(1, Math.floor(page) || 1),
-      tag: tag?.trim() || undefined,
-      featuredOnly: Boolean(featuredOnly),
+      page: Math.max(1, Math.floor(currentPage) || 1),
+      tag: selectedTag?.trim() || undefined,
+      featuredOnly: Boolean(showFeatured),
     }),
-    [username, page, tag, featuredOnly]
+    [username, currentPage, selectedTag, showFeatured]
   );
 
   // Get the profile first to get userId
@@ -73,15 +74,16 @@ export function ConversationShowcase({
     limit: MAX_POPULAR_TAGS,
   });
 
-  // Sync state with URL parameters
+  // Sync state with URL parameters on initial load
   useEffect(() => {
-    setSelectedTag(sanitizedInputs.tag);
-    setShowFeatured(sanitizedInputs.featuredOnly);
-  }, [sanitizedInputs.tag, sanitizedInputs.featuredOnly]);
+    setSelectedTag(tag);
+    setShowFeatured(featuredOnly);
+    setCurrentPage(page);
+  }, [tag, featuredOnly, page]);
 
   // Memoized handlers for better performance
   const updateURL = useCallback(
-    (params: Record<string, string | undefined>, isPageNavigation = false) => {
+    (params: Record<string, string | undefined>, newPage?: number) => {
       try {
         const url = new URL(window.location.href);
 
@@ -94,17 +96,17 @@ export function ConversationShowcase({
           }
         });
 
-        // Only reset to first page when filters change, not for page navigation
-        if (!isPageNavigation) {
-          url.searchParams.delete("page");
+        // Handle page parameter
+        if (newPage !== undefined) {
+          if (newPage > 1) {
+            url.searchParams.set("page", newPage.toString());
+          } else {
+            url.searchParams.delete("page");
+          }
         }
 
-        // Use pushState for page navigation, replaceState for filter changes
-        if (isPageNavigation) {
-          window.history.pushState({}, "", url.toString());
-        } else {
-          window.history.replaceState({}, "", url.toString());
-        }
+        // Use pushState for smooth navigation
+        window.history.pushState({}, "", url.toString());
       } catch (error) {
         console.error("Failed to update URL:", error);
       }
@@ -117,7 +119,8 @@ export function ConversationShowcase({
       if (tagName === selectedTag) return; // Prevent unnecessary updates
 
       setSelectedTag(tagName);
-      updateURL({ tag: tagName });
+      setCurrentPage(1); // Reset to first page when filtering
+      updateURL({ tag: tagName }, 1);
     },
     [selectedTag, updateURL]
   );
@@ -127,9 +130,26 @@ export function ConversationShowcase({
       if (featured === showFeatured) return; // Prevent unnecessary updates
 
       setShowFeatured(featured);
-      updateURL({ featured: featured ? "true" : undefined });
+      setCurrentPage(1); // Reset to first page when filtering
+      updateURL({ featured: featured ? "true" : undefined }, 1);
     },
     [showFeatured, updateURL]
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      if (newPage === currentPage) return; // Prevent unnecessary updates
+
+      setCurrentPage(newPage);
+      updateURL({}, newPage);
+
+      // Smooth scroll to top of showcase
+      const element = document.querySelector("[data-showcase-container]");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    },
+    [currentPage, updateURL]
   );
 
   // Memoized derived state
@@ -162,7 +182,7 @@ export function ConversationShowcase({
   const { conversations } = conversationsQuery;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-showcase-container>
       {/* Header with filters */}
       <div className="flex flex-col gap-4 px-4 sm:px-8">
         <div className="flex items-center justify-between">
@@ -254,11 +274,9 @@ export function ConversationShowcase({
       {totalPages > 1 && (
         <div className="flex justify-center px-4 sm:px-8 pb-4">
           <PaginationComponent
-            currentPage={sanitizedInputs.page}
+            currentPage={currentPage}
             totalPages={totalPages}
-            username={sanitizedInputs.username}
-            selectedTag={selectedTag}
-            showFeatured={showFeatured}
+            onPageChange={handlePageChange}
           />
         </div>
       )}
@@ -266,44 +284,16 @@ export function ConversationShowcase({
   );
 }
 
-// New shadcn/ui Pagination component
+// Updated Pagination component with client-side navigation
 function PaginationComponent({
   currentPage,
   totalPages,
-  username,
-  selectedTag,
-  showFeatured,
+  onPageChange,
 }: {
   currentPage: number;
   totalPages: number;
-  username: string;
-  selectedTag?: string;
-  showFeatured: boolean;
+  onPageChange: (page: number) => void;
 }) {
-  const baseQuery = useMemo(
-    () => ({
-      ...(selectedTag && { tag: selectedTag }),
-      ...(showFeatured && { featured: "true" }),
-    }),
-    [selectedTag, showFeatured]
-  );
-
-  const createPageQuery = useCallback(
-    (page: number) => ({
-      ...baseQuery,
-      ...(page > 1 && { page: page.toString() }),
-    }),
-    [baseQuery]
-  );
-
-  const createPageUrl = useCallback(
-    (page: number) => ({
-      pathname: `/u/${username}`,
-      query: createPageQuery(page),
-    }),
-    [username, createPageQuery]
-  );
-
   // Generate page numbers to show
   const getVisiblePages = useMemo(() => {
     const delta = 2; // Number of pages to show on each side of current page
@@ -338,23 +328,46 @@ function PaginationComponent({
     return pages;
   }, [currentPage, totalPages]);
 
+  const handlePreviousClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (currentPage > 1) {
+        onPageChange(currentPage - 1);
+      }
+    },
+    [currentPage, onPageChange]
+  );
+
+  const handleNextClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (currentPage < totalPages) {
+        onPageChange(currentPage + 1);
+      }
+    },
+    [currentPage, totalPages, onPageChange]
+  );
+
+  const handlePageClick = useCallback(
+    (page: number) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      onPageChange(page);
+    },
+    [onPageChange]
+  );
+
   return (
     <Pagination>
       <PaginationContent>
         {/* Previous button */}
         <PaginationItem>
-          {currentPage > 1 ? (
-            <PaginationPrevious
-              href={createPageUrl(currentPage - 1).pathname}
-              aria-label="Go to previous page"
-            />
-          ) : (
-            <PaginationPrevious
-              href="#"
-              aria-disabled="true"
-              className="pointer-events-none opacity-50"
-            />
-          )}
+          <PaginationPrevious
+            href="#"
+            onClick={handlePreviousClick}
+            aria-label="Go to previous page"
+            className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+            aria-disabled={currentPage <= 1}
+          />
         </PaginationItem>
 
         {/* Page numbers */}
@@ -364,7 +377,8 @@ function PaginationComponent({
               <PaginationEllipsis />
             ) : (
               <PaginationLink
-                href={createPageUrl(page).pathname}
+                href="#"
+                onClick={handlePageClick(page)}
                 isActive={page === currentPage}
                 aria-label={`Go to page ${page}`}
                 aria-current={page === currentPage ? "page" : undefined}
@@ -377,18 +391,15 @@ function PaginationComponent({
 
         {/* Next button */}
         <PaginationItem>
-          {currentPage < totalPages ? (
-            <PaginationNext
-              href={createPageUrl(currentPage + 1).pathname}
-              aria-label="Go to next page"
-            />
-          ) : (
-            <PaginationNext
-              href="#"
-              aria-disabled="true"
-              className="pointer-events-none opacity-50"
-            />
-          )}
+          <PaginationNext
+            href="#"
+            onClick={handleNextClick}
+            aria-label="Go to next page"
+            className={
+              currentPage >= totalPages ? "pointer-events-none opacity-50" : ""
+            }
+            aria-disabled={currentPage >= totalPages}
+          />
         </PaginationItem>
       </PaginationContent>
     </Pagination>

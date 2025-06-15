@@ -20,8 +20,7 @@ import { useAI } from "@/hooks/useAI";
 import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { Id } from "../../../convex/_generated/dataModel";
 import { MessageLimitIndicator } from "../indicators/MessageLimitIndicator";
-import { ModelLimitManager } from "@/utils/MessageLimitManager";
-import { ModelKey } from "@/types/ai";
+import { Authenticated } from "convex/react";
 
 interface MessageInputProps {
   // For existing chat mode
@@ -88,13 +87,11 @@ export const MessageInput = forwardRef<
     const { create } = useConversations();
     const { send } = useSendMessage();
     const { generateTitle, isStreaming } = useAI(); // Use streaming for better UX
-    const {
-      trackMessageSent,
-      isSignedIn,
-      isInitialized,
-      remainingMessages,
-      messageLimit,
-    } = useAnonymousMessaging();
+      const {
+    trackMessageSent,
+    isSignedIn,
+    isInitialized,
+  } = useAnonymousMessaging();
 
     // Use local or prop values based on mode
     const currentValue = isNewChat ? localInputValue : value || "";
@@ -193,21 +190,9 @@ export const MessageInput = forwardRef<
       (currentValue.trim() || hasFilesToSend) && !isDisabled && !isUploading;
 
     const handleSendMessage = async () => {
-      // Check model-specific limits first
-      const userType = isSignedIn ? 'free' : 'anonymous';
-      const modelKey = currentSelectedModel as ModelKey;
-      const modelLimitCheck = ModelLimitManager.canUseModel(modelKey, userType);
-      
-      if (!modelLimitCheck.canUse) {
-        showSignUpPrompt?.();
-        return;
-      }
-
-      // Check general message limits for anonymous users
-      if (!isSignedIn && (remainingMessages === null || remainingMessages <= 0)) {
-        showSignUpPrompt?.();
-        return;
-      }
+          // Rate limiting is now handled server-side in the send mutation
+    // For anonymous users, show sign-up prompt if they've hit limits
+    // The actual limit check is done in the server mutation
 
       if (isNewChat) {
         // New chat creation logic - now supports anonymous users
@@ -228,6 +213,7 @@ export const MessageInput = forwardRef<
           }
 
           // Send user message with uploaded file IDs
+          // Rate limiting is enforced server-side in the send mutation
           await send(
             conversationId,
             messageContent,
@@ -236,10 +222,7 @@ export const MessageInput = forwardRef<
             uploadedFileIds.length > 0 ? uploadedFileIds : undefined
           );
 
-          // Track model usage
-          ModelLimitManager.incrementModelUsage(modelKey);
-
-          // Track message for anonymous users
+          // Track message for anonymous users (for migration purposes)
           trackMessageSent(conversationId);
 
           // Clear staged files
@@ -271,15 +254,25 @@ export const MessageInput = forwardRef<
           );
           // Re-add message to input on error
           setLocalInputValue(messageContent);
+          
+          // Check if it's a rate limit error and show appropriate message
+          if (error instanceof Error && error.message.includes("rate limit")) {
+            showSignUpPrompt?.();
+          }
         } finally {
           setIsSending(false);
         }
       } else {
-        // Existing chat logic - also track model usage
+        // Existing chat logic - rate limiting handled server-side
         if (onSend) {
-          const modelKey = currentSelectedModel as ModelKey;
-          ModelLimitManager.incrementModelUsage(modelKey);
-          onSend();
+          try {
+            onSend();
+          } catch (error) {
+            // Handle rate limit errors
+            if (error instanceof Error && error.message.includes("rate limit")) {
+              showSignUpPrompt?.();
+            }
+          }
         }
       }
     };
@@ -290,12 +283,10 @@ export const MessageInput = forwardRef<
 
     return (
       <div className="relative bg-muted/50 backdrop-blur shadow-2xl p-2 pb-0 w-full rounded-t-lg max-w-2xl mx-auto mt-0">
-        {!isSignedIn && isInitialized && remainingMessages !== null && (
-          <div className="absolute z-10 -top-12 left-0 w-full px-2 flex justify-center">
+        {!isSignedIn && isInitialized && (
+          <div className="absolute z-10 -top-16 left-0 w-full px-2 flex justify-center">
             <MessageLimitIndicator
-              remainingMessages={remainingMessages}
-              totalLimit={messageLimit}
-              className="max-w-sm"
+              className="max-w-md"
               onSignUpClick={showSignUpPrompt}
             />
           </div>
@@ -339,6 +330,7 @@ export const MessageInput = forwardRef<
                   onModelChange={handleModelChange}
                   hasImages={hasImages}
                 />
+                <Authenticated>
 
                 {/* File Upload Button */}
                 <Button
@@ -348,7 +340,7 @@ export const MessageInput = forwardRef<
                   disabled={isDisabled}
                   className="flex-shrink-0"
                   title="Upload files"
-                >
+                  >
                   <Paperclip className="h-4 w-4" />
                 </Button>
                 <Button
@@ -358,9 +350,10 @@ export const MessageInput = forwardRef<
                   disabled={isDisabled}
                   className="flex-shrink-0"
                   title="Settings"
-                >
+                  >
                   <Settings2 className="h-4 w-4" />
                 </Button>
+                  </Authenticated>
               </div>
               {/* Send Button */}
               <Button

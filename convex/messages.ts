@@ -2,6 +2,45 @@ import { query, mutation, internalMutation, QueryCtx } from "./_generated/server
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
+import { rateLimiter, getModelRateLimitName, getUserRateLimitName } from "./rateLimiting";
+import { getUserType, getRateLimitKey } from "./utils";
+
+// Time constants
+const DAY = 24 * 60 * 60 * 1000;
+
+// Helper to get rate limit config
+function getRateLimitConfig(limitName: string) {
+  if (limitName === "anonymousDaily") {
+    return { kind: "fixed window" as const, rate: 5, period: DAY };
+  }
+  if (limitName === "freeUserDaily") {
+    return { kind: "token bucket" as const, rate: 100, period: DAY, capacity: 120 };
+  }
+  if (limitName.includes("freeModels")) {
+    return limitName.includes("Daily") 
+      ? { kind: "token bucket" as const, rate: 50, period: DAY, capacity: 60 }
+      : { kind: "fixed window" as const, rate: 500, period: 30 * DAY };
+  }
+  if (limitName.includes("lowCostModels")) {
+    return limitName.includes("Daily")
+      ? { kind: "token bucket" as const, rate: 25, period: DAY, capacity: 35 }
+      : { kind: "fixed window" as const, rate: 300, period: 30 * DAY };
+  }
+  if (limitName.includes("mediumCostModels")) {
+    return limitName.includes("Daily")
+      ? { kind: "token bucket" as const, rate: 15, period: DAY, capacity: 20 }
+      : { kind: "fixed window" as const, rate: 150, period: 30 * DAY };
+  }
+  if (limitName.includes("highCostModels")) {
+    return limitName.includes("Daily")
+      ? { kind: "token bucket" as const, rate: 10, period: DAY, capacity: 12 }
+      : { kind: "fixed window" as const, rate: 100, period: 30 * DAY };
+  }
+  // Default to medium cost
+  return limitName.includes("Daily")
+    ? { kind: "token bucket" as const, rate: 15, period: DAY, capacity: 20 }
+    : { kind: "fixed window" as const, rate: 150, period: 30 * DAY };
+}
 
 // Get all messages for a conversation with active branch filtering and access control
 export const list = query({
@@ -96,6 +135,56 @@ export const send = mutation({
     branchIndex: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Rate limiting - only apply to user messages, not AI responses
+    if (args.type === "user") {
+      const identity = await ctx.auth.getUserIdentity();
+      const userType = getUserType(identity);
+      const rateLimitKey = getRateLimitKey(identity);
+      
+      // Check user-level rate limit
+      const userLimitName = getUserRateLimitName(userType);
+      const userConfig = getRateLimitConfig(userLimitName);
+      const userLimitResult = await rateLimiter.limit(ctx, userLimitName, {
+        key: rateLimitKey,
+        config: userConfig,
+      });
+      
+      if (!userLimitResult.ok) {
+        const retrySeconds = userLimitResult.retryAfter ? Math.ceil(userLimitResult.retryAfter / 1000) : 60;
+        throw new Error(`Rate limit exceeded. Please try again in ${retrySeconds} seconds.`);
+      }
+      
+      // Check model-specific rate limit if AI model is specified
+      if (args.aiModel) {
+        const modelLimitNameDaily = getModelRateLimitName(args.aiModel, "daily");
+        const modelLimitNameMonthly = getModelRateLimitName(args.aiModel, "monthly");
+        
+        const dailyConfig = getRateLimitConfig(modelLimitNameDaily);
+        const monthlyConfig = getRateLimitConfig(modelLimitNameMonthly);
+        
+        // Check daily limit
+        const dailyLimitResult = await rateLimiter.limit(ctx, modelLimitNameDaily, {
+          key: rateLimitKey,
+          config: dailyConfig,
+        });
+        
+        if (!dailyLimitResult.ok) {
+          const retrySeconds = dailyLimitResult.retryAfter ? Math.ceil(dailyLimitResult.retryAfter / 1000) : 3600;
+          throw new Error(`Daily model usage limit exceeded for ${args.aiModel}. Please try again in ${retrySeconds} seconds.`);
+        }
+        
+        // Check monthly limit
+        const monthlyLimitResult = await rateLimiter.limit(ctx, modelLimitNameMonthly, {
+          key: rateLimitKey,
+          config: monthlyConfig,
+        });
+        
+        if (!monthlyLimitResult.ok) {
+          throw new Error(`Monthly model usage limit exceeded for ${args.aiModel}. Please upgrade your plan or try again next month.`);
+        }
+      }
+    }
+    
     // Build attachments array if files are provided
     let attachments = undefined;
     if (args.fileIds && args.fileIds.length > 0) {

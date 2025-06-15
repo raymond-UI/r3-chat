@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo } from "react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { ModelLimitManager } from "@/utils/MessageLimitManager";
 
 interface UseChatOptions {
   conversationId?: Id<"conversations">;
@@ -130,6 +129,17 @@ export function useChat({
     });
   }, [aiMessages, transformedMessages]);
 
+  // Helper function for anonymous conversation tracking
+  const addAnonymousConversation = useCallback((conversationId: string) => {
+    if (typeof window === "undefined") return;
+    const conversations = localStorage.getItem("anonymous_conversations");
+    const existingConversations = conversations ? JSON.parse(conversations) : [];
+    if (!existingConversations.includes(conversationId)) {
+      existingConversations.push(conversationId);
+      localStorage.setItem("anonymous_conversations", JSON.stringify(existingConversations));
+    }
+  }, []);
+
   // Custom submit handler that saves user message to Convex and tracks anonymous usage
   const handleSubmit = useCallback(
     async (e?: React.FormEvent<HTMLFormElement>, chatRequestOptions?: { 
@@ -148,6 +158,7 @@ export function useChat({
       const actualUserId = user?.id || "anonymous";
       
       if (userMessage?.trim()) {
+        // The send mutation now handles rate limiting server-side
         await sendMessage({
           conversationId,
           userId: actualUserId,
@@ -156,18 +167,16 @@ export function useChat({
           fileIds, // Include file IDs if provided
         });
 
-        // Track anonymous message if user is not signed in
+        // Track anonymous conversation for migration (not message count)
         if (!user?.id) {
-          ModelLimitManager.incrementAnonymousMessageCount();
-          // Ensure conversation is tracked for anonymous user
-          ModelLimitManager.addAnonymousConversation(conversationId);
+          addAnonymousConversation(conversationId);
         }
       }
 
       // Then proceed with AI SDK submission
       return originalHandleSubmit(e, chatRequestOptions);
     },
-    [user?.id, conversationId, input, sendMessage, originalHandleSubmit]
+    [user?.id, conversationId, input, sendMessage, originalHandleSubmit, addAnonymousConversation]
   );
 
   // Enhanced submit function that accepts file IDs

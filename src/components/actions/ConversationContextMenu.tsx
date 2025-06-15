@@ -10,6 +10,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Id } from "../../../convex/_generated/dataModel";
+import { Authenticated } from "convex/react";
+
 
 export function useContextMenu() {
   const [selectedConversationId, setSelectedConversationId] =
@@ -43,6 +45,7 @@ interface ConversationContextMenuProps {
   onDelete: () => void;
   onExport: () => void;
   onShowcase: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface ContextMenuItemWithBadgeProps {
@@ -68,7 +71,7 @@ function ContextMenuItemWithBadge({
       disabled={disabled}
       className={`
         flex items-center gap-3 cursor-pointer
-        ${variant === "destructive" ? "text-destructive focus:bg-destructive focus:text-destructive-foreground" : ""}
+        ${variant === "destructive" ? "text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground" : ""}
       `}
     >
       <span className="flex-shrink-0">{icon}</span>
@@ -92,9 +95,10 @@ export function ConversationContextMenu({
   onDelete,
   onExport,
   onShowcase,
+  onOpenChange,
 }: ConversationContextMenuProps) {
   return (
-    <ContextMenu>
+    <ContextMenu onOpenChange={onOpenChange}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-[200px]">
         {/* Pin/Unpin */}
@@ -112,6 +116,8 @@ export function ConversationContextMenu({
         />
 
         {/* Showcase */}
+        <Authenticated>
+
         <ContextMenuItemWithBadge
           icon={<Star className="h-4 w-4" />}
           label="Showcase"
@@ -119,7 +125,8 @@ export function ConversationContextMenu({
           badge={
             isShownOnProfile ? (isFeatured ? "Featured" : "Public") : undefined
           }
-        />
+          />
+          </Authenticated>
 
         <ContextMenuSeparator />
 

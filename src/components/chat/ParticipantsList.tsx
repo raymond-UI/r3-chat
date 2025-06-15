@@ -9,7 +9,14 @@ import { useConversations } from "@/hooks/useConversations";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Users, UserPlus, Copy, Check, Share } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ShareConversationDialog } from "./ShareConversationDialog";
@@ -28,20 +35,27 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
   const [showShareDialog, setShowShareDialog] = useState(false);
 
   // Get conversation details
-  const conversationResult = useQuery(api.conversations.get, { conversationId });
-  const conversation = conversationResult?.success ? conversationResult.conversation : null;
-  
+  const conversationResult = useQuery(api.conversations.get, {
+    conversationId,
+  });
+  const conversation = conversationResult?.success
+    ? conversationResult.conversation
+    : null;
+
   // Get presence info for participants
   const presence = useQuery(api.presence.list, { conversationId });
 
   const participants = conversation?.participants || [];
-  const activeUsers = presence?.filter(p => 
-    Date.now() - p.lastSeen < 30000 // Active within last 30 seconds
-  ).map(p => p.userId) || [];
+  const activeUsers =
+    presence
+      ?.filter(
+        (p) => Date.now() - p.lastSeen < 30000 // Active within last 30 seconds
+      )
+      .map((p) => p.userId) || [];
 
   const handleAddUser = async () => {
     if (!newUserEmail.trim()) return;
-    
+
     setIsAdding(true);
     try {
       // For demo purposes, we'll use the email as userId
@@ -71,7 +85,7 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
           <span>{participants.length}</span>
         </Button>
       </DialogTrigger>
-      
+
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -79,28 +93,39 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
             Participants ({participants.length})
           </DialogTitle>
         </DialogHeader>
+        <DialogDescription>
+          Add new chat participants or share this chat with others.
+        </DialogDescription>
 
         <div className="space-y-4">
           {/* Current Participants */}
           <div className="space-y-2">
             {participants.map((participantId) => (
-              <div key={participantId} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+              <div
+                key={participantId}
+                className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
+              >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.id === participantId ? user?.imageUrl : undefined} />
-                  <AvatarFallback>
-                    {participantId === user?.id 
-                      ? user?.firstName?.charAt(0) || "U"
-                      : participantId.charAt(0).toUpperCase()
+                  <AvatarImage
+                    src={
+                      user?.id === participantId ? user?.imageUrl : undefined
                     }
+                  />
+                  <AvatarFallback>
+                    {participantId === user?.id
+                      ? user?.firstName?.charAt(0) || "U"
+                      : participantId.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="flex-1 min-w-0 gap-1">
                   <span className="font-medium text-sm">
                     {participantId === user?.id ? "You" : user?.firstName}
                   </span>
                   {activeUsers.includes(participantId) && (
-                    <Badge variant="secondary" className="ml-1 text-xs">Online</Badge>
+                    <Badge variant="secondary" className="ml-1 text-xs">
+                      Online
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -111,14 +136,16 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
           <div className="border-t pt-4 space-y-3">
             <div className="flex gap-2">
               <Input
-                placeholder="Enter user email or ID..."
+                readOnly={true}
+                disabled
+                placeholder="Invite by email - Coming soon"
                 value={newUserEmail}
                 onChange={(e) => setNewUserEmail(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleAddUser();
                 }}
               />
-              <Button 
+              <Button
                 onClick={handleAddUser}
                 disabled={!newUserEmail.trim() || isAdding}
                 size="sm"
@@ -146,7 +173,7 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
                   </>
                 )}
               </Button>
-              
+
               <Button
                 variant="outline"
                 onClick={() => setShowShareDialog(true)}
@@ -159,7 +186,7 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
           </div>
         </div>
       </DialogContent>
-      
+
       {/* Share Dialog */}
       <ShareConversationDialog
         conversationId={conversationId}
@@ -168,4 +195,4 @@ export function ParticipantsList({ conversationId }: ParticipantsListProps) {
       />
     </Dialog>
   );
-} 
+}

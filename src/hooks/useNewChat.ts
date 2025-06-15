@@ -6,7 +6,6 @@ import { Id } from "../../convex/_generated/dataModel";
 import { AIModel } from "@/types/ai";
 import { useUser } from "@clerk/nextjs";
 import { env } from "@/env";
-import { ModelLimitManager } from "@/utils/MessageLimitManager";
 
 interface UseChatOptions {
   conversationId?: Id<"conversations">;
@@ -106,6 +105,17 @@ export function useChat({
       setMessages(transformedMessages);
     }
   }, [transformedMessages]);
+
+  // Helper function for anonymous conversation tracking
+  const addAnonymousConversation = useCallback((conversationId: string) => {
+    if (typeof window === "undefined") return;
+    const conversations = localStorage.getItem("anonymous_conversations");
+    const existingConversations = conversations ? JSON.parse(conversations) : [];
+    if (!existingConversations.includes(conversationId)) {
+      existingConversations.push(conversationId);
+      localStorage.setItem("anonymous_conversations", JSON.stringify(existingConversations));
+    }
+  }, []);
 
   // HTTP endpoint streaming (primary method)
   const streamViaHTTP = useCallback(async (
@@ -302,7 +312,7 @@ export function useChat({
       const useStreaming = options?.useStreaming !== false; // Default to streaming
 
       try {
-        // Save user message to Convex first
+        // Save user message to Convex first (rate limiting handled server-side)
         await sendMessage({
           conversationId,
           userId: actualUserId,
@@ -311,10 +321,9 @@ export function useChat({
           fileIds: options?.fileIds,
         });
 
-        // Track anonymous usage
+        // Track anonymous conversation for migration (not message count)
         if (!user?.id) {
-          ModelLimitManager.incrementAnonymousMessageCount();
-          ModelLimitManager.addAnonymousConversation(conversationId);
+          addAnonymousConversation(conversationId);
         }
 
         // Add user message to local state immediately
@@ -370,7 +379,7 @@ export function useChat({
         console.error("Submit failed:", err);
       }
     },
-    [conversationId, input, user?.id, sendMessage, streamToAI, sendToAI, selectedModel, onFinish]
+    [conversationId, input, user?.id, sendMessage, addAnonymousConversation, streamToAI, sendToAI, selectedModel, onFinish]
   );
 
   // Enhanced submit with files

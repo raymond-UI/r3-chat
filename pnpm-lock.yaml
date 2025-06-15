@@ -20,6 +20,9 @@ importers:
       '@convex-dev/agent':
         specifier: ^0.1.7
         version: 0.1.7(ai@4.3.16(react@19.1.0)(zod@3.25.56))(convex-helpers@0.1.92(@standard-schema/spec@1.0.0)(convex@1.24.8(@clerk/clerk-react@5.31.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0))(react@19.1.0)(typescript@5.8.3)(zod@3.25.56))(convex@1.24.8(@clerk/clerk-react@5.31.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0))(react@19.1.0)
+      '@convex-dev/rate-limiter':
+        specifier: ^0.2.7
+        version: 0.2.7(convex@1.24.8(@clerk/clerk-react@5.31.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0))
       '@hookform/resolvers':
         specifier: ^5.1.1
         version: 5.1.1(react-hook-form@7.57.0(react@19.1.0))
@@ -341,6 +344,11 @@ packages:
     peerDependenciesMeta:
       react:
         optional: true
+
+  '@convex-dev/rate-limiter@0.2.7':
+    resolution: {integrity: sha512-aMF/ggCd88Sw6UaqnSS4DjGXTkIOIpyG0d/CrcwMxEIzlDkwanREfF6idtLiL11S7Ra0GJmxkbb23jRuhLL9mA==}
+    peerDependencies:
+      convex: ~1.16.5 || >=1.17.0 <1.35.0
 
   '@date-fns/tz@1.2.0':
     resolution: {integrity: sha512-LBrd7MiJZ9McsOgxqWX7AaxrDjcFVjWH/tIKJd7pnR7McaslGYOP1QmmiBXdJH/H/yLCT+rcQ7FaPBUxRGUtrg==}
@@ -3997,6 +4005,10 @@ snapshots:
       convex-helpers: 0.1.92(@standard-schema/spec@1.0.0)(convex@1.24.8(@clerk/clerk-react@5.31.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0))(react@19.1.0)(typescript@5.8.3)(zod@3.25.56)
     optionalDependencies:
       react: 19.1.0
+
+  '@convex-dev/rate-limiter@0.2.7(convex@1.24.8(@clerk/clerk-react@5.31.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0))':
+    dependencies:
+      convex: 1.24.8(@clerk/clerk-react@5.31.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)
 
   '@date-fns/tz@1.2.0': {}
 

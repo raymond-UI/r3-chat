@@ -1,83 +1,95 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { useQuery } from "convex/react";
+import { api } from "@/../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { X } from "lucide-react";
+import { useState } from "react";
 
 interface MessageLimitIndicatorProps {
-  remainingMessages: number;
-  totalLimit: number;
   className?: string;
+  model?: string;
   onSignUpClick?: () => void;
+  showDetails?: boolean;
 }
 
 export function MessageLimitIndicator({
-  remainingMessages,
-  totalLimit,
   className,
   onSignUpClick,
 }: MessageLimitIndicatorProps) {
-  const usedMessages = totalLimit - remainingMessages;
-  const isLowOnMessages = remainingMessages <= 3;
-  const isOutOfMessages = remainingMessages === 0;
+  const [isVisible, setIsVisible] = useState(true);
+  const remainingMessages = useQuery(api.rateLimitChecks.getRemainingMessages);
+  const rateLimitStatus = useQuery(api.rateLimitChecks.getRateLimitStatus);
 
-  if (isOutOfMessages) {
-    return (
-      <Alert
-        className={cn(
-          "flex items-center justify-between gap-2 p-2 rounded-lg transition-colors w-full bg-destructive/30 backdrop-blur-sm border border-warning/50",
-          className
-        )}
-      >
-        <AlertTitle className="m-0 text-base">Message limit reached</AlertTitle>
-        <AlertDescription className="sr-only">
-          You&apos;ve reached your message limit.
-        </AlertDescription>
-        {onSignUpClick && (
-          <Button size="sm" onClick={onSignUpClick} className="text-xs">
-            Sign in to reset limit
-          </Button>
-        )}
-      </Alert>
-    );
+  // Don't show anything while loading
+  if (!remainingMessages || !rateLimitStatus || !isVisible) {
+    return null;
+  }
+
+  const { remaining, isExhausted, userType } = remainingMessages;
+  const { isAnonymous } = rateLimitStatus;
+
+  // Don't show for paid users
+  if (userType === "paid") {
+    return null;
+  }
+
+  // Show different messages based on state
+  let message = "";
+  let showSignInLink = false;
+
+  if (isExhausted) {
+    if (isAnonymous) {
+      message = "You've reached your message limit.";
+      showSignInLink = true;
+    } else {
+      message = "You've reached your daily message limit.";
+    }
+  } else if (isAnonymous && remaining <= 10) {
+    message = `You only have ${remaining} message${remaining === 1 ? '' : 's'} left.`;
+    showSignInLink = true;
+  } else if (userType === "free" && remaining <= 20) {
+    message = `You have ${remaining} messages left today.`;
+  } else {
+    // Don't show indicator if plenty of messages remain
+    return null;
   }
 
   return (
     <div
       className={cn(
-        "flex items-center gap-2 p-2 rounded-lg transition-colors w-full bg-destructive/30 backdrop-blur-sm border border-warning/50 z-20",
+        "flex items-center justify-between gap-3 px-4 py-3 rounded-lg",
+        "bg-amber-100 border border-amber-200 text-amber-800",
+        "dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200",
+        "shadow-sm",
         className
       )}
     >
-      <div className="flex-1 min-w-0 text-left">
-        <p
-          className={cn(
-            "text-base font-medium text-foreground"
-          )}
-        >
-          You only have {remainingMessages} message
-          {remainingMessages !== 1 ? "s" : ""} left
-        </p>
-      </div>
-      <Badge
-        variant="default"
-        className={cn(
-          "text-xs px-1.5 py-0.5",
-          isLowOnMessages && "bg-warning/20 text-warning-foreground"
+      <div className="flex items-center gap-3 flex-1">
+        <span className="text-sm font-medium">
+          {message}
+        </span>
+        {showSignInLink && (
+          <Button
+            variant="link"
+            size="sm"
+            onClick={onSignUpClick}
+            className="text-amber-700 dark:text-amber-300 underline p-0 h-auto font-medium hover:text-amber-900 dark:hover:text-amber-100"
+          >
+            Sign in to reset your limits
+          </Button>
         )}
+      </div>
+      
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsVisible(false)}
+        className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 p-1 h-auto"
       >
-        {usedMessages}/{totalLimit}
-      </Badge>
-      {isLowOnMessages && onSignUpClick && (
-        <Button
-          size="sm"
-          onClick={onSignUpClick}
-          className="text-xs h-6 px-2"
-        >
-          Upgrade to Pro
-        </Button>
-      )}
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Sparkles, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -9,8 +11,6 @@ import { ConfirmationModal } from "../actions/ConfirmationModal";
 interface LoginPromptDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  messagesUsed: number;
-  messageLimit: number;
 }
 
 const BENEFITS = [
@@ -34,11 +34,13 @@ const BENEFITS = [
 export function LoginPromptDialog({
   isOpen,
   onClose,
-  messagesUsed,
-  messageLimit,
 }: LoginPromptDialogProps) {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
+  
+  // Get remaining messages data from Convex
+  const remainingMessages = useQuery(api.rateLimitChecks.getRemainingMessages);
+  const rateLimitStatus = useQuery(api.rateLimitChecks.getRateLimitStatus);
 
   const handleSignIn = useCallback(async () => {
     if (isNavigating) return;
@@ -59,15 +61,32 @@ export function LoginPromptDialog({
     }
   }, [onClose, isNavigating]);
 
-  const title = useMemo(
-    () => "You've reached your message limit",
-    []
-  );
+  const { title, description } = useMemo(() => {
+    if (!remainingMessages || !rateLimitStatus) {
+      return {
+        title: "Sign up to continue",
+        description: "Sign up to unlock unlimited messages and more features!"
+      };
+    }
 
-  const description = useMemo(
-    () => `You've used ${messagesUsed} of ${messageLimit} free messages. Sign up to continue chatting and unlock more features!`,
-    [messagesUsed, messageLimit]
-  );
+    const { remaining, total, isExhausted } = remainingMessages;
+    const { isAnonymous } = rateLimitStatus;
+    
+    if (isExhausted) {
+      return {
+        title: "You've reached your message limit",
+        description: isAnonymous 
+          ? "You've used all 5 free messages. Sign up to continue chatting and unlock unlimited messages!"
+          : "You've reached your daily limit. Sign up for a premium account to get unlimited messages!"
+      };
+    }
+    
+    const used = total - remaining;
+    return {
+      title: "You're running low on messages",
+      description: `You've used ${used} of ${total} free messages. Sign up to continue chatting and unlock more features!`
+    };
+  }, [remainingMessages, rateLimitStatus]);
 
   const benefitsList = useMemo(
     () => BENEFITS.map((benefit, index) => {
@@ -132,4 +151,4 @@ export function LoginPromptDialog({
       </div>
     </ConfirmationModal>
   );
-}
+} 

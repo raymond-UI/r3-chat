@@ -8,6 +8,8 @@ import { AlertTriangle, Lock } from "lucide-react";
 import { useConversationAccess } from "@/hooks/useConversationAccess";
 import { useMessages } from "@/hooks/useMessages";
 import { Card, CardContent } from "../ui/card";
+import { Authenticated } from "convex/react";
+import { MessageListLoading } from "./ui/MessageListLoading";
 
 interface ChatContainerProps {
   conversationId: Id<"conversations">;
@@ -26,13 +28,18 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
 
   return (
     <div className="flex relative flex-col items-start justify-start w-full min-w-0 overflow-hidden h-full">
-      <ChatHeader
-        conversationId={conversationId}
-        aiEnabled={aiEnabled}
-        onAiEnabledChange={setAiEnabled}
-      />
+      <Authenticated>
+        <ChatHeader
+          conversationId={conversationId}
+          aiEnabled={aiEnabled}
+          onAiEnabledChange={setAiEnabled}
+        />
+      </Authenticated>
+     
       {accessLoading || convexLoading ? (
-        <Loading />
+        <div className="flex-1 w-full flex items-start px-4 sm:px-8 justify-center">
+          <MessageListLoading />
+        </div>
       ) : (
         <>
           {!canAccess ? (
@@ -96,17 +103,5 @@ function AccessDenied({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function Loading() {
-  return (
-    <div className="flex-1 w-full flex items-center justify-center">
-      <div className="flex items-center space-x-1">
-        <div className="size-3 bg-current rounded-full animate-bounce"></div>
-        <div className="size-4 bg-current rounded-full animate-bounce delay-100"></div>
-        <div className="size-3 bg-current rounded-full animate-bounce delay-200"></div>
-      </div>
-    </div>
   );
 }
