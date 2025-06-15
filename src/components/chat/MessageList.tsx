@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { Doc, Id } from "../../../convex/_generated/dataModel";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { FilePreview, FilePreviewCompact } from "./FilePreview";
+import { FilePreview } from "./FilePreview";
 import { ChatBubbleAction } from "../actions/ChatBubbleAction";
 import { BranchSelector } from "./BranchSelector";
 import { useBranching } from "@/hooks/useBranching";
@@ -145,9 +145,19 @@ export function MessageList({ messages, conversationId, readOnly = false }: Mess
         // const isMyStream = message.streamingForUser === user?.id;
         const isRealTimeStreaming = message.isRealTimeStreaming || false;
         const hasFiles =
-          "attachedFiles" in message &&
-          message.attachedFiles &&
-          message.attachedFiles.length > 0;
+          ("attachedFiles" in message &&
+            message.attachedFiles &&
+            message.attachedFiles.length > 0) ||
+          (message.attachments && message.attachments.length > 0);
+
+        // Debug logging for file attachments
+        if (hasFiles) {
+          console.log("Message with files:", {
+            messageId: message._id,
+            attachedFiles: "attachedFiles" in message ? message.attachedFiles?.length : 0,
+            attachments: message.attachments?.length || 0,
+          });
+        }
 
         if (isSystem) {
           return (
@@ -211,27 +221,43 @@ export function MessageList({ messages, conversationId, readOnly = false }: Mess
               )}
             >
               {/* Attached Files */}
-              {hasFiles && "attachedFiles" in message && (
+              {hasFiles && (
                 <div
                   className={cn(
                     "flex flex-col gap-2 max-w-md",
                     isCurrentUser && !isAI ? "items-end" : "items-start"
                   )}
                 >
-                  {message.attachedFiles?.map((file) => (
+                  {/* Render files from attachedFiles (database query) */}
+                  {"attachedFiles" in message && message.attachedFiles?.map((file) => (
                     <FilePreview
                       key={file._id}
                       file={file}
                       className="max-w-full"
                     />
                   ))}
-                  {message.attachedFiles?.map((file) => (
-                    <FilePreviewCompact
-                      key={file._id}
-                      file={file}
-                      className="max-w-full"
-                    />
-                  ))}
+                  
+                  {/* Fallback: Render files from attachments (message schema) */}
+                  {message.attachments && !("attachedFiles" in message && message.attachedFiles?.length) && 
+                    message.attachments.map((attachment, index) => (
+                      <div key={index} className="p-2 bg-muted/50 border rounded text-sm">
+                        <p className="font-medium">{attachment.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {attachment.file_type.toUpperCase()} • {(attachment.file_size / 1024 / 1024).toFixed(1)} MB
+                        </p>
+                        {attachment.file_url && (
+                          <a 
+                            href={attachment.file_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline"
+                          >
+                            View File
+                          </a>
+                        )}
+                      </div>
+                    ))
+                  }
                 </div>
               )}
 

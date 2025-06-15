@@ -197,6 +197,28 @@ export const updateTitle = mutation({
   },
 });
 
+// Update conversation title for system/AI operations (works for anonymous conversations)
+export const updateTitleSystem = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    title: v.string(),
+  },
+  handler: async (ctx, { conversationId, title }) => {
+    const conversation = await ctx.db.get(conversationId);
+    
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+    
+    // System operation - no authentication required
+    // This is used by AI title generation and other internal operations
+    await ctx.db.patch(conversationId, {
+      title,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 // Update last message
 export const updateLastMessage = mutation({
   args: {

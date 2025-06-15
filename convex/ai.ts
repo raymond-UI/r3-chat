@@ -88,6 +88,8 @@ export const streamAgentResponse = action({
     // 🌿 Branching support
     parentMessageId: v.optional(v.id("messages")),
     branchIndex: v.optional(v.number()),
+    // 🆕 File support
+    fileIds: v.optional(v.array(v.id("files"))),
   },
   handler: async (
     ctx: ActionCtx,
@@ -99,6 +101,7 @@ export const streamAgentResponse = action({
       userId,
       parentMessageId,
       branchIndex,
+      fileIds,
     }: {
       messageId?: Id<"messages">;
       conversationId: Id<"conversations">;
@@ -107,6 +110,7 @@ export const streamAgentResponse = action({
       userId: string;
       parentMessageId?: Id<"messages">;
       branchIndex?: number;
+      fileIds?: Id<"files">[];
     }
   ): Promise<{ messageId: Id<"messages">; fullText: string }> => {
     // Use existing message or create new one
@@ -308,8 +312,8 @@ export const generateAgentTitle = action({
       // Log the generated title
       console.log("[generateAgentTitle] Generated title:", cleanTitle);
 
-      // Update conversation title
-      await ctx.runMutation(api.conversations.updateTitle, {
+      // Update conversation title using system function (works for anonymous users)
+      await ctx.runMutation(api.conversations.updateTitleSystem, {
         conversationId,
         title: cleanTitle,
       });
@@ -324,7 +328,7 @@ export const generateAgentTitle = action({
           ? firstMessage.substring(0, 27) + "..."
           : firstMessage;
 
-      await ctx.runMutation(api.conversations.updateTitle, {
+      await ctx.runMutation(api.conversations.updateTitleSystem, {
         conversationId,
         title: fallbackTitle,
       });

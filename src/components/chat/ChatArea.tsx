@@ -20,11 +20,11 @@ interface ChatAreaProps {
 }
 
 export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
-  
   // Use Convex messages for real-time updates and file attachments
   const { messages: convexMessages } = useMessages(conversationId);
+  // Remove useSendMessage since useChat now handles message persistence
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
-  
+
   // File upload functionality
   const {
     uploadingFiles,
@@ -37,7 +37,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   } = useFiles(conversationId);
 
   // AI SDK integration
-  const [selectedModel, setSelectedModel] = useState("google/gemini-2.0-flash-exp:free");
+  const [selectedModel, setSelectedModel] = useState(
+    "google/gemini-2.0-flash-exp:free"
+  );
   const {
     messages: aiMessages,
     input,
@@ -46,6 +48,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     submitWithFiles,
     isLoading: aiIsLoading,
     error: aiError,
+    reload,
   } = useChat({
     conversationId,
     model: selectedModel,
@@ -53,7 +56,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   // Local state for UI management
   const [isSending, setIsSending] = useState(false);
-  
+
   // Enhanced scroll state management
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -65,13 +68,16 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   // ✅ Fix: Use AI SDK messages consistently to prevent flickering
   const displayMessages = useMemo(() => {
-    return aiMessages.map(msg => ({
+    return aiMessages.map((msg) => ({
       _id: msg.id as Id<"messages">,
       _creationTime: msg.createdAt?.getTime() || Date.now(),
       conversationId,
-      userId: msg.role === "user" ? user?.id || "" : "ai-assistant", 
+      userId: msg.role === "user" ? user?.id || "" : "ai-assistant",
       content: msg.content,
-      type: msg.role === "assistant" ? "ai" as const : msg.role as "user" | "system",
+      type:
+        msg.role === "assistant"
+          ? ("ai" as const)
+          : (msg.role as "user" | "system"),
       timestamp: msg.createdAt?.getTime() || Date.now(),
       status: "complete" as const,
       isRealTimeStreaming: aiIsLoading && msg.role === "assistant",
@@ -107,7 +113,8 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } =
+      messagesContainerRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
 
     if (!isAtBottom && !isUserScrolling) {
@@ -176,7 +183,13 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
 
   // ✅ Fixed message sending with proper AI SDK integration
   const handleSendMessage = useCallback(async () => {
-    if (!user?.id || (!input.trim() && !hasFilesToSend) || isSending || aiIsLoading) return;
+    if (
+      !user?.id ||
+      (!input.trim() && !hasFilesToSend) ||
+      isSending ||
+      aiIsLoading
+    )
+      return;
 
     const messageContent = input.trim();
     setIsSending(true);
@@ -184,13 +197,13 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     try {
       await stopTyping();
 
-      // ✅ Use the enhanced useChat hook that handles both files and regular messages
+      // ✅ Use unified useChat hook that handles both Convex persistence and AI streaming
       if (aiEnabled && messageContent) {
         if (hasFilesToSend && uploadedFileIds.length > 0) {
-          // Use submitWithFiles for messages with attachments
+          // Use submitWithFiles for messages with attachments (saves to Convex + triggers AI)
           await submitWithFiles(uploadedFileIds);
         } else {
-          // Use regular submit for text-only messages  
+          // Use regular submit for text-only messages (saves to Convex + triggers AI)
           await aiHandleSubmit();
         }
       }
@@ -221,7 +234,9 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   // Handle input changes with typing indicators and AI SDK integration
   const handleInputChange = async (value: string) => {
     // Update AI SDK state
-    aiHandleInputChange({ target: { value } } as React.ChangeEvent<HTMLInputElement>);
+    aiHandleInputChange({
+      target: { value },
+    } as React.ChangeEvent<HTMLInputElement>);
 
     // Handle typing indicators
     if (value.length > 0) {
@@ -242,8 +257,29 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     return () => clearTimeout(timeout);
   }, [input, stopTyping]);
 
+  // ✅ Auto-trigger AI response for new conversations with only user messages
+  useEffect(() => {
+    if (
+      aiEnabled &&
+      displayMessages.length === 1 &&
+      displayMessages[0]?.type === "user" &&
+      !aiIsLoading &&
+      !isSending
+    ) {
+      // Use AI SDK's reload function to generate response to the existing message
+      const triggerAIResponse = async () => {
+        try {
+          await reload();
+        } catch (error) {
+          console.error("Failed to trigger initial AI response:", error);
+        }
+      };
 
-
+      // Small delay to ensure messages are fully loaded
+      const timeout = setTimeout(triggerAIResponse, 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [displayMessages, aiEnabled, aiIsLoading, isSending, reload]);
 
   return (
     <div className="flex-1 flex flex-col w-full h-full mt-11 sm:mt-0 relative mx-auto overflow-y-auto">
@@ -253,7 +289,10 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         className="flex-1 overflow-y-auto p-4 w-full sm:pt-6 max-w-3xl mx-auto relative z-0"
         onScroll={handleScroll}
       >
-        <MessageList messages={displayMessages} conversationId={conversationId} />
+        <MessageList
+          messages={displayMessages}
+          conversationId={conversationId}
+        />
 
         {/* Show scroll-to-bottom button when user has scrolled up */}
         {!shouldAutoScroll && (
@@ -318,7 +357,6 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         {/* Scroll anchor */}
         <div ref={messagesEndRef} />
       </div>
-
 
       <div className="w-full relative z-10">
         <MessageInput

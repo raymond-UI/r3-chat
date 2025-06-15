@@ -11,7 +11,7 @@ const DAY = 24 * 60 * 60 * 1000;
 // Helper to get rate limit config
 function getRateLimitConfig(limitName: string) {
   if (limitName === "anonymousDaily") {
-    return { kind: "fixed window" as const, rate: 5, period: DAY };
+    return { kind: "fixed window" as const, rate: 10, period: DAY };
   }
   if (limitName === "freeUserDaily") {
     return { kind: "token bucket" as const, rate: 100, period: DAY, capacity: 120 };
@@ -84,15 +84,29 @@ export const list = query({
     // Get attached files for each message
     const messagesWithFiles = await Promise.all(
       activeBranchMessages.map(async (message) => {
-        const files = await ctx.db
-          .query("files")
-          .filter((q) => q.eq(q.field("messageId"), message._id))
-          .collect();
-        
-        return {
-          ...message,
-          attachedFiles: files,
-        };
+        try {
+          const files = await ctx.db
+            .query("files")
+            .filter((q) => q.eq(q.field("messageId"), message._id))
+            .collect();
+          
+          // Debug logging
+          if (files.length > 0) {
+            console.log(`Found ${files.length} files for message ${message._id}`);
+          }
+          
+          return {
+            ...message,
+            attachedFiles: files,
+          };
+        } catch (error) {
+          console.error(`Error fetching files for message ${message._id}:`, error);
+          // Don't fail the entire message, just return without files
+          return {
+            ...message,
+            attachedFiles: [],
+          };
+        }
       })
     );
 

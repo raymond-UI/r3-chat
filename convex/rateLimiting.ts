@@ -10,7 +10,7 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Global daily limit for anonymous users (5 messages per day)
   anonymousDaily: {
     kind: "fixed window",
-    rate: 5,
+    rate: 10,
     period: DAY,
   },
 

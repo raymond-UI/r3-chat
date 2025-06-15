@@ -16,7 +16,7 @@ import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
 import { useConversations } from "@/hooks/useConversations";
 import { useSendMessage } from "@/hooks/useMessages";
-import { useAI } from "@/hooks/useAI";
+import { useChat } from "@/hooks/useChat";
 import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { Id } from "../../../convex/_generated/dataModel";
 import { MessageLimitIndicator } from "../indicators/MessageLimitIndicator";
@@ -86,12 +86,12 @@ export const MessageInput = forwardRef<
 
     const { create } = useConversations();
     const { send } = useSendMessage();
-    const { generateTitle, isStreaming } = useAI(); // Use streaming for better UX
-      const {
-    trackMessageSent,
-    isSignedIn,
-    isInitialized,
-  } = useAnonymousMessaging();
+    const { generateTitle } = useChat({}); // Use unified chat hook
+    const {
+      trackMessageSent,
+      isSignedIn,
+      isInitialized,
+    } = useAnonymousMessaging();
 
     // Use local or prop values based on mode
     const currentValue = isNewChat ? localInputValue : value || "";
@@ -101,7 +101,7 @@ export const MessageInput = forwardRef<
     const currentPlaceholder = isNewChat
       ? "Start a new conversation..."
       : placeholder;
-    const isDisabled = isNewChat ? isSending || isStreaming : disabled; // Also disable during AI streaming
+    const isDisabled = isNewChat ? isSending : disabled;
 
     // Expose fill input function for new chat mode
     useImperativeHandle(
@@ -190,9 +190,9 @@ export const MessageInput = forwardRef<
       (currentValue.trim() || hasFilesToSend) && !isDisabled && !isUploading;
 
     const handleSendMessage = async () => {
-          // Rate limiting is now handled server-side in the send mutation
-    // For anonymous users, show sign-up prompt if they've hit limits
-    // The actual limit check is done in the server mutation
+      // Rate limiting is now handled server-side in the send mutation
+      // For anonymous users, show sign-up prompt if they've hit limits
+      // The actual limit check is done in the server mutation
 
       if (isNewChat) {
         // New chat creation logic - now supports anonymous users
@@ -230,17 +230,13 @@ export const MessageInput = forwardRef<
             clearUploadedFiles();
           }
 
-          // ✅ NEW: Trigger AI response for the first message
+          // Generate title for the conversation
           if (messageContent) {
             try {
-              // Generate title in parallel
               await generateTitle(conversationId, messageContent);
-              
-              // ✅ Trigger AI response using existing AI hook
-              await generateTitle(conversationId, messageContent);
-            } catch (aiError) {
-              console.error("Failed to trigger AI response:", aiError);
-              // Don't block navigation if AI fails
+            } catch (titleError) {
+              console.error("Failed to generate title:", titleError);
+              // Don't block navigation if title generation fails
             }
           }
 
@@ -368,7 +364,7 @@ export const MessageInput = forwardRef<
                       : "Send message"
                 }
               >
-                {isSending || isStreaming || isUploading ? (
+                {isSending || isUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4" />

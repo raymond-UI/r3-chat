@@ -46,7 +46,7 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     try {
-      const { conversationId, userMessage, model, userId } =
+      const { conversationId, userMessage, model, userId, fileIds } =
         await request.json();
 
       if (!conversationId || !userMessage || !userId) {
@@ -77,12 +77,88 @@ http.route({
         userMessage,
         model: model || "meta-llama/llama-3.3-8b-instruct:free",
         userId,
+        fileIds, // Pass file IDs to the agent response
       });
 
-      // 🆕 Real-time AI SDK streaming for the active user
+      // 🆕 Prepare message content with files for AI SDK
+      const messageContent: Array<{ 
+        type: 'text', 
+        text: string 
+      } | { 
+        type: 'file', 
+        data: Buffer, 
+        mimeType: string,
+        filename?: string
+      }> = [
+        { type: 'text', text: userMessage }
+      ];
+
+      // 🆕 Add files to message content if provided
+      if (fileIds && fileIds.length > 0) {
+        const files = await Promise.all(
+          fileIds.map(async (fileId: Id<"files">) => {
+            const file = await ctx.runQuery(api.files.getById, { fileId });
+            if (!file) return null;
+            
+            // For PDF files, fetch the content from the URL and pass as Buffer
+            if (file.type === "pdf" || file.mimeType === "application/pdf") {
+              try {
+                const response = await fetch(file.url);
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                
+                return {
+                  type: 'file' as const,
+                  data: buffer,
+                  mimeType: file.mimeType,
+                  filename: file.name,
+                };
+              } catch (error) {
+                console.error(`Failed to fetch PDF file ${file.name}:`, error);
+                return null;
+              }
+            }
+            
+            // For image files, also fetch and pass as Buffer
+            if (file.type === "image" || file.mimeType?.startsWith("image/")) {
+              try {
+                const response = await fetch(file.url);
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                
+                return {
+                  type: 'file' as const,
+                  data: buffer,
+                  mimeType: file.mimeType,
+                  filename: file.name,
+                };
+              } catch (error) {
+                console.error(`Failed to fetch image file ${file.name}:`, error);
+                return null;
+              }
+            }
+            
+            return null;
+          })
+        );
+        
+        // Add valid files to message content
+        files.forEach(file => {
+          if (file) {
+            messageContent.push(file);
+          }
+        });
+      }
+
+      // 🆕 Real-time AI SDK streaming for the active user with file support
       const result = await streamText({
         model: openRouterProvider(model || "meta-llama/llama-3.3-8b-instruct:free"),
-        prompt: userMessage,
+        messages: [
+          {
+            role: 'user',
+            content: messageContent,
+          }
+        ],
         onFinish: async (result) => {
           // Update the database message when streaming completes
           await ctx.runMutation(internal.messages.updateStreaming, {

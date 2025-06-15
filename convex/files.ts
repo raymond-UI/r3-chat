@@ -103,38 +103,17 @@ export const extractFileContent = internalAction({
     try {
       let extractedText = "";
       
-      // Extract text content if PDF
+      // Note: PDF text extraction removed to avoid Node.js dependencies in Convex
+      // PDFs are now passed directly to AI models that support file processing
       if (file.type === "pdf" || file.mimeType === "application/pdf") {
-        try {
-          const processResponse = await fetch("http://localhost:3000/api/process-document", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              fileUrl: file.url,
-              fileType: file.mimeType,
-              fileName: file.name,
-            }),
-          });
-
-          if (processResponse.ok) {
-            const processResult = await processResponse.json();
-            if (processResult.success) {
-              extractedText = processResult.extractedText;
-            }
-          }
-        } catch (error) {
-          console.error("Document processing failed:", error);
-        }
-
-        // Update file with extracted text only
-        if (extractedText) {
-          await ctx.runMutation(internal.files.updateFileContent, {
-            fileId: args.fileId,
-            extractedText,
-          });
-        }
+        console.log(`PDF file processed: ${file.name} - will be passed directly to AI for analysis`);
+        extractedText = `PDF file: ${file.name} (${Math.round(file.size / 1024)}KB) - ready for AI analysis`;
+        
+        // Update file with metadata
+        await ctx.runMutation(internal.files.updateFileContent, {
+          fileId: args.fileId,
+          extractedText,
+        });
       }
 
     } catch (error) {
@@ -157,5 +136,18 @@ export const extractPdfText = action({
       console.error("PDF text extraction failed:", error);
       return "";
     }
+  },
+});
+
+// Manual trigger for text extraction (for testing/re-processing)
+export const triggerTextExtraction = mutation({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    // Trigger text extraction
+    await ctx.scheduler.runAfter(0, internal.files.extractFileContent, {
+      fileId: args.fileId,
+    });
+    
+    return { success: true, message: "Text extraction triggered" };
   },
 }); 
