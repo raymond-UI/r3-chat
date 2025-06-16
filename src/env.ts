@@ -17,7 +17,7 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string(),
     // CLERK_WEBHOOK_SIGNING_SECRET: z.string(),
     OPENROUTER_API_KEY: z.string(),
-    OPENAI_API_KEY: z.string().optional(),
+    // OPENAI_API_KEY: z.string().optional(),
     UPLOADTHING_TOKEN: z.string(),
     API_KEY_ENCRYPTION_SECRET: z.string(),
     NODE_ENV: z
@@ -61,7 +61,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CLERK_FRONTEND_API_URL: process.env.NEXT_PUBLIC_CLERK_FRONTEND_API_URL,
 
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    // OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
 
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
