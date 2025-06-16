@@ -101,7 +101,7 @@ export const streamAgentResponse = action({
       userId,
       parentMessageId,
       branchIndex,
-      fileIds,
+      // fileIds,
     }: {
       messageId?: Id<"messages">;
       conversationId: Id<"conversations">;

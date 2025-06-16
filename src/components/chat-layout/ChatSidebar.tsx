@@ -123,6 +123,16 @@ export function ChatSidebar({
                         {hasProfile ? "Edit Profile" : "Create Profile"}
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        API Keys & Models
+                      </Link>
+                    </DropdownMenuItem>
                     {!hasProfile && (
                       <>
                         <DropdownMenuSeparator />

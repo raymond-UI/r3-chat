@@ -152,6 +152,63 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_conversation", ["userId", "conversationId"]),
 
+  // 🔑 User API Keys & AI Configuration
+  userApiKeys: defineTable({
+    userId: v.string(), // Clerk user ID
+    // Encrypted API keys for different providers
+    openaiKey: v.optional(v.string()),
+    anthropicKey: v.optional(v.string()),
+    googleKey: v.optional(v.string()),
+    openrouterKey: v.optional(v.string()),
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    // Key validation status
+    keyStatus: v.optional(v.object({
+      openai: v.optional(v.object({
+        isValid: v.boolean(),  
+        lastChecked: v.number(),
+        error: v.optional(v.string()),
+      })),
+      anthropic: v.optional(v.object({
+        isValid: v.boolean(),
+        lastChecked: v.number(),
+        error: v.optional(v.string()),
+      })),
+      google: v.optional(v.object({
+        isValid: v.boolean(),
+        lastChecked: v.number(),
+        error: v.optional(v.string()),
+      })),
+      openrouter: v.optional(v.object({
+        isValid: v.boolean(),
+        lastChecked: v.number(),
+        error: v.optional(v.string()),
+      })),
+    })),
+  }).index("by_user", ["userId"]),
+
+  // 🎛️ User AI Preferences & Configuration - Simplified
+  userAiPreferences: defineTable({
+    userId: v.string(), // Clerk user ID
+    // Simple per-provider default preferences
+    defaultProviders: v.optional(v.object({
+      openai: v.boolean(),     // Use own OpenAI key as default for OpenAI models
+      anthropic: v.boolean(),  // Use own Anthropic key as default for Anthropic models  
+      google: v.boolean(),     // Use own Google key as default for Google models
+      openrouter: v.boolean(), // Use own OpenRouter key as default for other models
+    })),
+    // Default model preferences for different use cases
+    defaultModels: v.optional(v.object({
+      chat: v.string(),     // Default model for chat
+      vision: v.string(),   // Default model for vision tasks
+      coding: v.string(),   // Default model for coding tasks
+    })),
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   // Invites table for managing conversation invitations
   invites: defineTable({
     conversationId: v.id("conversations"),
@@ -166,4 +223,74 @@ export default defineSchema({
     .index("by_code", ["inviteCode"])
     .index("by_conversation", ["conversationId"])
     .index("by_creator", ["createdBy"]),
-}); 
+
+  // Security and audit logging
+  apiKeyAuditLogs: defineTable({
+    userId: v.string(),
+    provider: v.union(
+      v.literal("openai"),
+      v.literal("anthropic"), 
+      v.literal("google"),
+      v.literal("openrouter")
+    ),
+    action: v.union(
+      v.literal("key_created"),
+      v.literal("key_updated"), 
+      v.literal("key_deleted"),
+      v.literal("key_used"),
+      v.literal("key_validation_failed"),
+      v.literal("key_validation_succeeded")
+    ),
+    metadata: v.optional(v.object({
+      model: v.optional(v.string()),
+      tokenCount: v.optional(v.number()),
+      cost: v.optional(v.number()),
+      error: v.optional(v.string()),
+      ipAddress: v.optional(v.string()),
+      userAgent: v.optional(v.string()),
+    })),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_action", ["userId", "action"])
+    .index("by_timestamp", ["timestamp"]),
+
+  // API key validation tracking
+  apiKeyValidations: defineTable({
+    userId: v.string(),
+    provider: v.union(
+      v.literal("openai"),
+      v.literal("anthropic"),
+      v.literal("google"), 
+      v.literal("openrouter")
+    ),
+    keyHash: v.string(), // SHA-256 hash of the key for validation tracking
+    isValid: v.boolean(),
+    lastValidated: v.number(),
+    validationAttempts: v.number(),
+    lastError: v.optional(v.string()),
+    revokedAt: v.optional(v.number()),
+    revokedReason: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_provider", ["userId", "provider"])
+    .index("by_key_hash", ["keyHash"]),
+
+  // Security settings and policies
+  userSecuritySettings: defineTable({
+    userId: v.string(),
+    settings: v.object({
+      enableAuditLogging: v.boolean(),
+      keyRotationEnabled: v.boolean(),
+      keyRotationIntervalDays: v.number(),
+      allowKeySharing: v.boolean(),
+      requireKeyValidation: v.boolean(),
+      maxFailedValidations: v.number(),
+      enableUsageTracking: v.boolean(),
+    }),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+});
+

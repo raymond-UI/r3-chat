@@ -3,6 +3,89 @@ description:
 globs: 
 alwaysApply: false
 ---
+Based on the implementation plan, here's what needs to be done to implement "bring your own key" functionality:
+
+## 🔧 Core Implementation Tasks
+ Database Schema Extension
+✅ Added userApiKeys table for encrypted API key storage
+✅ Added userAiPreferences table for configuration strategies
+✅ Included validation status tracking for keys
+✅ Support for all 4 configuration strategies: default, own-openrouter, mixed, direct-only
+✅ Provider Router System
+✅ Created comprehensive provider abstraction in /lib/providers.ts
+✅ Support for OpenAI, Anthropic, Google, and OpenRouter APIs
+✅ Smart routing logic based on user preferences
+✅ Model ID normalization for direct provider usage
+✅ Cost estimation and fallback logic
+✅ Convex Integration
+✅ Complete CRUD operations for API keys and preferences
+✅ Secure user authentication and authorization
+✅ Key validation status tracking
+✅ Real-time configuration updates
+✅ API Route Updates
+✅ Updated /api/chat/route.ts to use the provider router
+✅ Dynamic provider selection based on user configuration
+✅ Helpful error messages for configuration issues
+✅ Backward compatibility with existing system
+✅ Type Safety & Testing
+✅ Comprehensive TypeScript types for all components
+✅ Test utilities for validating the provider system
+✅ Configuration validation logic
+
+
+### 1. **Database Schema Extension**
+- Add `apiKeys` field to users table for encrypted storage of:
+  - `openai`, `anthropic`, `google`, `openrouter` keys
+- Add `preferences` field for key configuration strategy:
+  - `"default" | "own-openrouter" | "mixed" | "direct-only"`
+  - `fallbackToDefault` boolean
+  - `preferredProvider` option
+
+### 2. **Provider Router System**
+- Create `getProviderConfig()` function that:
+  - Checks user's key configuration preference
+  - Routes to appropriate provider (direct vs OpenRouter)
+  - Handles fallback logic based on user settings
+- Support 4 routing strategies:
+  - **Default**: Use system OpenRouter key
+  - **Own OpenRouter**: User's OpenRouter key for everything
+  - **Mixed**: Direct keys where available, OpenRouter for rest
+  - **Direct Only**: Only direct provider keys, no OpenRouter
+
+### 3. **API Integration Updates**
+- Modify existing AI SDK integration to:
+  - Accept dynamic provider configs
+  - Switch between direct provider APIs and OpenRouter
+  - Handle different API key sources per request
+- Update `/api/chat/route.ts` to use new provider router
+
+### 4. **Settings UI Components**
+- **Configuration Selection**: Radio buttons for 4 strategies
+- **Key Input Fields**: Secure inputs for each provider
+- **Test Functionality**: Validate keys work with respective APIs
+- **Model Availability Display**: Show which models are accessible
+- **Cost Comparison**: Display potential savings per strategy
+
+### 5. **Security Implementation**
+- Encrypt API keys at rest in Convex
+- Secure key transmission (HTTPS only)
+- Key validation before storage
+- Secure deletion when user removes keys
+
+### 6. **Enhanced Model Selector**
+- Show which source each model uses (user direct/OpenRouter/system)
+- Display cost implications per model
+- Handle model availability based on user's configured keys
+
+## 🎯 Implementation Priority
+
+**Phase 1**: Basic infrastructure (database, provider router, key storage)
+**Phase 2**: Core integration (AI SDK updates, basic UI)
+**Phase 3**: Enhanced UX (smart configuration, cost display)
+**Phase 4**: Advanced features (dynamic switching, optimization)
+
+The main technical challenge is creating a flexible provider abstraction that can seamlessly switch between direct APIs and OpenRouter while maintaining the existing user experience.
+
 # 🔑 Enhanced "Bring Your Own Key" Implementation Plan
 
 ## 📋 Updated Overview
@@ -301,3 +384,4 @@ interface ModelOption {
 - **Upgrade path**: Easy migration to own keys when ready
 
 This enhanced approach gives users the perfect balance of control and simplicity, with OpenRouter remaining a key part of the ecosystem both as a system default and as a user-configurable option.
+

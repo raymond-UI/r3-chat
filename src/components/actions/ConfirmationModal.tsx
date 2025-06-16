@@ -134,13 +134,13 @@ export function ModalTrigger({
           opacity: 0,
           scaleX: 0.5,
           scaleY: 0.2,
-          translateY: -60,
+          y: -60,
         }}
         animate={{
           opacity: 1,
-          scaleX: 1,
+          scaleX: 1,  
           scaleY: 1,
-          translateY: 0,
+          y: 0,
         }}
         exit={{
           opacity: 0,

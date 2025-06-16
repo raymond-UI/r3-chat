@@ -18,7 +18,7 @@ export const env = createEnv({
     OPENROUTER_API_KEY: z.string(),
     OPENAI_API_KEY: z.string().optional(),
     UPLOADTHING_TOKEN: z.string(),
-
+    API_KEY_ENCRYPTION_SECRET: z.string(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -64,6 +64,8 @@ export const env = createEnv({
     UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
 
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+
+    API_KEY_ENCRYPTION_SECRET: process.env.API_KEY_ENCRYPTION_SECRET,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

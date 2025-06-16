@@ -1,14 +1,9 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { CoreMessage, streamText } from "ai";
 import { env } from "@/env";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
-
-// Configure OpenRouter provider
-const openRouterProvider = createOpenRouter({
-  apiKey: env.OPENROUTER_API_KEY,
-});
+import { getModelInstance, type UserApiKeys, type UserAiPreferences } from "@/lib/providers";
 
 // Initialize Convex client for API route
 const convex = new ConvexHttpClient(env.NEXT_PUBLIC_CONVEX_URL);
@@ -17,6 +12,7 @@ interface ChatRequest {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   model?: string;
   fileIds?: Id<"files">[];
+  userId?: string; // For fetching user's API keys and preferences
 }
 
 export async function POST(req: Request) {
@@ -25,11 +21,46 @@ export async function POST(req: Request) {
       messages,
       model = "google/gemini-2.0-flash-exp:free",
       fileIds,
+      userId,
     }: ChatRequest = await req.json();
 
     // Validate required fields
     if (!messages || !Array.isArray(messages)) {
       return new Response("Invalid messages format", { status: 400 });
+    }
+
+    // Get user's API keys and preferences if userId is provided
+    let userKeys: UserApiKeys | null = null;
+    let userPrefs: UserAiPreferences | null = null;
+
+    if (userId) {
+      try {
+        const [encryptedKeysResult, prefsResult] = await Promise.all([
+          convex.query(api.userApiKeys.getEncryptedApiKeys, { userId }),
+          convex.query(api.userApiKeys.getUserAiPreferences, { userId }),
+        ]);
+        
+        // Decrypt API keys if we have them
+        if (encryptedKeysResult) {
+          const decryptedResult = await convex.action(api.actions.apiKeyManager.getApiKeysDecrypted, {
+            userId
+          });
+          
+          if (decryptedResult) {
+            userKeys = {
+              openaiKey: decryptedResult.decryptedKeys.openaiKey,
+              anthropicKey: decryptedResult.decryptedKeys.anthropicKey,
+              googleKey: decryptedResult.decryptedKeys.googleKey,
+              openrouterKey: decryptedResult.decryptedKeys.openrouterKey,
+            };
+          }
+        }
+        
+        userPrefs = prefsResult;
+      } catch (error) {
+        console.error("Failed to fetch user configuration:", error);
+        // Continue with default configuration
+      }
     }
 
     // Process file attachments if provided (only for the latest message)
@@ -122,13 +153,64 @@ export async function POST(req: Request) {
       };
     });
 
-    // Stream AI response using AI SDK with full conversation history
-    const result = await streamText({
-      model: openRouterProvider(model),
-      messages: conversationMessages as CoreMessage[],
-    });
+    try {
+      // Get model instance using provider router
+      const modelInstance = await getModelInstance(userKeys, userPrefs, model);
 
-    return result.toDataStreamResponse();
+      // Stream AI response using AI SDK with full conversation history
+      const result = await streamText({
+        model: modelInstance,
+        messages: conversationMessages as CoreMessage[],
+      });
+
+      return result.toDataStreamResponse();
+    } catch (providerError) {
+      console.error("Provider configuration error:", providerError);
+      
+      // Provide more helpful error messages based on configuration
+      if (providerError instanceof Error) {
+        if (providerError.message.includes("No direct API key configured")) {
+          return new Response(
+            JSON.stringify({ 
+              error: "API Key Configuration Required",
+              details: providerError.message,
+              suggestion: "Please configure your API keys in Settings to use this model directly, or switch to a model available with your current configuration."
+            }), 
+            { 
+              status: 422, 
+              headers: { 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        
+        if (providerError.message.includes("No suitable API key configuration found")) {
+          return new Response(
+            JSON.stringify({ 
+              error: "Configuration Error",
+              details: "No API keys available for the requested model",
+              suggestion: "Please configure your API keys in Settings or enable fallback to system default."
+            }), 
+            { 
+              status: 422, 
+              headers: { 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+      }
+      
+      // For other errors, return generic error
+      return new Response(
+        JSON.stringify({ 
+          error: "Provider Error",
+          details: "Failed to configure AI provider",
+          suggestion: "Please check your API key configuration in Settings."
+        }), 
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
   } catch (error) {
     console.error("Chat API error:", error);
     return new Response("Internal server error", { status: 500 });

@@ -84,6 +84,7 @@ export function useChat({
     body: {
       conversationId,
       model: selectedModel,
+      userId: user?.id, // Pass user ID for BYOK
     },
     initialMessages: transformedMessages,
     onFinish: async (message) => {
@@ -134,6 +135,7 @@ export function useChat({
             fileIds: fileIds || [],
             conversationId,
             model: selectedModel,
+            userId: user?.id, // Pass user ID for BYOK
           },
         });
       } catch (error) {
@@ -170,6 +172,7 @@ export function useChat({
           body: {
             conversationId,
             model: selectedModel,
+            userId: user?.id, // Pass user ID for BYOK
           },
         });
       } catch (error) {

@@ -81,7 +81,7 @@ function ChatLayoutInner({ children }: { children: React.ReactNode }) {
 
           <div className="flex flex-1 flex-col bg-sidebar pt-2 px-2 sm:pt-4 sm:pl-4 h-full transition-all duration-300 ease-in-out">
             {/* Dynamic Content */}
-            <main className="flex-1 bg-background border border-secondary w-full overflow-hidden rounded-t-2xl sm:rounded-tl-2xl">{children}</main>
+            <main className="flex-1 bg-background border border-secondary w-full overflow-y-auto overflow-x-hidden rounded-t-2xl sm:rounded-tl-2xl">{children}</main>
           </div>
         </div>
       </SidebarProvider>
