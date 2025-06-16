@@ -32,6 +32,9 @@ alwaysApply: true
 - **Improved Real-time Experience**: Better streaming integration, removed flickering
 - **File Upload Enhancement**: Seamless integration between file uploads and chat system
 
+Random TODO:
+- Only conversation creator can delete, even if other participants are part of the chat.?
+
 ### 🎯 Next Priority Items - Phase 2
 
 #### 🚀 Core Feature Completion (Current Focus)

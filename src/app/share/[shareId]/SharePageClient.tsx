@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageList } from "@/components/chat/MessageList";
+import { MessageList } from "@/components/chat-area/MessageList";
 import { MessageListLoading } from "@/components/chat/ui/MessageListLoading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../../../convex/_generated/api";
-import { Id } from "../../../../convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery } from "@/cache/useQuery";
 
 interface SharePageClientProps {

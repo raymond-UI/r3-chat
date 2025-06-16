@@ -1,3 +1,4 @@
+"use client";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,21 +22,13 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { LogIn, Plus, Settings, User } from "lucide-react";
 import Link from "next/link";
-import { Id } from "../../../convex/_generated/dataModel";
 import { SidebardDropdownAction } from "../actions/SidebardDropdownAction";
+import { useNavigation } from "./NavigationProvider";
 
-interface ChatSidebarProps {
-  activeConversationId: Id<"conversations"> | undefined;
-  onSelectConversation: (id: Id<"conversations">) => void;
-  onNewChat: () => void;
-}
-
-export function ChatSidebar({
-  activeConversationId,
-  onSelectConversation,
-  onNewChat,
-}: ChatSidebarProps) {
+export function ChatSidebar() {
   const { hasProfile, profileUrl } = useUserProfile();
+  const { conversationId, handleSelectConversation, handleNewChat } =
+    useNavigation();
 
   return (
     <Sidebar className="border-none" collapsible="offcanvas" side="left">
@@ -45,7 +38,7 @@ export function ChatSidebar({
           {/* Desktop trigger - hidden on mobile, visible when expanded */}
           <SidebarTrigger className="flex group-data-[collapsible=icon]:block" />
           <div className="text-center w-full group-data-[collapsible=icon]:hidden">
-            <h2 className="text-base  font-semibold">R3 Chat</h2>
+            <h2 className="text-base font-semibold">R3 Chat</h2>
           </div>
         </div>
       </SidebarHeader>
@@ -57,7 +50,7 @@ export function ChatSidebar({
           size="sm"
           className="w-full h-10 p-0 flex items-center justify-center"
           title="New Chat"
-          onClick={onNewChat}
+          onClick={handleNewChat}
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -79,9 +72,9 @@ export function ChatSidebar({
         {/* Conversation List Container */}
         <div className="flex-1 overflow-hidden">
           <ConversationList
-            activeConversationId={activeConversationId}
-            onSelectConversation={onSelectConversation}
-            onNewChat={onNewChat}
+            activeConversationId={conversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
           />
         </div>
       </SidebarContent>

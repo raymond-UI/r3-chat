@@ -1,8 +1,9 @@
+// app/(chat)/chat/[id]/page.tsx
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { PageParams } from "@/types/params";
 import { notFound } from "next/navigation";
 import React from "react";
-import { Id } from "../../../../../convex/_generated/dataModel";
+import type { Id } from "../../../../../convex/_generated/dataModel";
 
 export default async function ConversationPage(
   context: PageParams

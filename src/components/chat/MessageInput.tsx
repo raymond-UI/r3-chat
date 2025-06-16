@@ -15,7 +15,6 @@ import { Send, Paperclip, Settings2, Loader2, Square } from "lucide-react";
 import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
 import { useConversations } from "@/hooks/useConversations";
-import { useSendMessage } from "@/hooks/useMessages";
 import { useChat } from "@/hooks/useChat";
 import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -90,8 +89,7 @@ export const MessageInput = forwardRef<
     const router = useRouter();
 
     const { create } = useConversations();
-    const { send } = useSendMessage();
-    const { generateTitle, stop: newChatStop } = useChat({}); // Use unified chat hook
+    const { generateTitle, stop: newChatStop, send } = useChat({});
     const {
       trackMessageSent,
       isSignedIn,

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageList } from "@/components/chat/MessageList";
+// import { MessageList } from "@/components/chat/MessageList";
 import { MessageListLoading } from "@/components/chat/ui/MessageListLoading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,14 @@ import { AlertTriangle, ArrowLeft, Clock, Globe, User } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { api } from "../../../../../convex/_generated/api";
-import { Id } from "../../../../../convex/_generated/dataModel";
+import type { Id } from "../../../../../convex/_generated/dataModel";
 import { Skeleton } from "@/components/ui/skeleton";
+import dynamic from "next/dynamic";
+
+const MessageList = dynamic(() => import("@/components/chat-area/MessageList").then((mod) => mod.MessageList), {
+  ssr: false,
+});
+
 
 interface PublicConversationClientProps {
   username: string;

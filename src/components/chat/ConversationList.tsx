@@ -16,10 +16,18 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Id } from "../../../convex/_generated/dataModel";
-import { ConfirmationModal } from "../actions/ConfirmationModal";
-import { ConversationShowcaseDialog } from "../profile/ConversationShowcaseDialog";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { ConversationItem } from "./ConversationItem";
+import dynamic from "next/dynamic";
+
+const ConfirmationModal = dynamic(() => import("../actions/ConfirmationModal").then((mod) => mod.ConfirmationModal), {
+  ssr: false,
+});
+
+const ConversationShowcaseDialog = dynamic(() => import("../profile/ConversationShowcaseDialog").then((mod) => mod.ConversationShowcaseDialog), {
+  ssr: false,
+});
+
 
 interface ConversationListProps {
   activeConversationId?: Id<"conversations">;

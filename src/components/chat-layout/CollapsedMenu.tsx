@@ -6,16 +6,13 @@ import { Plus, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
+import { useNavigation } from "./NavigationProvider";
 
-interface CollapsedMenuProps {
-  onNewChat: () => void;
-  onSearch: () => void;
-}
-
-export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
+export function CollapsedMenu() {
   const { state, isMobile, openMobile } = useSidebar();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { handleNewChat, handleSearch } = useNavigation();
 
   // Determine if menu should be visible
   // On mobile: show when sidebar sheet is not open
@@ -127,7 +124,7 @@ export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
             duration: 0.3,
             ease: "easeOut"
           }}
-          className="flex absolute top-2 sm:top-4 left-2 sm:left-4 z-50 items-center justify-between bg-secondary/25 backdrop-blur-sm border border-border/50  rounded-lg rounded-bl-none rounded-tr-none px-2 py-1 shadow-sm"
+          className="flex absolute top-2 sm:top-4 left-2 sm:left-4 z-50 items-center justify-between bg-secondary/25 backdrop-blur-sm border border-border/50 rounded-lg rounded-bl-none rounded-tr-none px-2 py-1 shadow-sm"
         >
           <motion.div
             initial={{ opacity: 0 }}
@@ -147,7 +144,7 @@ export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
               variant="ghost"
               size="icon"
               title="New Chat"
-              onClick={onNewChat}
+              onClick={handleNewChat}
               className="h-8 w-8 hover:bg-primary/10 transition-colors duration-200"
             >
               <Plus className="h-4 w-4" />
@@ -164,7 +161,7 @@ export function CollapsedMenu({ onNewChat, onSearch }: CollapsedMenuProps) {
               variant="ghost"
               size="icon"
               title="Search"
-              onClick={onSearch}
+              onClick={handleSearch}
               className="h-8 w-8 hover:bg-primary/10 transition-colors duration-200"
             >
               <Search className="h-4 w-4" />

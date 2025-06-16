@@ -273,6 +273,28 @@ export function useChat({
     generateTitle,
     isGenerating,
 
+    // Direct message sending
+    send: async (
+      conversationId: Id<"conversations">,
+      content: string,
+      type: "user" | "ai" | "system" = "user",
+      aiModel?: string,
+      fileIds?: Id<"files">[]
+    ) => {
+      const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+      const senderName = user?.firstName || user?.username || "Anonymous User";
+      
+      return await sendMessage({
+        conversationId,
+        userId,
+        senderName,
+        content,
+        type,
+        aiModel,
+        fileIds,
+      });
+    },
+
     // Convex integration
     convexMessages,
 

@@ -1,5 +1,11 @@
-import { NewChatScreen } from "@/components/chat/NewChatScreen";
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const NewChatScreen = dynamic(
+  () =>
+    import("@/components/chat/NewChatScreen").then((mod) => mod.NewChatScreen),
+  {}
+);
 
 interface ChatPageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

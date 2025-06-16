@@ -24,7 +24,7 @@ export function MessageListLoading({
         <div
           key={i}
           className={cn(
-            "flex flex-col px-2 sm:px-0 gap-1 sm:max-w-[90%] w-full",
+            "flex flex-col px-2 sm:px-0 gap-1 sm:max-w-3xl mx-auto w-full",
             isCurrentUser ? "m-auto" : ""
           )}
         >

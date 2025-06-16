@@ -43,7 +43,7 @@ export function MarkdownRenderer({
           // Paragraphs
           p({ children }) {
             return (
-              <p className="mb-3 last:mb-0 leading-6 text-base max-w-fit">
+              <p className="mb-3 last:mb-0 leading-6 text-base max-w-full">
                 {children}
               </p>
             );
@@ -75,14 +75,14 @@ export function MarkdownRenderer({
           // Lists
           ul({ children }) {
             return (
-              <ul className="list-disc pl-4 mb-3 text-foreground space-y-1 tracking-wide leading-7 text-base max-w-full">
+              <ul className="list-disc mb-3 text-foreground space-y-1 tracking-wide leading-7 text-base max-w-full">
                 {children}
               </ul>
             );
           },
           ol({ children }) {
             return (
-              <ol className="list-decimal pl-4 mb-3 text-foreground space-y-2 tracking-wide leading-7 text-base max-w-full">
+              <ol className="list-decimal mb-3 text-foreground space-y-2 tracking-wide leading-7 text-base max-w-full">
                 {children}
               </ol>
             );

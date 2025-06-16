@@ -2,19 +2,18 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Id } from "../../../convex/_generated/dataModel";
-import { ChatArea } from "./ChatArea";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { ChatArea } from "../chat-area/ChatArea";
 import { ChatHeader } from "./ChatHeader";
 import { AlertTriangle, Lock } from "lucide-react";
 import { useConversationAccess } from "@/hooks/useConversationAccess";
-import { useMessages } from "@/hooks/useMessages";
 import { Card, CardContent } from "../ui/card";
 import { Authenticated } from "convex/react";
 import { MessageListLoading } from "./ui/MessageListLoading";
 
 interface ChatContainerProps {
   conversationId: Id<"conversations">;
-}
+} 
 
 export function ChatContainer({ conversationId }: ChatContainerProps) {
   const [aiEnabled, setAiEnabled] = useState(true);
@@ -24,7 +23,6 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
   const isInviteAccess = searchParams.get("invite") === conversationId;
   
   const { isLoading: accessLoading } = useConversationAccess(conversationId, isInviteAccess);
-  const { isLoading: convexLoading } = useMessages(conversationId, isInviteAccess);
 
   const {
     canAccess,
@@ -42,7 +40,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
         />
       </Authenticated>
      
-      {accessLoading || convexLoading ? (
+      {accessLoading ? (
         <div className="flex-1 w-full flex items-start px-4 sm:px-8 justify-center">
           <MessageListLoading />
         </div>
