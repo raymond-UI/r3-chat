@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StagedFiles } from "./StagedFiles";
-import { Send, Paperclip, Settings2, Loader2 } from "lucide-react";
+import { Send, Paperclip, Settings2, Loader2, Square } from "lucide-react";
 import { FileWithPreview } from "@/hooks/useFiles";
 import { ModelSelector } from "./ModelSelector";
 import { useConversations } from "@/hooks/useConversations";
@@ -27,10 +27,12 @@ interface MessageInputProps {
   value?: string;
   onChange?: (value: string) => void;
   onSend?: () => void;
+  onStop?: () => void;
   disabled?: boolean;
   placeholder?: string;
   selectedModel?: string;
   onModelChange?: (model: string) => void;
+  isStreaming?: boolean;
 
   // For new chat mode
   isNewChat?: boolean;
@@ -57,10 +59,12 @@ export const MessageInput = forwardRef<
       value,
       onChange,
       onSend,
+      onStop,
       disabled = false,
       placeholder = "Type a message...",
       selectedModel,
       onModelChange,
+      isStreaming = false,
       isNewChat = false,
       clearUploadedFiles,
       uploadingFiles,
@@ -86,7 +90,7 @@ export const MessageInput = forwardRef<
 
     const { create } = useConversations();
     const { send } = useSendMessage();
-    const { generateTitle } = useChat({}); // Use unified chat hook
+    const { generateTitle, stop: newChatStop } = useChat({}); // Use unified chat hook
     const {
       trackMessageSent,
       isSignedIn,
@@ -351,25 +355,36 @@ export const MessageInput = forwardRef<
                 </Button>
                   </Authenticated>
               </div>
-              {/* Send Button */}
-              <Button
-                onClick={handleSendMessage}
-                disabled={!canSend}
-                className="flex-shrink-0"
-                title={
-                  isUploading
-                    ? "Wait for files to finish uploading"
-                    : !canSend
-                      ? "Type a message or upload files"
-                      : "Send message"
-                }
-              >
-                {isSending || isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
+              {/* Send/Stop Button */}
+              {(isStreaming && !isNewChat) || (isNewChat && isSending) ? (
+                <Button
+                  onClick={isNewChat ? newChatStop : onStop}
+                  variant="destructive"
+                  className="flex-shrink-0"
+                  title="Stop generation"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!canSend}
+                  className="flex-shrink-0"
+                  title={
+                    isUploading
+                      ? "Wait for files to finish uploading"
+                      : !canSend
+                        ? "Type a message or upload files"
+                        : "Send message"
+                  }
+                >
+                  {isSending || isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>

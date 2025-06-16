@@ -212,13 +212,16 @@ export function useChat({
     }
   }, [getModels]);
 
-  // Sync messages when Convex data changes
+  // Sync messages when Convex data changes - with deduplication
+  const [lastSyncedMessageCount, setLastSyncedMessageCount] = useState(0);
+  
   useEffect(() => {
-    if (transformedMessages.length > 0) {
-      // Always sync with Convex messages to ensure AI SDK has latest state
+    if (transformedMessages.length > 0 && transformedMessages.length !== lastSyncedMessageCount) {
+      // Only sync when message count changes to prevent duplicate triggers
       setMessages(transformedMessages);
+      setLastSyncedMessageCount(transformedMessages.length);
     }
-  }, [transformedMessages, setMessages]);
+  }, [transformedMessages, setMessages, lastSyncedMessageCount]);
 
   return {
     // AI SDK chat functionality

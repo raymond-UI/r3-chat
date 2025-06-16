@@ -49,6 +49,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     isLoading: aiIsLoading,
     error: aiError,
     reload,
+    stop,
   } = useChat({
     conversationId,
     model: selectedModel,
@@ -261,20 +262,26 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   }, [input, stopTyping]);
 
   // ✅ Auto-trigger AI response for new conversations with only user messages
+  // Fixed: Added state tracking to prevent duplicate triggers during message sync
+  const [hasTriggeredInitialResponse, setHasTriggeredInitialResponse] = useState(false);
+  
   useEffect(() => {
     if (
       aiEnabled &&
       displayMessages.length === 1 &&
       displayMessages[0]?.type === "user" &&
       !aiIsLoading &&
-      !isSending
+      !isSending &&
+      !hasTriggeredInitialResponse
     ) {
       // Use AI SDK's reload function to generate response to the existing message
       const triggerAIResponse = async () => {
         try {
+          setHasTriggeredInitialResponse(true);
           await reload();
         } catch (error) {
           console.error("Failed to trigger initial AI response:", error);
+          setHasTriggeredInitialResponse(false); // Reset on error
         }
       };
 
@@ -282,7 +289,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
       const timeout = setTimeout(triggerAIResponse, 300);
       return () => clearTimeout(timeout);
     }
-  }, [displayMessages, aiEnabled, aiIsLoading, isSending, reload]);
+  }, [displayMessages, aiEnabled, aiIsLoading, isSending, reload, hasTriggeredInitialResponse]);
 
   return (
     <div className="flex-1 flex flex-col w-full h-full mt-11 sm:mt-0 relative mx-auto overflow-y-auto">
@@ -366,6 +373,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
           value={input}
           onChange={handleInputChange}
           onSend={handleSendMessage}
+          onStop={stop}
           disabled={isSending || aiIsLoading}
           placeholder={
             aiIsLoading ? "AI is responding..." : "Type a message..."
@@ -377,6 +385,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
           hasFilesToSend={hasFilesToSend}
           selectedModel={selectedModel}
           onModelChange={setSelectedModel}
+          isStreaming={aiIsLoading}
         />
       </div>
     </div>
