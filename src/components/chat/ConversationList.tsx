@@ -3,21 +3,16 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConversations } from "@/hooks/useConversations";
-import { useDebounce } from "@/hooks/useDebounce";
-import { useUser } from "@clerk/nextjs";
 import {
-  ChevronDown,
-  ChevronUp,
-  MessageSquare,
   Search,
   Trash2,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { ConversationItem } from "./ConversationItem";
+import { VirtualizedConversationList } from "./VirtualizedConversationList";
 import dynamic from "next/dynamic";
 
 const ConfirmationModal = dynamic(() => import("../actions/ConfirmationModal").then((mod) => mod.ConfirmationModal), {
@@ -35,40 +30,18 @@ interface ConversationListProps {
   onNewChat: () => void;
 }
 
-type ConversationGroup = {
-  label: string;
-  conversations: Array<{
-    _id: Id<"conversations">;
-    title: string;
-    lastMessage?: string;
-    updatedAt: number;
-    isCollaborative?: boolean;
-    showcase?: {
-      isShownOnProfile: boolean;
-      isFeatured: boolean;
-      tags: string[];
-      description?: string;
-      excerpt?: string;
-    };
-  }>;
-};
+
 
 export function ConversationList({
   activeConversationId,
   onSelectConversation,
   onNewChat,
 }: ConversationListProps) {
-  const { user } = useUser();
-  const { conversations, pinnedConversations, remove, pin, isLoading } =
-    useConversations();
+  const { conversations, remove, pin, isLoading } = useConversations();
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Debounce search query for performance
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Add state for hovered conversation
   const [hoveredId, setHoveredId] = useState<Id<"conversations"> | null>(null);
-  const [pinnedOpen, setPinnedOpen] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] =
     useState<Id<"conversations"> | null>(null);
@@ -81,28 +54,6 @@ export function ConversationList({
   const handleClearSearch = useCallback(() => {
     setSearchQuery("");
   }, []);
-
-  // Filter and sort conversations based on search and sort options
-  const filteredAndSortedConversations = useMemo(() => {
-    if (!conversations.length) return [];
-
-    // Filter by search query
-    let filtered = conversations;
-    if (debouncedSearchQuery.trim()) {
-      const query = debouncedSearchQuery.toLowerCase().trim();
-      filtered = conversations.filter(
-        (conversation) =>
-          conversation.title.toLowerCase().includes(query) ||
-          (conversation.lastMessage &&
-            conversation.lastMessage.toLowerCase().includes(query))
-      );
-    }
-
-    // Sort conversations
-    const sorted = [...filtered].sort((a, b) => b.updatedAt - a.updatedAt);
-
-    return sorted;
-  }, [conversations, debouncedSearchQuery]);
 
   // Pin/unpin logic
   const handlePin = (id: Id<"conversations">, event?: React.MouseEvent) => {
@@ -178,57 +129,7 @@ export function ConversationList({
     }
   };
 
-  // Split conversations into pinned and unpinned using persistent data
-  const pinnedConversationsList = filteredAndSortedConversations.filter((c) =>
-    pinnedConversations.includes(c._id)
-  );
 
-  const groupedConversations = useMemo(() => {
-    if (!filteredAndSortedConversations.length) return [];
-
-    // If searching, don't group by date - show all results in one list
-    if (debouncedSearchQuery.trim()) {
-      return [
-        {
-          label: "Search Results",
-          conversations: filteredAndSortedConversations,
-        },
-      ];
-    }
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const groups: ConversationGroup[] = [
-      { label: "Today", conversations: [] },
-      { label: "Yesterday", conversations: [] },
-      { label: "Last 7 days", conversations: [] },
-      { label: "Last 30 days", conversations: [] },
-      { label: "Older", conversations: [] },
-    ];
-
-    filteredAndSortedConversations.forEach((conversation) => {
-      const conversationDate = new Date(conversation.updatedAt);
-
-      if (conversationDate >= today) {
-        groups[0].conversations.push(conversation);
-      } else if (conversationDate >= yesterday) {
-        groups[1].conversations.push(conversation);
-      } else if (conversationDate >= lastWeek) {
-        groups[2].conversations.push(conversation);
-      } else if (conversationDate >= lastMonth) {
-        groups[3].conversations.push(conversation);
-      } else {
-        groups[4].conversations.push(conversation);
-      }
-    });
-
-    // Filter out empty groups
-    return groups.filter((group) => group.conversations.length > 0);
-  }, [filteredAndSortedConversations, debouncedSearchQuery]);
 
   const handleQuickStart = () => {
     onNewChat();
@@ -286,117 +187,23 @@ export function ConversationList({
         </div>
       </div>
 
-      {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
-        {conversations.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p>No conversations yet</p>
-            {!user && (
-              <p className="text-xs mt-1 mb-2">
-                Anonymous conversations are temporary
-              </p>
-            )}
-          </div>
-        ) : groupedConversations.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p>No conversations found</p>
-            <p className="text-xs mt-1">
-              Try adjusting your search or sorting options
-            </p>
-            {debouncedSearchQuery && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearSearch}
-                className="mt-2"
-              >
-                Clear search
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4 mt-8">
-            {/* Pinned group - Only show for authenticated users */}
-            {user && pinnedConversationsList.length > 0 && (
-              <div className="mt-2 p-2">
-                <div
-                  className="flex items-center justify-between px-2 cursor-pointer select-none"
-                  onClick={() => setPinnedOpen((v) => !v)}
-                >
-                  <h3 className="text-xs font-bold text-primary tracking-wider font-mono mb-2">
-                    Pinned
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    {pinnedOpen ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronUp className="h-4 w-4" />
-                    )}
-                  </span>
-                </div>
-                {pinnedOpen && (
-                  <div className="space-y-1">
-                    {pinnedConversationsList.map((conversation) => (
-                      <ConversationItem
-                        key={conversation._id}
-                        conversation={conversation}
-                        isPinned={true}
-                        activeConversationId={activeConversationId}
-                        hoveredId={hoveredId}
-                        pinnedConversations={pinnedConversations}
-                        user={user}
-                        onSelectConversation={onSelectConversation}
-                        onSetHoveredId={setHoveredId}
-                        onContextMenuPin={handleContextMenuPin}
-                        onContextMenuRename={handleContextMenuRename}
-                        onContextMenuDelete={handleContextMenuDelete}
-                        onContextMenuExport={handleContextMenuExport}
-                        onContextMenuShowcase={handleContextMenuShowcase}
-                        onPin={handlePin}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Regular groups */}
-            {groupedConversations.map((group) => (
-              <div key={group.label} className="mt-2 p-2">
-                <h3 className="text-xs font-medium text-primary tracking-wider px-2 font-mono mb-2">
-                  {group.label}
-                </h3>
-                <div className="space-y-1">
-                  {group.conversations
-                    .filter((c) => !pinnedConversations.includes(c._id))
-                    .map((conversation) => (
-                      <ConversationItem
-                        key={conversation._id}
-                        conversation={conversation}
-                        isPinned={false}
-                        activeConversationId={activeConversationId}
-                        hoveredId={hoveredId}
-                        pinnedConversations={pinnedConversations}
-                        user={user}
-                        onSelectConversation={onSelectConversation}
-                        onSetHoveredId={setHoveredId}
-                        onContextMenuPin={handleContextMenuPin}
-                        onContextMenuRename={handleContextMenuRename}
-                        onContextMenuDelete={handleContextMenuDelete}
-                        onContextMenuExport={handleContextMenuExport}
-                        onContextMenuShowcase={handleContextMenuShowcase}
-                        onPin={handlePin}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Virtualized Conversations List */}
+      <VirtualizedConversationList
+        activeConversationId={activeConversationId}
+        onSelectConversation={onSelectConversation}
+        onNewChat={onNewChat}
+        searchQuery={searchQuery}
+        onClearSearch={handleClearSearch}
+        onContextMenuPin={handleContextMenuPin}
+        onContextMenuRename={handleContextMenuRename}
+        onContextMenuDelete={handleContextMenuDelete}
+        onContextMenuExport={handleContextMenuExport}
+        onContextMenuShowcase={handleContextMenuShowcase}
+        onPin={handlePin}
+        onDelete={handleDelete}
+        hoveredId={hoveredId}
+        onSetHoveredId={setHoveredId}
+      />
 
       {/* Confirmation Modal */}
       <ConfirmationModal
