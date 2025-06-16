@@ -4,6 +4,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { getModelInstance, type UserApiKeys, type UserAiPreferences } from "@/lib/providers";
+import { getDefaultModel } from "@/lib/defaultModel";
 
 // Initialize Convex client for API route
 const convex = new ConvexHttpClient(env.NEXT_PUBLIC_CONVEX_URL);
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   try {
     const {
       messages,
-      model = "google/gemini-2.0-flash-exp:free",
+      model,
       fileIds,
       userId,
     }: ChatRequest = await req.json();
@@ -148,8 +149,11 @@ export async function POST(req: Request) {
     });
 
     try {
+      // Use dynamic default model if none provided
+      const selectedModel = model || getDefaultModel(userKeys, userPrefs, "chat");
+      
       // Get model instance using provider router
-      const modelInstance = await getModelInstance(userKeys, userPrefs, model);
+      const modelInstance = await getModelInstance(userKeys, userPrefs, selectedModel);
 
       // Stream AI response using AI SDK with full conversation history
       const result = await streamText({

@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useUser } from "@clerk/nextjs";
 import { env } from "@/env";
+import { getFallbackModel } from "@/lib/defaultModel";
 
 export function useBranching(conversationId: Id<"conversations">) {
   const { user } = useUser();
@@ -47,7 +48,7 @@ export function useBranching(conversationId: Id<"conversations">) {
   const regenerateResponse = useCallback(async (
     messageId: Id<"messages">,
     userMessage: string,
-    model: string = "google/gemini-2.0-flash-exp:free"
+    model?: string
   ) => {
     if (!user?.id) throw new Error("User not authenticated");
 
@@ -70,7 +71,7 @@ export function useBranching(conversationId: Id<"conversations">) {
         body: JSON.stringify({
           conversationId,
           userMessage,
-          model,
+          model: model || getFallbackModel("chat"),
           userId: user.id,
           // Pass the branch message ID so it updates the right message
           messageId: branchId,

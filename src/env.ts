@@ -13,6 +13,7 @@ export const env = createEnv({
     //     : z.string().optional(),
     // JWT_SECRET: z.string(),
     CONVEX_DEPLOYMENT: z.string(),
+    CONVEX_DEPLOY_KEY: z.string(),
     CLERK_SECRET_KEY: z.string(),
     // CLERK_WEBHOOK_SIGNING_SECRET: z.string(),
     OPENROUTER_API_KEY: z.string(),
@@ -56,7 +57,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
     NEXT_PUBLIC_CONVEX_SITE_URL: process.env.NEXT_PUBLIC_CONVEX_SITE_URL,
     CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
-
+    CONVEX_DEPLOY_KEY: process.env.CONVEX_DEPLOY_KEY,
     NEXT_PUBLIC_CLERK_FRONTEND_API_URL: process.env.NEXT_PUBLIC_CLERK_FRONTEND_API_URL,
 
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,

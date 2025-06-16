@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { AIModel } from "@/types/ai";
+import { getDefaultModel, getFallbackModel } from "@/lib/defaultModel";
 
 interface UseChatOptions {
   conversationId?: Id<"conversations">;
@@ -22,13 +23,24 @@ interface EnhancedMessage extends Message {
 export function useChat({
   conversationId,
   initialMessages = [],
-  model = "google/gemini-2.0-flash-exp:free",
+  model,
   onFinish,
 }: UseChatOptions = {}) {
   const { user } = useUser();
 
-  // State management
-  const [selectedModel, setSelectedModel] = useState(model);
+  // Get user configuration for dynamic defaults
+  const configuration = useQuery(
+    api.userApiKeys.getMyConfiguration, 
+    user ? {} : "skip"
+  );
+
+  // State management with dynamic default
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (model) return model;
+    
+    // Use fallback until configuration loads
+    return getFallbackModel("chat");
+  });
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Convex mutations and queries
@@ -211,6 +223,20 @@ export function useChat({
       return [];
     }
   }, [getModels]);
+
+  // Update selected model when configuration changes or model prop changes
+  useEffect(() => {
+    if (model) {
+      setSelectedModel(model);
+    } else if (configuration) {
+      const dynamicDefault = getDefaultModel(
+        configuration.apiKeys || null,
+        configuration.preferences || null,
+        "chat"
+      );
+      setSelectedModel(dynamicDefault);
+    }
+  }, [model, configuration]);
 
   // Sync messages when Convex data changes - with deduplication
   const [lastSyncedMessageCount, setLastSyncedMessageCount] = useState(0);

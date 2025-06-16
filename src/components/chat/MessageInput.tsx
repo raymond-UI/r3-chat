@@ -21,6 +21,7 @@ import { useAnonymousMessaging } from "@/hooks/useAnonymousMessaging";
 import { Id } from "../../../convex/_generated/dataModel";
 import { MessageLimitIndicator } from "../indicators/MessageLimitIndicator";
 import { Authenticated } from "convex/react";
+import { getFallbackModel } from "@/lib/defaultModel";
 
 interface MessageInputProps {
   // For existing chat mode
@@ -78,10 +79,10 @@ export const MessageInput = forwardRef<
     ref
   ) => {
     // Local state for new chat mode
-    const [localInputValue, setLocalInputValue] = useState("");
-    const [localSelectedModel, setLocalSelectedModel] = useState(
-      "google/gemini-2.0-flash-exp:free"
-    );
+          const [localInputValue, setLocalInputValue] = useState("");
+      const [localSelectedModel, setLocalSelectedModel] = useState<string | undefined>(
+        undefined
+      );
     const [isSending, setIsSending] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -100,8 +101,8 @@ export const MessageInput = forwardRef<
     // Use local or prop values based on mode
     const currentValue = isNewChat ? localInputValue : value || "";
     const currentSelectedModel = isNewChat
-      ? localSelectedModel
-      : selectedModel || "";
+      ? (localSelectedModel || getFallbackModel("chat"))
+      : (selectedModel || getFallbackModel("chat"));
     const currentPlaceholder = isNewChat
       ? "Start a new conversation..."
       : placeholder;

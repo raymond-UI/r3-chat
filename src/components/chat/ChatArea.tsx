@@ -36,10 +36,10 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     clearUploadedFiles,
   } = useFiles(conversationId);
 
-  // AI SDK integration
-  const [selectedModel, setSelectedModel] = useState(
-    "google/gemini-2.0-flash-exp:free"
-  );
+      // AI SDK integration
+    const [selectedModel, setSelectedModel] = useState<string | undefined>(
+      undefined
+    );
   const {
     messages: aiMessages,
     input,
