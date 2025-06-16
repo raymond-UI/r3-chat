@@ -34,7 +34,14 @@ export default defineSchema({
       description: v.optional(v.string()), // Brief description for the conversation
       excerpt: v.optional(v.string()), // Auto-generated or custom excerpt
     })),
-  }),
+  })
+    // 🚀 BANDWIDTH OPTIMIZATION: Add critical indexes
+    .index("by_creator", ["createdBy"])
+    .index("by_creator_updated", ["createdBy", "updatedAt"])
+    .index("by_updated", ["updatedAt"])
+    .index("by_sharing_public", ["sharing.isPublic"])
+    .index("by_showcase_shown", ["showcase.isShownOnProfile"])
+    .index("by_showcase_featured", ["showcase.isFeatured"]),
   messages: defineTable({
     conversationId: v.id("conversations"),
     userId: v.string(),
@@ -62,7 +69,10 @@ export default defineSchema({
   }).index("by_conversation", ["conversationId"])
     .index("by_status", ["status"])
     .index("by_parent", ["parentMessageId"])
-    .index("by_conversation_branch", ["conversationId", "isActiveBranch"]),
+    .index("by_conversation_branch", ["conversationId", "isActiveBranch"])
+    // 🚀 BANDWIDTH OPTIMIZATION: Add performance indexes
+    .index("by_conversation_timestamp", ["conversationId", "timestamp"])
+    .index("by_conversation_active", ["conversationId", "isActiveBranch", "timestamp"]),
   presence: defineTable({
     userId: v.string(),
     conversationId: v.id("conversations"),
@@ -84,7 +94,11 @@ export default defineSchema({
     extractedText: v.optional(v.string()), // For PDFs and OCR
     analysisResult: v.optional(v.string()), // AI analysis summary
     thumbnailUrl: v.optional(v.string()), // For file previews
-  }),
+  })
+    // 🚀 BANDWIDTH OPTIMIZATION: Add critical indexes for file queries
+    .index("by_conversation", ["conversationId"])
+    .index("by_message", ["messageId"])
+    .index("by_uploader", ["uploadedBy"]),
   // User preferences (pinned conversations, etc.)
   userPreferences: defineTable({
     userId: v.string(),
@@ -151,6 +165,22 @@ export default defineSchema({
   }).index("by_conversation", ["conversationId"])
     .index("by_user", ["userId"])
     .index("by_user_conversation", ["userId", "conversationId"]),
+
+  // 🚀 BANDWIDTH OPTIMIZATION: Pre-computed conversation statistics
+  conversationStats: defineTable({
+    conversationId: v.id("conversations"),
+    viewCount: v.number(),
+    likeCount: v.number(),
+    messageCount: v.number(),
+    lastUpdated: v.number(),
+    // Cache frequently accessed data
+    isPublic: v.boolean(),
+    isShownOnProfile: v.boolean(),
+    isFeatured: v.boolean(),
+    tags: v.array(v.string()),
+  }).index("by_conversation", ["conversationId"])
+    .index("by_public", ["isPublic"])
+    .index("by_featured", ["isFeatured"]),
 
   // 🔑 User API Keys & AI Configuration
   userApiKeys: defineTable({
@@ -291,6 +321,19 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_user", ["userId"]),
+
+  // 🚀 BANDWIDTH OPTIMIZATION: Performance monitoring table
+  queryPerformance: defineTable({
+    queryName: v.string(),
+    executionTime: v.number(),
+    dataSize: v.number(),
+    recordCount: v.number(),
+    userId: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_query", ["queryName"])
+    .index("by_timestamp", ["timestamp"])
     .index("by_user", ["userId"]),
 });
 

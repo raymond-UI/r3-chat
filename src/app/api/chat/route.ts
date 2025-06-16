@@ -35,25 +35,19 @@ export async function POST(req: Request) {
 
     if (userId) {
       try {
-        const [encryptedKeysResult, prefsResult] = await Promise.all([
-          convex.query(api.userApiKeys.getEncryptedApiKeys, { userId }),
+        const [decryptedResult, prefsResult] = await Promise.all([
+          convex.action(api.actions.apiKeyManager.getApiKeysDecrypted, { userId }),
           convex.query(api.userApiKeys.getUserAiPreferences, { userId }),
         ]);
         
-        // Decrypt API keys if we have them
-        if (encryptedKeysResult) {
-          const decryptedResult = await convex.action(api.actions.apiKeyManager.getApiKeysDecrypted, {
-            userId
-          });
-          
-          if (decryptedResult) {
-            userKeys = {
-              openaiKey: decryptedResult.decryptedKeys.openaiKey,
-              anthropicKey: decryptedResult.decryptedKeys.anthropicKey,
-              googleKey: decryptedResult.decryptedKeys.googleKey,
-              openrouterKey: decryptedResult.decryptedKeys.openrouterKey,
-            };
-          }
+        // Extract decrypted API keys if we have them
+        if (decryptedResult) {
+          userKeys = {
+            openaiKey: decryptedResult.decryptedKeys.openaiKey,
+            anthropicKey: decryptedResult.decryptedKeys.anthropicKey,
+            googleKey: decryptedResult.decryptedKeys.googleKey,
+            openrouterKey: decryptedResult.decryptedKeys.openrouterKey,
+          };
         }
         
         userPrefs = prefsResult;

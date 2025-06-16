@@ -128,7 +128,7 @@ export const getProfileBySlug = query({
   },
 });
 
-// Get profile's public conversations
+// 🚀 OPTIMIZED: Get profile conversations with proper indexing and pre-computed stats
 export const getProfileConversations = query({
   args: { 
     userId: v.string(),
@@ -141,10 +141,10 @@ export const getProfileConversations = query({
     const limit = args.limit ?? 12;
     const offset = args.offset ?? 0;
 
-    // Get all conversations created by this user
+    // Use optimized index to get conversations by creator
     const allConversations = await ctx.db
       .query("conversations")
-      .filter((q) => q.eq(q.field("createdBy"), args.userId))
+      .withIndex("by_creator_updated", (q) => q.eq("createdBy", args.userId))
       .order("desc")
       .collect();
 
@@ -170,38 +170,77 @@ export const getProfileConversations = query({
     // Apply pagination
     const paginatedConversations = conversations.slice(offset, offset + limit);
 
-    // Get additional data for each conversation
-    const conversationsWithData = await Promise.all(
-      paginatedConversations.map(async (conv) => {
-        // Get like count
-        const likeCount = await ctx.db
-          .query("conversationLikes")
-          .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
-          .collect()
-          .then(likes => likes.length);
+    // 🚀 OPTIMIZED: Batch fetch stats and preview data
+    const conversationIds = paginatedConversations.map(c => c._id);
+    
+    // Get pre-computed stats if they exist
+    const stats = await ctx.db
+      .query("conversationStats")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", conversationIds[0]))
+      .collect();
+    
+    const statsByConversation = new Map();
+    stats.forEach(stat => {
+      statsByConversation.set(stat.conversationId, stat);
+    });
 
-        // Get view count (from profile views table)
-        const viewCount = await ctx.db
-          .query("profileViews")
-          .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
-          .collect()
-          .then(views => views.length);
-
-        // Get first few messages for preview
-        const messages = await ctx.db
-          .query("messages")
-          .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
-          .order("asc")
-          .take(3);
-
-        return {
-          ...conv,
-          likeCount,
-          viewCount,
-          previewMessages: messages,
-        };
-      })
+    // Get likes and views in batch for conversations without pre-computed stats
+    const conversationsNeedingStats = conversations.filter(c => 
+      !statsByConversation.has(c._id)
     );
+
+    const [allLikes, allViews] = await Promise.all([
+      conversationsNeedingStats.length > 0 ? 
+        ctx.db.query("conversationLikes").collect() : Promise.resolve([]),
+      conversationsNeedingStats.length > 0 ? 
+        ctx.db.query("profileViews").collect() : Promise.resolve([])
+    ]);
+
+    // Group likes and views by conversation
+    const likesByConversation = new Map();
+    const viewsByConversation = new Map();
+    
+    allLikes.forEach(like => {
+      const count = likesByConversation.get(like.conversationId) || 0;
+      likesByConversation.set(like.conversationId, count + 1);
+    });
+    
+    allViews.forEach(view => {
+      if (view.conversationId) {
+        const count = viewsByConversation.get(view.conversationId) || 0;
+        viewsByConversation.set(view.conversationId, count + 1);
+      }
+    });
+
+    // Get first few messages for preview (batch query)
+    const allMessages = conversationIds.length > 0 ? await ctx.db
+      .query("messages")
+      .filter((q) => q.or(...conversationIds.map(id => q.eq(q.field("conversationId"), id))))
+      .order("asc")
+      .collect() : [];
+
+    const messagesByConversation = new Map();
+    allMessages.forEach(message => {
+      if (!messagesByConversation.has(message.conversationId)) {
+        messagesByConversation.set(message.conversationId, []);
+      }
+      messagesByConversation.get(message.conversationId).push(message);
+    });
+
+    // Combine all data efficiently
+    const conversationsWithData = conversations.map((conv) => {
+      const stats = statsByConversation.get(conv._id);
+      const likeCount = stats?.likeCount ?? likesByConversation.get(conv._id) ?? 0;
+      const viewCount = stats?.viewCount ?? viewsByConversation.get(conv._id) ?? 0;
+      const messages = (messagesByConversation.get(conv._id) || []).slice(0, 3);
+
+      return {
+        ...conv,
+        likeCount,
+        viewCount,
+        previewMessages: messages,
+      };
+    });
 
     return {
       conversations: conversationsWithData,

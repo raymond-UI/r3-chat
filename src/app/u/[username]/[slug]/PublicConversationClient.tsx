@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  findConversationIdByShortId,
   parseConversationSlug,
 } from "@/lib/slugs";
 import { useQuery } from "convex/react";
@@ -58,10 +57,8 @@ export default function PublicConversationClient({
   const conversation = useMemo(() => {
     if (!profileConversations?.conversations || !shortId) return null;
 
-    return (
-      profileConversations.conversations.find((conv) =>
-        findConversationIdByShortId(shortId, conv._id)
-      ) || null
+    return profileConversations.conversations.find((conv) =>
+      conv._id.startsWith(shortId)
     );
   }, [profileConversations?.conversations, shortId]);
 
@@ -214,7 +211,7 @@ export default function PublicConversationClient({
               {conversation.showcase?.tags &&
                 conversation.showcase.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {conversation.showcase.tags.map((tag) => (
+                    {conversation.showcase.tags.map((tag: string) => (
                       <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>

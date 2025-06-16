@@ -84,40 +84,96 @@ export const list = query({
     const messageTree = buildMessageTree(allMessages);
     const activeBranchMessages = getActiveBranchMessages(messageTree);
 
-    // Get attached files for each message
-    const messagesWithFiles = await Promise.all(
-      activeBranchMessages.map(async (message) => {
-        try {
-          const files = await ctx.db
-            .query("files")
-            .filter((q) => q.eq(q.field("messageId"), message._id))
-            .collect();
-          
-          // Debug logging
-          if (files.length > 0) {
-            console.log(`Found ${files.length} files for message ${message._id}`);
-          }
-          
-          return {
-            ...message,
-            attachedFiles: files,
-          };
-        } catch (error) {
-          console.error(`Error fetching files for message ${message._id}:`, error);
-          // Don't fail the entire message, just return without files
-          return {
-            ...message,
-            attachedFiles: [],
-          };
+    // 🚀 OPTIMIZED: Get all files for the conversation at once, then filter
+    let allFiles: any[] = [];
+    
+    try {
+      // Get all files for this conversation in a single query
+      allFiles = await ctx.db
+        .query("files")
+        .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+        .collect();
+    } catch (error) {
+      console.error(`Error fetching files for conversation:`, error);
+    }
+
+    // Group files by message ID for O(1) lookup
+    const filesByMessageId = new Map<string, any[]>();
+    allFiles.forEach(file => {
+      if (file.messageId) {
+        if (!filesByMessageId.has(file.messageId)) {
+          filesByMessageId.set(file.messageId, []);
         }
-      })
-    );
+        filesByMessageId.get(file.messageId)!.push(file);
+      }
+    });
+
+    // Attach files to messages efficiently - only files that belong to active branch messages
+    const messagesWithFiles = activeBranchMessages.map(message => ({
+      ...message,
+      attachedFiles: filesByMessageId.get(message._id) || [],
+    }));
 
     return {
       success: true,
       error: null,
       messages: messagesWithFiles,
       canAccess: true,
+    };
+  },
+});
+
+// 🚀 NEW: Optimized message list with minimal data for UI performance
+export const listMinimal = query({
+  args: { 
+    conversationId: v.id("conversations"),
+    limit: v.optional(v.number()),
+    isInviteAccess: v.optional(v.boolean())
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    
+    // Check access
+    const identity = await ctx.auth.getUserIdentity();
+    const conversation = await ctx.db.get(args.conversationId);
+    
+    if (!conversation) {
+      return { success: false, error: "Conversation not found", messages: [] };
+    }
+    
+    const hasAccess = await checkConversationAccess(ctx, conversation, identity, args.isInviteAccess);
+    if (!hasAccess) {
+      return { success: false, error: "Access denied", messages: [] };
+    }
+
+    // Get messages efficiently with active branch filtering
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_active", (q) => 
+        q.eq("conversationId", args.conversationId)
+         .eq("isActiveBranch", true)
+      )
+      .order("asc")
+      .take(limit);
+
+    // Return only essential fields for UI
+    const minimalMessages = messages.map(msg => ({
+      _id: msg._id,
+      conversationId: msg.conversationId,
+      userId: msg.userId,
+      senderName: msg.senderName,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      type: msg.type,
+      aiModel: msg.aiModel,
+      status: msg.status,
+      // Skip heavy fields like attachments, branching data
+    }));
+
+    return { 
+      success: true, 
+      messages: minimalMessages,
+      canAccess: true 
     };
   },
 });

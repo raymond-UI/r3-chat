@@ -12,11 +12,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "convex/react";
 import { MessageSquare, Star } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { ConversationCard } from "./ConversationCard";
+import { useQuery } from "@/cache/useQuery";
 
 interface ConversationShowcaseProps {
   username: string;
@@ -62,7 +62,7 @@ export function ConversationShowcase({
       ? {
           userId: profile.userId,
           limit: ITEMS_PER_PAGE,
-          offset: (sanitizedInputs.page - 1) * ITEMS_PER_PAGE,
+          offset: currentPage * ITEMS_PER_PAGE,
           featuredOnly: showFeatured,
           tag: selectedTag,
         }
@@ -179,7 +179,7 @@ export function ConversationShowcase({
     return null;
   }
 
-  const { conversations } = conversationsQuery;
+  const { conversations } = conversationsQuery || { conversations: [] };
 
   return (
     <div className="space-y-8" data-showcase-container>

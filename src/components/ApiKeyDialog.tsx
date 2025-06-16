@@ -136,6 +136,8 @@ export const ApiKeyDialog = memo<
               <div className="relative">
                 <Input
                   id="api-key"
+                  autoFocus={false}
+                  autoComplete="off"
                   type={showKey ? "text" : "password"}
                   placeholder="Enter your API key"
                   value={apiKey}

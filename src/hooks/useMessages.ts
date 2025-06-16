@@ -1,7 +1,8 @@
-import { useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { useQuery } from "@/cache/useQuery";
+import { useMutation } from "convex/react";
 
 export function useMessages(conversationId: Id<"conversations"> | undefined, isInviteAccess?: boolean) {
   const queryResult = useQuery(

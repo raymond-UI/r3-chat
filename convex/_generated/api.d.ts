@@ -11,6 +11,7 @@
 import type * as actions_apiKeyManager from "../actions/apiKeyManager.js";
 import type * as actions_encryption from "../actions/encryption.js";
 import type * as ai from "../ai.js";
+import type * as analytics from "../analytics.js";
 import type * as anonymousMigration from "../anonymousMigration.js";
 import type * as conversations from "../conversations.js";
 import type * as crons from "../crons.js";
@@ -20,6 +21,7 @@ import type * as lib_encryption from "../lib/encryption.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_security from "../lib/security.js";
 import type * as messages from "../messages.js";
+import type * as performance from "../performance.js";
 import type * as presence from "../presence.js";
 import type * as rateLimitChecks from "../rateLimitChecks.js";
 import type * as rateLimiting from "../rateLimiting.js";
@@ -47,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   "actions/apiKeyManager": typeof actions_apiKeyManager;
   "actions/encryption": typeof actions_encryption;
   ai: typeof ai;
+  analytics: typeof analytics;
   anonymousMigration: typeof anonymousMigration;
   conversations: typeof conversations;
   crons: typeof crons;
@@ -56,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   "lib/env": typeof lib_env;
   "lib/security": typeof lib_security;
   messages: typeof messages;
+  performance: typeof performance;
   presence: typeof presence;
   rateLimitChecks: typeof rateLimitChecks;
   rateLimiting: typeof rateLimiting;

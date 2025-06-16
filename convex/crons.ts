@@ -10,4 +10,11 @@ crons.interval(
   internal.messages.cleanupStaleStreaming,
 );
 
+// 🚀 BANDWIDTH OPTIMIZATION: Update conversation statistics regularly
+crons.interval(
+  "update conversation stats",
+  { minutes: 30 }, // Every 30 minutes
+  internal.analytics.updateStaleConversationStats,
+);
+
 export default crons; 

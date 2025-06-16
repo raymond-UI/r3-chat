@@ -1,8 +1,11 @@
-import { useQuery, useMutation } from "convex/react";
+"use client";
+
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { useQuery } from "@/cache/useQuery";
+import { useMutation } from "convex/react";
 
 export function usePresence(conversationId: Id<"conversations"> | undefined) {
   const { user } = useUser();

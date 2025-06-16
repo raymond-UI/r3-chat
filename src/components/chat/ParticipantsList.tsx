@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -19,6 +19,7 @@ import { Users, Copy, Check, Share, Plus, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ShareConversationDialog } from "./ShareConversationDialog";
 import { toast } from "sonner";
+import { useQuery } from "@/cache/useQuery";
 
 interface ParticipantsListProps {
   conversationId: Id<"conversations">;

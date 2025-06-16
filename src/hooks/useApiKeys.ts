@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -9,6 +9,7 @@ import type {
   UserPreferences,
   DefaultProviders,
 } from "../types/api-keys";
+import { useQuery } from "@/cache/useQuery";
 
 export function useApiKeys() {
   const { userId } = useAuth();

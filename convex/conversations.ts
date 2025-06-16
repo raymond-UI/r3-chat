@@ -1,20 +1,76 @@
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { checkConversationAccess } from "./messages";
 
-// Get all conversations for a user
+// 🚀 OPTIMIZED: Get conversations for a user using proper indexing
 export const list = query({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
+    // Use index to efficiently find conversations where user is creator
+    const createdConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_creator_updated", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
+
+    // Also get conversations where user is a participant but not creator
+    // Note: Convex doesn't support array contains indexes efficiently,
+    // so we'll need to use a different approach for collaborative conversations
     const allConversations = await ctx.db
       .query("conversations")
       .order("desc")
+      .filter((q) => q.neq(q.field("createdBy"), userId))
       .collect();
     
-    return allConversations.filter(conversation => 
+    const participantConversations = allConversations.filter(conversation => 
       conversation.participants.includes(userId)
     );
+
+    // Combine and sort by updatedAt
+    const allUserConversations = [...createdConversations, ...participantConversations];
+    return allUserConversations.sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+});
+
+// 🚀 NEW: Optimized minimal conversation list for UI lists
+export const listMinimal = query({
+  args: { userId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, { userId, limit = 50 }) => {
+    const createdConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_creator_updated", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .take(limit);
+
+    // For collaborative conversations, we still need to scan but limit the result
+    const allConversations = await ctx.db
+      .query("conversations")
+      .order("desc")
+      .filter((q) => q.neq(q.field("createdBy"), userId))
+      .take(limit * 2); // Take more to account for filtering
+    
+    const participantConversations = allConversations
+      .filter(conversation => conversation.participants.includes(userId))
+      .slice(0, limit);
+
+    const allUserConversations = [...createdConversations, ...participantConversations];
+    const sorted = allUserConversations.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    // Return only essential fields for list view
+    return sorted.slice(0, limit).map(conv => ({
+      _id: conv._id,
+      title: conv.title,
+      updatedAt: conv.updatedAt,
+      createdAt: conv.createdAt,
+      lastMessage: conv.lastMessage,
+      isCollaborative: conv.isCollaborative,
+      participants: conv.participants,
+      createdBy: conv.createdBy,
+      // Only include showcase flag, not full object
+      isShownOnProfile: conv.showcase?.isShownOnProfile || false,
+    }));
   },
 });
 
@@ -194,6 +250,9 @@ export const updateTitle = mutation({
       title,
       updatedAt: Date.now(),
     });
+
+    // 🚀 OPTIMIZATION: Trigger stats update
+    await ctx.scheduler.runAfter(0, internal.analytics.updateConversationStats, { conversationId });
   },
 });
 

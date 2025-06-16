@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/sidebar";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
-import { LogIn, MoreVertical, Plus, Settings, User } from "lucide-react";
+import { LogIn, Plus, Settings, User } from "lucide-react";
 import Link from "next/link";
 import { Id } from "../../../convex/_generated/dataModel";
+import { SidebardDropdownAction } from "../actions/SidebardDropdownAction";
 
 interface ChatSidebarProps {
   activeConversationId: Id<"conversations"> | undefined;
@@ -143,9 +144,7 @@ export function ChatSidebar({
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline">
-                  <MoreVertical />
-                </Button>
+                <SidebardDropdownAction />
               </div>
             </SignedIn>
             <SignedOut>

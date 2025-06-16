@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useQuery } from "@/cache/useQuery";
+import { useMutation } from "convex/react";
 
 export function useUserProfile() {
   const { user } = useUser();
