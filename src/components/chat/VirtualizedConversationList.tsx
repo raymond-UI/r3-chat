@@ -126,15 +126,38 @@ export function VirtualizedConversationList({
     );
   }
 
-  // If no virtual items to render, render empty state directly
-  if (virtualItems.length === 0) {
+  // Only show empty state if we're not loading AND have no conversations at all
+  // Don't rely solely on virtualItems.length as it might be 0 during processing
+  if (!isLoading && conversations.length === 0) {
     return (
       <div className="flex-1 overflow-auto">
         <div className="p-4 text-center text-muted-foreground">
           <div className="h-12 w-12 mx-auto mb-2 opacity-50" />
           <p>No conversations available</p>
-          <p className="text-xs mt-1">Debug: {conversations.length} conversations loaded</p>
         </div>
+      </div>
+    );
+  }
+
+  // Show empty search results if we have conversations but no virtual items after filtering
+  if (!isLoading && conversations.length > 0 && virtualItems.length === 0 && debouncedSearchQuery) {
+    return (
+      <div className="flex-1 overflow-auto">
+        <div className="p-4 text-center text-muted-foreground">
+          <div className="h-12 w-12 mx-auto mb-2 opacity-50" />
+          <p>No conversations match your search</p>
+          <p className="text-xs mt-1">Try a different search term</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If virtualItems is empty but we have conversations and no search query,
+  // it means the hooks are still processing - render empty container to prevent flash
+  if (virtualItems.length === 0 && conversations.length > 0 && !debouncedSearchQuery) {
+    return (
+      <div className="flex-1 overflow-auto" style={{ minHeight: '200px' }}>
+        {/* Empty container while processing */}
       </div>
     );
   }
@@ -191,4 +214,4 @@ export function VirtualizedConversationList({
       </div>
     </div>
   );
-} 
+}

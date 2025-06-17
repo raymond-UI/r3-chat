@@ -1,21 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useConversationAccess } from "@/hooks/useConversationAccess";
+import { Authenticated } from "convex/react";
+import { AlertTriangle, Lock } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { ChatArea } from "../chat-area/ChatArea";
-import { ChatHeader } from "./ChatHeader";
-import { AlertTriangle, Lock } from "lucide-react";
-import { useConversationAccess } from "@/hooks/useConversationAccess";
+import { LoadingIndicator } from "../indicators/LoadingIndicator";
 import { Card, CardContent } from "../ui/card";
-import { Authenticated } from "convex/react";
-import { MessageListLoading } from "./ui/MessageListLoading";
+import { ChatHeader } from "./ChatHeader";
 
 interface ChatContainerProps {
   conversationId: Id<"conversations">;
+  initialSelectedModel?: string;
 } 
 
-export function ChatContainer({ conversationId }: ChatContainerProps) {
+export function ChatContainer({ conversationId, initialSelectedModel }: ChatContainerProps) {
   const [aiEnabled, setAiEnabled] = useState(true);
   const searchParams = useSearchParams();
   
@@ -41,8 +42,8 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
       </Authenticated>
      
       {accessLoading ? (
-        <div className="flex-1 w-full flex items-start px-4 sm:px-8 justify-center">
-          <MessageListLoading />
+        <div className="flex-1 h-full w-full flex items-center opacity-30 px-4 sm:px-8 justify-center">
+          <LoadingIndicator />
         </div>
       ) : (
         <>
@@ -52,7 +53,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
               accessReason={accessReason}
             />
           ) : (
-            <ChatArea conversationId={conversationId} aiEnabled={aiEnabled} />
+            <ChatArea conversationId={conversationId} aiEnabled={aiEnabled} initialSelectedModel={initialSelectedModel} />
           )}
         </>
       )}

@@ -13,9 +13,10 @@ import { useChatMessages } from "@/hooks/messages/useChatMessages";
 interface ChatAreaProps {
   conversationId: Id<"conversations">;
   aiEnabled: boolean;
+  initialSelectedModel?: string;
 }
 
-export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
+export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: ChatAreaProps) {
   const { user } = useUser();
   const { typingUsers, setTyping, stopTyping } = usePresence(conversationId);
   
@@ -31,7 +32,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   } = useFiles(conversationId);
 
   // AI SDK integration
-  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
+  const [selectedModel, setSelectedModel] = useState<string | undefined>(initialSelectedModel);
   const {
     messages: aiMessages,
     input,
@@ -50,6 +51,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
   // Local state for UI management
   const [isSending, setIsSending] = useState(false);
   const [hasTriggeredInitialResponse, setHasTriggeredInitialResponse] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Transform AI messages to display format
   const displayMessages = useChatMessages({
@@ -58,6 +60,13 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
     user,
     aiIsLoading,
   });
+
+  // Update initial loading state when messages are first loaded
+  useEffect(() => {
+    if (displayMessages.length > 0 || aiMessages.length > 0) {
+      setIsInitialLoading(false);
+    }
+  }, [displayMessages.length, aiMessages.length]);
 
   // Auto-trigger AI response for new conversations
   useEffect(() => {
@@ -167,6 +176,7 @@ export function ChatArea({ conversationId, aiEnabled }: ChatAreaProps) {
         conversationId={conversationId}
         typingUsers={typingUsers}
         aiError={aiError}
+        isInitialLoading={isInitialLoading}
       />
       
       <div className="w-full relative z-10">

@@ -37,6 +37,7 @@ interface MessageInputProps {
   // For new chat mode
   isNewChat?: boolean;
   clearUploadedFiles?: () => void;
+  onNewConversationCreated?: (conversationId: Id<"conversations">, selectedModel?: string) => void;
 
   // Common props
   uploadingFiles: FileWithPreview[];
@@ -74,6 +75,7 @@ export const MessageInput = forwardRef<
       hasFilesToSend = false,
       uploadStagedFiles,
       showSignUpPrompt,
+      onNewConversationCreated,
     },
     ref
   ) => {
@@ -202,6 +204,7 @@ export const MessageInput = forwardRef<
         if (!currentValue.trim() && !hasFilesToSend) return;
 
         const messageContent = currentValue.trim();
+        
         setLocalInputValue("");
         setIsSending(true);
 
@@ -221,7 +224,7 @@ export const MessageInput = forwardRef<
             conversationId,
             messageContent,
             "user",
-            undefined,
+            currentSelectedModel, // Pass the selected model for AI to use
             uploadedFileIds.length > 0 ? uploadedFileIds : undefined
           );
 
@@ -233,18 +236,20 @@ export const MessageInput = forwardRef<
             clearUploadedFiles();
           }
 
-          // Generate title for the conversation
-          if (messageContent) {
-            try {
-              await generateTitle(conversationId, messageContent);
-            } catch (titleError) {
-              console.error("Failed to generate title:", titleError);
-              // Don't block navigation if title generation fails
-            }
+          // Notify new conversation created immediately for optimistic UI
+          if (onNewConversationCreated) {
+            onNewConversationCreated(conversationId, currentSelectedModel);
+          } else {
+            // Only navigate if no callback provided (legacy behavior)
+            router.push(`/chat/${conversationId}`);
           }
 
-          // Navigate to the conversation page
-          router.push(`/chat/${conversationId}`);
+          // Generate title for the conversation asynchronously (non-blocking)
+          if (messageContent) {
+            generateTitle(conversationId, messageContent).catch((titleError) => {
+              console.error("Failed to generate title:", titleError);
+            });
+          }
 
         } catch (error) {
           console.error(
@@ -358,11 +363,11 @@ export const MessageInput = forwardRef<
               {(isStreaming && !isNewChat) || (isNewChat && isSending) ? (
                 <Button
                   onClick={isNewChat ? newChatStop : onStop}
-                  variant="destructive"
+                  variant="ghost"
                   className="flex-shrink-0"
                   title="Stop generation"
                 >
-                  <Square className="h-4 w-4" />
+                  <Square className="h-4 w-4 text-primary" />
                 </Button>
               ) : (
                 <Button

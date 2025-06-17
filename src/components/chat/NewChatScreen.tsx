@@ -7,12 +7,25 @@ import { useUser } from "@clerk/nextjs";
 import { gsap } from "gsap";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { MessageInput } from "./MessageInput";
-import { LoginPromptDialog } from "../auth/LoginPromptDialog";
+import { ChatContainer } from "./ChatContainer";
+import type { Id } from "../../../convex/_generated/dataModel";
+import dynamic from "next/dynamic";
 
-export function NewChatScreen() {
+const LoginPromptDialog = dynamic(() => import("../auth/LoginPromptDialog").then((mod) => mod.LoginPromptDialog), { ssr: false });
+
+interface NewChatScreenProps {
+  conversationId?: Id<"conversations">;
+}
+
+export function NewChatScreen({ conversationId }: NewChatScreenProps) {
   const { user } = useUser();
+  const router = useRouter();
+  const [currentConversationId, setCurrentConversationId] = useState<Id<"conversations"> | null>(conversationId || null);
+  const [selectedModelForNewConversation, setSelectedModelForNewConversation] = useState<string | undefined>(undefined);
+  
   const {
     uploadingFiles,
     isUploading,
@@ -38,8 +51,22 @@ export function NewChatScreen() {
 
   const currentTab = tabs.find((tab) => tab.id === activeTab)!;
 
+  // Handle new conversation creation
+  const handleNewConversationCreated = (newConversationId: Id<"conversations">, selectedModel?: string) => {
+    console.log("🔍 [CLIENT] NewChatScreen - conversation created with model:", { 
+      newConversationId, 
+      selectedModel 
+    });
+    setCurrentConversationId(newConversationId);
+    setSelectedModelForNewConversation(selectedModel);
+    // Optimistically update the URL without navigation
+    router.replace(`/chat/${newConversationId}`, { scroll: false });
+  };
+
   // GSAP animations for micro-interactions
   useEffect(() => {
+    // Skip animations if showing chat container
+    if (currentConversationId) return;
     const suggestions = suggestionRefs.current.filter(Boolean);
 
     suggestions.forEach((suggestion) => {
@@ -69,10 +96,13 @@ export function NewChatScreen() {
         suggestion.removeEventListener("mouseleave", handleMouseLeave);
       };
     });
-  }, [activeTab]);
+  }, [activeTab, currentConversationId]);
 
   // Tab hover animations
   useEffect(() => {
+    // Skip animations if showing chat container
+    if (currentConversationId) return;
+    
     const tabs = tabRefs.current.filter(Boolean);
 
     tabs.forEach((tab) => {
@@ -106,7 +136,7 @@ export function NewChatScreen() {
         tab.removeEventListener("mouseleave", handleMouseLeave);
       };
     });
-  }, []);
+  }, [currentConversationId]);
 
   const handleSuggestionClick = (text: string) => {
     // Fill the input with the selected suggestion
@@ -118,6 +148,11 @@ export function NewChatScreen() {
   const handleTabChange = (tabId: TabId) => {
     setActiveTab(tabId);
   };
+
+  // If we have a conversation ID, show the chat container
+  if (currentConversationId) {
+    return <ChatContainer conversationId={currentConversationId} initialSelectedModel={selectedModelForNewConversation} />;
+  }
 
   return (
     <div className="flex-1 flex items-center justify-center flex-col w-full h-full relative mx-auto">
@@ -161,7 +196,7 @@ export function NewChatScreen() {
                     flex items-center gap-2 px-6 py-3 rounded-full transition-all duration-300
                     ${
                       isActive
-                        ? "shadow-lg bg-primary/10 border border-primary"
+                        ? "shadow-lg bg-primary/10 text-foreground border border-primary"
                         : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground"
                     }
                   `}
@@ -228,6 +263,7 @@ export function NewChatScreen() {
           uploadStagedFiles={saveUploadedFilesToDatabase}
           disabled={!canSendMessage}
           showSignUpPrompt={() => setShowLoginPrompt(true)}
+          onNewConversationCreated={handleNewConversationCreated}
         />
       </motion.div>
 

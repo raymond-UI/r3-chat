@@ -21,9 +21,11 @@ import {
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { LogIn, Plus, Settings, User } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { SidebardDropdownAction } from "../actions/SidebardDropdownAction";
 import { useNavigation } from "./NavigationProvider";
+
+const SidebardDropdownAction = dynamic(() => import("../actions/SidebardDropdownAction").then((mod) => mod.SidebardDropdownAction), { ssr: false });
 
 export function ChatSidebar() {
   const { hasProfile, profileUrl } = useUserProfile();

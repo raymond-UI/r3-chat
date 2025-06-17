@@ -1,4 +1,4 @@
-export function AiIndicator() {
+export function LoadingIndicator() {
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
       <div className="flex items-center space-x-1">

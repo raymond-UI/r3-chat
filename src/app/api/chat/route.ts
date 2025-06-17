@@ -52,6 +52,17 @@ export async function POST(req: Request) {
         }
         
         userPrefs = prefsResult;
+
+        // Debug logging - log available keys and preferences (without exposing actual key values)
+        console.log("🔍 [SERVER] User configuration debug:", {
+          userId,
+          hasUserKeys: !!userKeys,
+          availableKeyTypes: userKeys ? Object.entries(userKeys)
+            .filter(([, value]) => !!value)
+            .map(([key]) => key) : [],
+          userPreferences: userPrefs,
+          requestedModel: model,
+        });
       } catch (error) {
         console.error("Failed to fetch user configuration:", error);
         // Continue with default configuration
@@ -152,8 +163,24 @@ export async function POST(req: Request) {
       // Use dynamic default model if none provided
       const selectedModel = model || getDefaultModel(userKeys, userPrefs, "chat");
       
+      // Debug log: Show model selection decision
+      console.log("🔍 [SERVER] Model selection debug:", {
+        requestedModel: model,
+        selectedModel,
+        modelSource: model ? "requested" : "default",
+      });
+      
       // Get model instance using provider router
       const modelInstance = await getModelInstance(userKeys, userPrefs, selectedModel);
+
+      // Debug log: Show which provider is being used
+      const providerInfo = {
+        modelId: selectedModel,
+        modelProvider: selectedModel.split('/')[0] || selectedModel.split(':')[0],
+        hasUserKeys: !!userKeys,
+        usingUserKey: userKeys && Object.values(userKeys).some(key => !!key),
+      };
+      console.log("🔍 [SERVER] Provider selection debug:", providerInfo);
 
       // Stream AI response using AI SDK with full conversation history
       const result = await streamText({

@@ -8,7 +8,7 @@ import type { ChatMessage } from "@/types/message";
 
 // Lazy load heavy components
 const AiIndicator = dynamic(
-  () => import("../indicators/AiIndicator").then((mod) => mod.AiIndicator),
+  () => import("../indicators/LoadingIndicator").then((mod) => mod.LoadingIndicator),
   { ssr: false }
 );
 
@@ -23,6 +23,7 @@ interface ChatMessagesProps {
   isStreaming: boolean;
   typingUsers: Doc<"presence">[];
   aiError: Error | null | undefined;
+  isInitialLoading?: boolean;
 }
 
 // Memoized component to prevent unnecessary re-renders during streaming
@@ -32,6 +33,7 @@ export const ChatMessages = memo(function ChatMessages({
   isStreaming,
   typingUsers,
   aiError,
+  isInitialLoading = false,
 }: ChatMessagesProps) {
   // Memoize message list to prevent re-renders when only streaming state changes
   const memoizedMessages = useMemo(() => messages, [messages]);
@@ -41,6 +43,7 @@ export const ChatMessages = memo(function ChatMessages({
       <MessageList
         messages={memoizedMessages}
         conversationId={conversationId}
+        isLoading={isInitialLoading}
       />
 
       {/* AI streaming indicator - only render when actually streaming */}

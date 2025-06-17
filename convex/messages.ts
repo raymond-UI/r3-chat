@@ -85,7 +85,7 @@ export const list = query({
     const activeBranchMessages = getActiveBranchMessages(messageTree);
 
     // 🚀 OPTIMIZED: Get all files for the conversation at once, then filter
-    let allFiles: any[] = [];
+    let allFiles: Doc<"files">[] = [];
     
     try {
       // Get all files for this conversation in a single query
@@ -98,7 +98,7 @@ export const list = query({
     }
 
     // Group files by message ID for O(1) lookup
-    const filesByMessageId = new Map<string, any[]>();
+    const filesByMessageId = new Map<string, Doc<"files">[]>();
     allFiles.forEach(file => {
       if (file.messageId) {
         if (!filesByMessageId.has(file.messageId)) {
@@ -369,7 +369,7 @@ export const createBranch = mutation({
       parentMessageId,
       branchIndex: nextBranchIndex,
       isActiveBranch: true,
-      branchCreatedBy: userId,
+      branchCreatedBy: userId ,
       branchCreatedAt: now,
     });
 

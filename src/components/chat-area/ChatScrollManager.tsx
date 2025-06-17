@@ -14,6 +14,7 @@ interface ChatScrollManagerProps {
   conversationId: Id<"conversations">;
   typingUsers: Doc<"presence">[];
   aiError: Error | null | undefined;
+  isInitialLoading?: boolean;
 }
 
 // Optimized scroll management with performance considerations
@@ -23,6 +24,7 @@ export const ChatScrollManager = memo(function ChatScrollManager({
   conversationId,
   typingUsers,
   aiError,
+  isInitialLoading = false,
 }: ChatScrollManagerProps) {
   // Scroll state management
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -155,6 +157,7 @@ export const ChatScrollManager = memo(function ChatScrollManager({
         isStreaming={isStreaming}
         typingUsers={typingUsers}
         aiError={aiError}
+        isInitialLoading={isInitialLoading}
       />
 
       {/* Scroll to bottom button - only show when needed */}

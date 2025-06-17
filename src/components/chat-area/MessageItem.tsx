@@ -188,7 +188,7 @@ const MessageItem = memo<MessageItemProps>(({
   return (
     <div
       className={cn(
-        "flex flex-col px-2 sm:px-0 gap-1 sm:max-w-[90%] h-full w-full",
+        "flex flex-col px-2 sm:px-0 gap-1 h-full w-full",
         isCurrentUser && !isAI ? "m-auto" : "",
         isStreaming ? "opacity-95" : ""
       )}

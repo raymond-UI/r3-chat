@@ -84,20 +84,21 @@ export function useChat({
     input,
     handleInputChange,
     handleSubmit,
-    isLoading,
     error,
     reload,
+    status,
     stop,
     append,
     setMessages,
     setInput,
   } = useAIChat({
     api: "/api/chat",
-    body: {
+    // Use a function to get the current body with updated selectedModel
+    body: () => ({
       conversationId,
-      model: selectedModel,
+      model: selectedModel, // This will always use the current selectedModel
       userId: user?.id, // Pass user ID for BYOK
-    },
+    }),
     initialMessages: transformedMessages,
     onFinish: async (message) => {
       // Save AI message to Convex after completion
@@ -122,32 +123,49 @@ export function useChat({
   // Enhanced submit function that accepts file IDs and saves user message to Convex
   const submitWithFiles = useCallback(
     async (fileIds?: Id<"files">[]) => {
-      if (!conversationId || !user?.id) return;
-
+      if (!conversationId) return; // Only check for conversationId, not user
+  
       const messageContent = input.trim();
       if (!messageContent && (!fileIds || fileIds.length === 0)) return;
-
+  
+      // Generate anonymous user ID if no authenticated user
+      const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+      const senderName = user?.firstName || user?.username || "Anonymous User";
+  
+      // Debug logging - log selected model and available API keys
+      console.log("🔍 [CLIENT] Message submission debug:", {
+        selectedModel,
+        hasConfiguration: !!configuration,
+        apiKeysAvailable: configuration?.apiKeys ? Object.keys(configuration.apiKeys).filter(key => 
+          configuration.apiKeys?.[key as keyof typeof configuration.apiKeys]
+        ) : [],
+        userPreferences: configuration?.preferences,
+        conversationId,
+        userId,
+        isAnonymous: !user?.id,
+      });
+  
       try {
         // First, save user message to Convex
         await sendMessage({
           conversationId,
-          userId: user.id,
-          senderName: user.firstName || user.username || "Anonymous User",
+          userId,
+          senderName,
           content: messageContent,
           type: "user",
           fileIds: fileIds || [],
         });
-
+  
         // Wait a bit for Convex to update the message list
         await new Promise(resolve => setTimeout(resolve, 100));
-
+  
         // Then submit to AI with file IDs
         return handleSubmit(undefined, {
           body: {
             fileIds: fileIds || [],
             conversationId,
             model: selectedModel,
-            userId: user?.id, // Pass user ID for BYOK
+            userId: userId, // Pass user ID (anonymous or authenticated) for BYOK
           },
         });
       } catch (error) {
@@ -155,36 +173,54 @@ export function useChat({
         throw error;
       }
     },
-    [handleSubmit, input, conversationId, selectedModel, user?.id, user?.firstName, user?.username, sendMessage]
+    [handleSubmit, input, conversationId, selectedModel, user?.id, user?.firstName, user?.username, sendMessage, configuration]
   );
+
 
   // Enhanced submit function that saves user message to Convex first
   const enhancedHandleSubmit = useCallback(
     async (e?: React.FormEvent<HTMLFormElement>) => {
-      if (!conversationId || !user?.id) return;
-
+      if (!conversationId) return; // Only check for conversationId, not user
+  
       const messageContent = input.trim();
       if (!messageContent) return;
-
+  
+      // Generate anonymous user ID if no authenticated user
+      const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+      const senderName = user?.firstName || user?.username || "Anonymous User";
+  
+      // Debug logging - log selected model and available API keys
+      console.log("🔍 [CLIENT] Enhanced submit debug:", {
+        selectedModel,
+        hasConfiguration: !!configuration,
+        apiKeysAvailable: configuration?.apiKeys ? Object.keys(configuration.apiKeys).filter(key => 
+          configuration.apiKeys?.[key as keyof typeof configuration.apiKeys]
+        ) : [],
+        userPreferences: configuration?.preferences,
+        conversationId,
+        userId,
+        isAnonymous: !user?.id,
+      });
+  
       try {
         // First, save user message to Convex
         await sendMessage({
           conversationId,
-          userId: user.id,
-          senderName: user.firstName || user.username || "Anonymous User",
+          userId,
+          senderName,
           content: messageContent,
           type: "user",
         });
-
+  
         // Wait a bit for Convex to update the message list
         await new Promise(resolve => setTimeout(resolve, 100));
-
+  
         // Then submit to AI with the current input
         return handleSubmit(e, {
           body: {
             conversationId,
             model: selectedModel,
-            userId: user?.id, // Pass user ID for BYOK
+            userId: userId, // Pass user ID (anonymous or authenticated) for BYOK
           },
         });
       } catch (error) {
@@ -192,8 +228,9 @@ export function useChat({
         throw error;
       }
     },
-    [handleSubmit, input, conversationId, selectedModel, user?.id, user?.firstName, user?.username, sendMessage]
+    [handleSubmit, input, conversationId, selectedModel, user?.id, user?.firstName, user?.username, sendMessage, configuration]
   );
+  
 
   // Generate conversation title (works for both logged-in and anonymous users)
   const generateTitle = useCallback(
@@ -256,7 +293,7 @@ export function useChat({
     handleInputChange,
     handleSubmit: enhancedHandleSubmit, // Enhanced version that saves to Convex
     submitWithFiles, // Enhanced function for submitting with files
-    isLoading: isLoading || isGenerating,
+    isLoading: status === "streaming" || isGenerating,
     error,
     reload,
     stop,
@@ -283,6 +320,24 @@ export function useChat({
     ) => {
       const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
       const senderName = user?.firstName || user?.username || "Anonymous User";
+      
+      // Debug logging - log the model being used in send function
+      console.log("🔍 [CLIENT] useChat send function debug:", {
+        aiModel,
+        selectedModel,
+        type,
+        conversationId,
+        userId,
+      });
+      
+      // Update selectedModel if a different aiModel is specified
+      if (aiModel && aiModel !== selectedModel) {
+        console.log("🔍 [CLIENT] Updating selectedModel from send function:", {
+          oldModel: selectedModel,
+          newModel: aiModel,
+        });
+        setSelectedModel(aiModel);
+      }
       
       return await sendMessage({
         conversationId,

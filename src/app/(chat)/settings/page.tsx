@@ -1,8 +1,5 @@
-{
-  /* Settings Page - page.tsx */
-}
+// Settings Page
 import { Metadata } from "next";
-import { Suspense } from "react";
 
 import { AiPreferences } from "@/components/settings/AiPreferences";
 import { ApiKeySettings } from "@/components/settings/ApiKeySettings";
@@ -45,13 +42,10 @@ export default function SettingsPage() {
               <Zap className="h-4 w-4" />
               AI Preferences
             </TabsTrigger>
-
           </TabsList>
 
           <TabsContent value="api-keys" className="space-y-6">
-            <Suspense fallback={<div>Loading API key settings...</div>}>
-              <ApiKeySettings />
-            </Suspense>
+            <ApiKeySettings />
           </TabsContent>
 
           <TabsContent value="preferences" className="space-y-6">
@@ -64,9 +58,7 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Suspense fallback={<div>Loading AI preferences...</div>}>
-                  <AiPreferences />
-                </Suspense>
+                <AiPreferences />
               </CardContent>
             </Card>
           </TabsContent>

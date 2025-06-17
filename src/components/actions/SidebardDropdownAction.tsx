@@ -6,8 +6,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
 import { MoreHorizontal, Moon, Sun } from "lucide-react";
-import Link from "next/link";
-import { SignedIn } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 
 export function SidebardDropdownAction() {
@@ -22,11 +20,6 @@ export function SidebardDropdownAction() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent>
-        <SignedIn>
-          <DropdownMenuItem>
-            <Link href="/settings">Settings</Link>
-          </DropdownMenuItem>
-        </SignedIn>
         <DropdownMenuItem
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="cursor-pointer"

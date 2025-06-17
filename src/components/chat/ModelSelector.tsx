@@ -30,6 +30,10 @@ import {
   type SimpleModelAvailability,
 } from "@/lib/providers";
 import dynamic from "next/dynamic";
+import { Authenticated, Unauthenticated } from "convex/react";
+import Link from "next/link";
+import { buttonVariants } from "../ui/button";
+
 
 const UpgradePromptDialog = dynamic(
   () => import("./UpgradePromptDialog").then((mod) => mod.UpgradePromptDialog),
@@ -246,11 +250,21 @@ export function ModelSelector({
           {/* Upgrade Section */}
           {filteredUpgradeModels.length > 0 && (
             <>
-              <DropdownMenuSeparator />
+              {/* <DropdownMenuSeparator /> */}
               <div className="p-3 text-center space-y-2">
                 <div className="text-sm text-muted-foreground">
                   {filteredUpgradeModels.length} more models available
                 </div>
+                <Unauthenticated>
+                  <Link
+                    href="/auth?redirect_url=/chat"
+                    className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
+                  >
+                    <Key className="h-3 w-3 mr-1" />
+                    Login to see more models
+                  </Link>
+                </Unauthenticated>
+                <Authenticated>
                 <Button
                   size="sm"
                   variant="outline"
@@ -258,11 +272,13 @@ export function ModelSelector({
                   className="w-full"
                 >
                   <Key className="h-3 w-3 mr-1" />
-                  Add OpenRouter Key
+                  Add API Key
                 </Button>
+                </Authenticated>
               </div>
 
               {/* Show locked models */}
+              <Authenticated>
               {filteredUpgradeModels.slice(0, 8).map((model) => (
                 <DropdownMenuItem
                   key={model.modelId}
@@ -293,6 +309,7 @@ export function ModelSelector({
                   </div>
                 </DropdownMenuItem>
               ))}
+              </Authenticated>
             </>
           )}
 
