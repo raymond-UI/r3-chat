@@ -148,6 +148,7 @@ export const create = mutation({
     isCollaborative: v.optional(v.boolean()),
     participants: v.optional(v.array(v.string())),
     isAnonymous: v.optional(v.boolean()),
+    anonymousId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -157,8 +158,8 @@ export const create = mutation({
     let participants: string[];
     
     if (!identity && args.isAnonymous) {
-      // Anonymous user - create a temporary unique identifier
-      createdBy = `anonymous_${crypto.randomUUID()}`;
+      // Use provided anonymousId if present, else fallback to old behavior
+      createdBy = args.anonymousId || `anonymous_${crypto.randomUUID()}`;
       participants = [createdBy, ...(args.participants || [])];
     } else if (identity) {
       // Authenticated user

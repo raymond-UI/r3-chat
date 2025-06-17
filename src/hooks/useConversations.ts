@@ -4,6 +4,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@/cache/useQuery";
 import { useMutation } from "convex/react";
+import { getOrCreateAnonymousId } from "@/lib/utils";
 
 export function useConversations() {
   const { user } = useUser();
@@ -90,7 +91,8 @@ export function useConversations() {
         title, 
         participants: [], // No specific participants for anonymous
         isCollaborative,
-        isAnonymous: true
+        isAnonymous: true,
+        anonymousId: getOrCreateAnonymousId(),
       });
       
       // Track the conversation for anonymous user

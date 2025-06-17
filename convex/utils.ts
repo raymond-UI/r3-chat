@@ -25,7 +25,8 @@ export function getClientIP(headers: Record<string, string>): string {
 // Determine user type for rate limiting
 export function getUserType(identity: UserIdentity | null): "anonymous" | "free" | "paid" {
   if (!identity) {
-    return "anonymous";
+    // In development, treat anonymous users as free users to avoid strict limits
+    return process.env.NODE_ENV === 'development' ? 'free' : 'anonymous';
   }
   
   // Check user metadata for plan type

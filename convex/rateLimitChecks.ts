@@ -1,44 +1,8 @@
+// convex/rateLimitChecks.ts
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { rateLimiter, getModelRateLimitName, getUserRateLimitName } from "./rateLimiting";
+import { rateLimiter, getModelRateLimitName, getUserRateLimitName, getRateLimitConfig } from "./rateLimitingConfig";
 import { getUserType, getRateLimitKey } from "./utils";
-
-// Time constants
-const DAY = 24 * 60 * 60 * 1000;
-
-// Helper to get rate limit config
-function getRateLimitConfig(limitName: string) {
-  if (limitName === "anonymousDaily") {
-    return { kind: "fixed window" as const, rate: 5, period: DAY };
-  }
-  if (limitName === "freeUserDaily") {
-    return { kind: "token bucket" as const, rate: 100, period: DAY, capacity: 120 };
-  }
-  if (limitName.includes("freeModels")) {
-    return limitName.includes("Daily") 
-      ? { kind: "token bucket" as const, rate: 50, period: DAY, capacity: 60 }
-      : { kind: "fixed window" as const, rate: 500, period: 30 * DAY };
-  }
-  if (limitName.includes("lowCostModels")) {
-    return limitName.includes("Daily")
-      ? { kind: "token bucket" as const, rate: 25, period: DAY, capacity: 35 }
-      : { kind: "fixed window" as const, rate: 300, period: 30 * DAY };
-  }
-  if (limitName.includes("mediumCostModels")) {
-    return limitName.includes("Daily")
-      ? { kind: "token bucket" as const, rate: 15, period: DAY, capacity: 20 }
-      : { kind: "fixed window" as const, rate: 150, period: 30 * DAY };
-  }
-  if (limitName.includes("highCostModels")) {
-    return limitName.includes("Daily")
-      ? { kind: "token bucket" as const, rate: 10, period: DAY, capacity: 12 }
-      : { kind: "fixed window" as const, rate: 100, period: 30 * DAY };
-  }
-  // Default to medium cost
-  return limitName.includes("Daily")
-    ? { kind: "token bucket" as const, rate: 15, period: DAY, capacity: 20 }
-    : { kind: "fixed window" as const, rate: 150, period: 30 * DAY };
-}
 
 // Check if user can send a message without actually consuming the rate limit
 export const checkMessageRateLimit = query({

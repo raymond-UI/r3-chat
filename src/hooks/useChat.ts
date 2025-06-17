@@ -7,6 +7,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { AIModel } from "@/types/ai";
 import { getDefaultModel, getFallbackModel } from "@/lib/defaultModel";
+import { getOrCreateAnonymousId } from "@/lib/utils";
 
 interface UseChatOptions {
   conversationId?: Id<"conversations">;
@@ -129,7 +130,7 @@ export function useChat({
       if (!messageContent && (!fileIds || fileIds.length === 0)) return;
   
       // Generate anonymous user ID if no authenticated user
-      const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+      const userId = user?.id || getOrCreateAnonymousId();
       const senderName = user?.firstName || user?.username || "Anonymous User";
   
       // Debug logging - log selected model and available API keys
@@ -186,7 +187,7 @@ export function useChat({
       if (!messageContent) return;
   
       // Generate anonymous user ID if no authenticated user
-      const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+      const userId = user?.id || getOrCreateAnonymousId();
       const senderName = user?.firstName || user?.username || "Anonymous User";
   
       // Debug logging - log selected model and available API keys
@@ -318,7 +319,7 @@ export function useChat({
       aiModel?: string,
       fileIds?: Id<"files">[]
     ) => {
-      const userId = user?.id || `anonymous_${crypto.randomUUID()}`;
+      const userId = user?.id || getOrCreateAnonymousId();
       const senderName = user?.firstName || user?.username || "Anonymous User";
       
       // Debug logging - log the model being used in send function

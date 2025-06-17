@@ -15,3 +15,21 @@ export function isValidConvexId<T extends TableNames>(
   // They are also longer than typical UUID prefixes
   return !id.startsWith("msg-") && !id.includes("-") && id.length > 10;
 }
+
+// Utility to get or create a persistent anonymous user ID in localStorage
+export function getOrCreateAnonymousId(): string {
+  if (typeof window === "undefined") {
+    // Not in browser, return empty string (should not be used server-side)
+    return "";
+  }
+  const key = "anonymous_user_id";
+  let anonId = localStorage.getItem(key);
+  if (!anonId) {
+    anonId = `anonymous_${crypto.randomUUID()}`;
+    localStorage.setItem(key, anonId);
+    console.log("Generated new anonymous ID:", anonId);
+  } else {
+    console.log("Using existing anonymous ID:", anonId);
+  }
+  return anonId;
+}

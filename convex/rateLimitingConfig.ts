@@ -1,3 +1,4 @@
+// convex/rateLimiting.ts
 import { RateLimiter, HOUR } from "@convex-dev/rate-limiter";
 import { components } from "./_generated/api";
 
@@ -10,7 +11,7 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Global daily limit for anonymous users (5 messages per day)
   anonymousDaily: {
     kind: "fixed window",
-    rate: 10,
+    rate: 50,
     period: DAY,
   },
 
@@ -172,4 +173,38 @@ export function getUserRateLimitName(userType: "anonymous" | "free" | "paid"): s
     default:
       return "anonymousDaily";
   }
+}
+
+// Exported helper to get rate limit config for a given limit name
+export function getRateLimitConfig(limitName: string) {
+  if (limitName === "anonymousDaily") {
+    return { kind: "fixed window" as const, rate: 25, period: DAY };
+  }
+  if (limitName === "freeUserDaily") {
+    return { kind: "token bucket" as const, rate: 100, period: DAY, capacity: 120 };
+  }
+  if (limitName.includes("freeModels")) {
+    return limitName.includes("Daily") 
+      ? { kind: "token bucket" as const, rate: 50, period: DAY, capacity: 60 }
+      : { kind: "fixed window" as const, rate: 500, period: 30 * DAY };
+  }
+  if (limitName.includes("lowCostModels")) {
+    return limitName.includes("Daily")
+      ? { kind: "token bucket" as const, rate: 25, period: DAY, capacity: 35 }
+      : { kind: "fixed window" as const, rate: 300, period: 30 * DAY };
+  }
+  if (limitName.includes("mediumCostModels")) {
+    return limitName.includes("Daily")
+      ? { kind: "token bucket" as const, rate: 15, period: DAY, capacity: 20 }
+      : { kind: "fixed window" as const, rate: 150, period: 30 * DAY };
+  }
+  if (limitName.includes("highCostModels")) {
+    return limitName.includes("Daily")
+      ? { kind: "token bucket" as const, rate: 10, period: DAY, capacity: 12 }
+      : { kind: "fixed window" as const, rate: 100, period: 30 * DAY };
+  }
+  // Default to medium cost
+  return limitName.includes("Daily")
+    ? { kind: "token bucket" as const, rate: 15, period: DAY, capacity: 20 }
+    : { kind: "fixed window" as const, rate: 150, period: 30 * DAY };
 } 
