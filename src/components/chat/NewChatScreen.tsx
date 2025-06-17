@@ -122,11 +122,11 @@ export function NewChatScreen() {
   return (
     <div className="flex-1 flex items-center justify-center flex-col w-full h-full relative mx-auto">
       {/* Main Content Area */}
-      <div className="flex-1 relative overflow-y-auto p-4 w-full sm:pt-6 max-w-4xl mx-auto  sm:px-10 py-10">
+      <div className="flex-1 relative overflow-y-auto p-4 w-full sm:pt-6 max-w-2xl mx-auto  sm:px-10 py-10">
         <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
           {/* Header */}
           <motion.div
-            className="space-y-4 w-full mb-8 text-center"
+            className="space-y-4 w-full mb-8"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -139,7 +139,7 @@ export function NewChatScreen() {
 
           {/* Tabs */}
           <motion.div
-            className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8 w-full overflow-x-auto justify-center"
+            className="grid grid-cols-2 sm:flex sm:items-start gap-2 mb-8 w-full overflow-x-auto sm:justify-start"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
@@ -161,7 +161,7 @@ export function NewChatScreen() {
                     flex items-center gap-2 px-6 py-3 rounded-full transition-all duration-300
                     ${
                       isActive
-                        ? "shadow-lg"
+                        ? "shadow-lg bg-primary/10 border border-primary"
                         : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground"
                     }
                   `}
@@ -177,11 +177,11 @@ export function NewChatScreen() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
+              // initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              // exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2"
+              className="w-full grid grid-cols-1 sm:flex sm:flex-col sm:items-start gap-2"
             >
               {currentTab.suggestions.map((suggestion, index) => (
                 <motion.button
@@ -197,16 +197,11 @@ export function NewChatScreen() {
                     ease: "easeOut",
                   }}
                   onClick={() => handleSuggestionClick(suggestion.text)}
-                  className="w-full cursor-pointer text-left p-4 rounded-xl bg-card hover:bg-muted/60 border border-border/50 hover:border-border transition-all duration-200 group"
+                  className="w-full cursor-pointer text-left p-2 hover:bg-muted/80 hover:rounded-xl border-b last:border-b-0 border-border/50 hover:border-border transition-all duration-200 group"
                 >
-                  <p className="font-medium text-foreground group-hover:text-primary transition-colors">
+                  <p className="font-medium text-foreground ">
                     {suggestion.text}
                   </p>
-                  {suggestion.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {suggestion.description}
-                    </p>
-                  )}
                 </motion.button>
               ))}
             </motion.div>
@@ -221,8 +216,6 @@ export function NewChatScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
       >
-      
-
         <MessageInput
           ref={inputRef}
           isNewChat={true}

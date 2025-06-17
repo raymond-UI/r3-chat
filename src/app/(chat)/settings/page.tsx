@@ -6,7 +6,7 @@ import { Suspense } from "react";
 
 import { AiPreferences } from "@/components/settings/AiPreferences";
 import { ApiKeySettings } from "@/components/settings/ApiKeySettings";
-import { SecurityStatus } from "@/components/settings/SecurityStatus";
+
 import {
   Card,
   CardContent,
@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Key, Shield, Zap } from "lucide-react";
+import { Key, Zap } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings - R3 Chat",
@@ -33,7 +33,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="api-keys" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid grid-cols-2">
             <TabsTrigger value="api-keys" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
               API Keys & Models
@@ -45,10 +45,7 @@ export default function SettingsPage() {
               <Zap className="h-4 w-4" />
               AI Preferences
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Security
-            </TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="api-keys" className="space-y-6">
@@ -72,18 +69,6 @@ export default function SettingsPage() {
                 </Suspense>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="security" className="space-y-6">
-            <SecurityStatus
-              hasApiKeys={false} // This would be fetched from user data
-              encryptionEnabled={true}
-              lastUpdated={Date.now() - 30 * 24 * 60 * 60 * 1000} // 30 days ago
-              rateLimitStatus={{
-                remaining: 45,
-                resetTime: Date.now() + 30 * 60 * 1000, // 30 minutes from now
-              }}
-            />
           </TabsContent>
         </Tabs>
       </div>

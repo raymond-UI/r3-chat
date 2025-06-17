@@ -18,7 +18,8 @@ export function hasProviderKey(
 ): boolean {
   if (!apiKeys) return false;
   const keyName = getProviderKeyName(providerId);
-  return Boolean(apiKeys[keyName]);
+  // Ensure we're checking for actual truthy values, not just existence
+  return Boolean(apiKeys[keyName] === true);
 }
 
 /**

@@ -7,9 +7,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Star } from "lucide-react";
+import { Star, Key, Zap } from "lucide-react";
 import type { Provider } from "../types/api-keys";
 import { Button } from "./ui/button";
+import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { getSimplifiedModelAvailability } from "@/lib/providers";
 
 interface ProviderCardProps {
   readonly provider: Provider;
@@ -22,9 +26,56 @@ const MAX_VISIBLE_MODELS = 3;
 
 export const ProviderCard = memo<ProviderCardProps>(
   ({ provider, hasKey, isDefault, onClick }) => {
-    const { name, description, models, benefits } = provider;
+    const { name, description, models } = provider;
     const visibleModels = models.slice(0, MAX_VISIBLE_MODELS);
     const remainingModelsCount = models.length - MAX_VISIBLE_MODELS;
+    
+    const { user } = useUser();
+    
+    // Get user configuration for model availability
+    const configuration = useQuery(
+      api.userApiKeys.getMyConfiguration,
+      user ? {} : "skip"
+    );
+
+    // Get model availability for this provider
+    const allModels = getSimplifiedModelAvailability(
+      configuration?.apiKeys || null,
+      configuration?.preferences || null
+    );
+    
+    // Filter models for this provider
+    const providerModels = allModels.filter(m => 
+      m.provider === provider.id
+    );
+    
+    const availableModels = providerModels.filter(m => m.available);
+    const lockedModels = providerModels.filter(m => m.requiresUpgrade);
+    
+    // Calculate benefits based on current status
+    const getProviderBenefits = () => {
+      if (!hasKey) {
+        return [
+          `${lockedModels.length} models locked`,
+          "Add key to unlock",
+          "Better pricing"
+        ];
+      }
+      
+      if (isDefault) {
+        return [
+          "Direct API access",
+          "Best pricing",
+          `${availableModels.length} models`
+        ];
+      }
+      
+      return [
+        "Available via fallback",
+        "Can set as default",
+        `${availableModels.length} models`
+      ];
+    };
 
     return (
       <Card
@@ -51,9 +102,9 @@ export const ProviderCard = memo<ProviderCardProps>(
               {hasKey && (
                 <Badge
                   variant="default"
-                  className="text-sm bg-primary/20 text-primary-foreground border-primary"
+                  className="text-sm bg-primary/20 text-foreground border-primary"
                 >
-                  <Check className="w-3 h-3 mr-1" aria-hidden="true" />
+                  <Key className="w-3 h-3 mr-1" aria-hidden="true" />
                   Connected
                 </Badge>
               )}
@@ -61,6 +112,12 @@ export const ProviderCard = memo<ProviderCardProps>(
                 <Badge variant="outline" className="text-sm">
                   <Star className="w-3 h-3 mr-1" aria-hidden="true" />
                   Default
+                </Badge>
+              )}
+              {!hasKey && lockedModels.length > 0 && (
+                <Badge variant="outline" className="text-sm text-amber-600">
+                  <Zap className="w-3 h-3 mr-1" aria-hidden="true" />
+                  {lockedModels.length} locked
                 </Badge>
               )}
             </div>
@@ -81,7 +138,7 @@ export const ProviderCard = memo<ProviderCardProps>(
             )}
           </div>
           <div className="grid grid-cols-3 gap-2 border-t p-3">
-            {benefits.map((benefit) => (
+            {getProviderBenefits().map((benefit) => (
               <div
                 key={benefit}
                 className="flex items-start justify-start gap-2 text-xs text-muted-foreground"

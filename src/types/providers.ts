@@ -6,6 +6,7 @@ import type {
   ProviderConfig,
   UserApiKeys,
   UserAiPreferences,
+  SimpleModelAvailability,
 } from "@/lib/providers";
 
 export type {
@@ -15,6 +16,7 @@ export type {
   ProviderConfig,
   UserApiKeys,
   UserAiPreferences,
+  SimpleModelAvailability,
 };
 
 // Additional types for UI components

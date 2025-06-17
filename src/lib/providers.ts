@@ -282,4 +282,69 @@ export function isModelAvailable(
   } catch {
     return false;
   }
+}
+
+// Simplified model availability for better UX
+export interface SimpleModelAvailability {
+  modelId: string;
+  name: string;
+  provider: Provider;
+  modelData: typeof AI_MODELS[keyof typeof AI_MODELS];
+  available: boolean;
+  source: 'system' | 'openrouter' | 'provider';
+  requiresUpgrade: boolean;
+  isFree: boolean;
+}
+
+export function getSimplifiedModelAvailability(
+  userKeys: UserApiKeys | null,
+  userPrefs: UserAiPreferences | null = null
+): SimpleModelAvailability[] {
+  return Object.entries(AI_MODELS).map(([modelId, modelData]) => {
+    const provider = MODEL_PROVIDERS[modelId];
+    const isFree = modelData.cost === "Free";
+    const hasOpenRouter = !!userKeys?.openrouterKey;
+    const providerKey = userKeys?.[`${provider}Key` as keyof UserApiKeys];
+    const hasProviderKey = !!providerKey;
+    const useDirectProvider = userPrefs?.defaultProviders?.[provider] && hasProviderKey;
+
+    // Simple availability logic
+    const available = isFree || hasOpenRouter || hasProviderKey;
+    const requiresUpgrade = !isFree && !hasOpenRouter && !hasProviderKey;
+
+    // Determine source
+    let source: 'system' | 'openrouter' | 'provider' = 'system';
+    if (useDirectProvider) {
+      source = 'provider';
+    } else if (hasOpenRouter && !isFree) {
+      source = 'openrouter';
+    }
+
+    return {
+      modelId,
+      name: modelData.name,
+      provider,
+      modelData,
+      available,
+      source,
+      requiresUpgrade,
+      isFree,
+    };
+  });
+}
+
+// Get only available models for the user
+export function getAvailableModelsSimple(
+  userKeys: UserApiKeys | null,
+  userPrefs: UserAiPreferences | null = null
+): SimpleModelAvailability[] {
+  return getSimplifiedModelAvailability(userKeys, userPrefs).filter(m => m.available);
+}
+
+// Get models that require upgrade
+export function getUpgradeRequiredModels(
+  userKeys: UserApiKeys | null,
+  userPrefs: UserAiPreferences | null = null
+): SimpleModelAvailability[] {
+  return getSimplifiedModelAvailability(userKeys, userPrefs).filter(m => m.requiresUpgrade);
 } 

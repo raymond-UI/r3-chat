@@ -92,6 +92,8 @@ export function useApiKeys() {
     [userId, preferences?.defaultProviders, updatePreferences, updateApiKeysSecure, validateApiKey]
   );
 
+  const deleteSpecificApiKey = useMutation(api.userApiKeys.deleteSpecificApiKey);
+
   const handleDeleteKey = useCallback(
     async (providerId: ProviderId): Promise<void> => {
       if (!userId) {
@@ -117,13 +119,10 @@ export function useApiKeys() {
           },
         });
 
-        // Delete the encrypted API key by passing an empty string
-        const keyArgs: Record<string, string> = {};
-        keyArgs[`${providerId}Key`] = "";
-
-        await updateApiKeysSecure({
+        // Properly delete the API key using the specific deletion mutation
+        await deleteSpecificApiKey({
           userId,
-          ...keyArgs,
+          provider: providerId,
         });
 
         toast.success(`${providerId} API key removed successfully`);
@@ -132,7 +131,7 @@ export function useApiKeys() {
         toast.error("Failed to delete API key. Please try again.");
       }
     },
-    [userId, preferences?.defaultProviders, updatePreferences, updateApiKeysSecure]
+    [userId, preferences?.defaultProviders, updatePreferences, deleteSpecificApiKey]
   );
 
   const getMaskedKey = useCallback(

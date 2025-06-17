@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,9 +11,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, Eye, Zap, DollarSign } from "lucide-react";
-import { getAIModelsArray } from "@/types/ai";
+import {
+  ChevronDown,
+  Eye,
+  Zap,
+  DollarSign,
+  Lock,
+  Key,
+  Shield,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import {
+  getAvailableModelsSimple,
+  getUpgradeRequiredModels,
+  type SimpleModelAvailability,
+} from "@/lib/providers";
+import dynamic from "next/dynamic";
+
+const UpgradePromptDialog = dynamic(
+  () => import("./UpgradePromptDialog").then((mod) => mod.UpgradePromptDialog),
+  { ssr: false }
+);
 
 interface ModelSelectorProps {
   selectedModel: string;
@@ -50,109 +71,255 @@ const getSpeedIcon = (speed: string) => {
   }
 };
 
-export function ModelSelector({ 
-  selectedModel, 
-  onModelChange, 
+export function ModelSelector({
+  selectedModel,
+  onModelChange,
   hasImages = false,
-  className 
+  className,
 }: ModelSelectorProps) {
-  const models = getAIModelsArray();
-  // const currentModel = models.find(m => m.key === selectedModel || m.id === selectedModel);
-  
-  // Filter models if user has images attached
-  const availableModels = hasImages 
-    ? models.filter(m => m.supportVision)
-    : models;
+  const { user } = useUser();
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [selectedUpgradeModel, setSelectedUpgradeModel] = useState<
+    SimpleModelAvailability | undefined
+  >();
 
-  const selectedModelData = availableModels.find(m => 
-    m.key === selectedModel || m.id === selectedModel
-  ) || availableModels[0];
+  // Get user configuration
+  const configuration = useQuery(
+    api.userApiKeys.getMyConfiguration,
+    user ? {} : "skip"
+  );
+
+  // Get available models using simplified logic
+  const availableModels = getAvailableModelsSimple(
+    configuration?.apiKeys || null,
+    configuration?.preferences || null
+  );
+
+  // Get models that require upgrade
+  const upgradeModels = getUpgradeRequiredModels(
+    configuration?.apiKeys || null,
+    configuration?.preferences || null
+  );
+
+  // Filter models if user has images attached
+  const filteredAvailableModels = hasImages
+    ? availableModels.filter((m) => m.modelData.supportVision)
+    : availableModels;
+
+  const filteredUpgradeModels = hasImages
+    ? upgradeModels.filter((m) => m.modelData.supportVision)
+    : upgradeModels;
+
+  const selectedModelData =
+    filteredAvailableModels.find((m) => m.modelId === selectedModel) ||
+    filteredAvailableModels[0];
+
+  const handleUpgradeModelClick = (model: SimpleModelAvailability) => {
+    setSelectedUpgradeModel(model);
+    setUpgradeDialogOpen(true);
+  };
+
+  const getSourceIcon = (source: SimpleModelAvailability["source"]) => {
+    switch (source) {
+      case "provider":
+        return <Shield className="h-3 w-3 text-green-600" />;
+      // case "openrouter":
+      //   return <Key className="h-3 w-3 text-blue-600" />;
+      // case "system":
+      //   return <Settings className="h-3 w-3 text-gray-600" />;
+      default:
+        return null;
+    }
+  };
+
+  const getSourceBadge = (
+    source: SimpleModelAvailability["source"],
+    isFree: boolean
+  ) => {
+    if (isFree)
+      return (
+        <Badge variant={"outline"} className="text-[10px] bg-transparent">
+          Free
+        </Badge>
+      );
+
+    switch (source) {
+      case "provider":
+        return (
+          <Badge variant={"outline"} className="text-[10px] bg-transparent">
+            Direct
+          </Badge>
+        );
+      case "openrouter":
+        return (
+          <Badge variant={"outline"} className="text-[10px] bg-transparent">
+            OpenRouter
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className={cn("justify-between min-w-[150px]", className)}
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{selectedModelData?.name}</span>
-            {selectedModelData?.supportVision && (
-              <Eye className="h-3 w-3 text-blue-600" />
-            )}
-          </div>
-          <ChevronDown className="h-4 w-4 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      
-      <DropdownMenuContent className="w-80 max-h-[300px] p-0 overflow-y-auto" align="end">
-        <DropdownMenuLabel>
-          <div className="flex items-center justify-between">
-            <span>AI Models</span>
-            {hasImages && (
-              <Badge variant="secondary" className="text-xs">
-                <Eye className="h-3 w-3 mr-1" />
-                Vision Required
-              </Badge>
-            )}
-          </div>
-        </DropdownMenuLabel>
-        
-        <DropdownMenuSeparator />
-        
-        {hasImages && availableModels.length === 0 && (
-          <div className="p-2 text-sm text-muted-foreground text-center">
-            No models support image analysis.
-            Remove images to access more models.
-          </div>
-        )}
-        
-        {availableModels.map((model) => (
-          <DropdownMenuItem
-            key={model.key}
-            onClick={() => onModelChange(model.key)}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
             className={cn(
-              "flex items-center w-full justify-between p-3 cursor-pointer border-b rounded-none",
-              (selectedModel === model.key || selectedModel === model.id) && 
-              "bg-accent"
+              "justify-between min-w-[150px] max-w-[200px] text-xs overflow-clip",
+              className
             )}
           >
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{model.name}</span>
-                {model.supportVision && (
-                  <Eye className="h-3 w-3 text-blue-600" />
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{model.provider}</span>
-                <div className="flex items-center gap-1">
-                  {getCostIcon(model.cost)}
-                  <span>{model.cost}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {getSpeedIcon(model.speed)}
-                  <span>{model.speed}</span>
-                </div>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="truncate text-xs">
+                {selectedModelData?.name}
+              </span>
             </div>
-          </DropdownMenuItem>
-        ))}
-        
-        {hasImages && (
-          <>
-            <DropdownMenuSeparator />
-            <div className="p-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2 mb-1">
-                <Eye className="h-3 w-3" />
-                <span className="font-medium">Vision Support</span>
-              </div>
-              <p>Only models with vision support can analyze images. Remove images to access text-only models.</p>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent
+          className="w-80 max-h-[300px] p-0 overflow-y-auto"
+          align="end"
+        >
+          <DropdownMenuLabel>
+            <div className="flex items-center justify-between">
+              <span>AI Models</span>
+              {hasImages && (
+                <Badge variant="secondary" className="text-xs">
+                  <Eye className="h-3 w-3 mr-1" />
+                  Vision Required
+                </Badge>
+              )}
             </div>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuLabel>
+
+          <DropdownMenuSeparator />
+
+          {hasImages && filteredAvailableModels.length === 0 && (
+            <div className="p-2 text-sm text-muted-foreground text-center">
+              No models support image analysis. Remove images to access more
+              models.
+            </div>
+          )}
+
+          {/* Available Models */}
+          {filteredAvailableModels.map((model) => (
+            <DropdownMenuItem
+              key={model.modelId}
+              onClick={() => onModelChange(model.modelId)}
+              className={cn(
+                "flex items-center justify-between p-3 cursor-pointer border-b rounded-none",
+                selectedModel === model.modelId && "bg-accent"
+              )}
+            >
+              <div className="flex flex-col gap-1 w-full">
+                <div className="flex items-center gap-2">
+                  {getSourceIcon(model.source)}
+                  <span className="font-medium">{model.name}</span>
+                  {model.modelData.supportVision && (
+                    <Eye className="h-3 w-3 text-blue-600" />
+                  )}
+                </div>
+                <div className="flex items-center w-full gap-3 text-xs text-muted-foreground">
+                  <span>{model.provider}</span>
+                  <div className="flex items-center gap-1">
+                    {getCostIcon(model.modelData.cost)}
+                    <span>{model.modelData.cost}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {getSpeedIcon(model.modelData.speed)}
+                    <span>{model.modelData.speed}</span>
+                  </div>
+                  <div className="flex justify-end w-full items-center gap-1">
+                    {getSourceBadge(model.source, model.isFree)}
+                  </div>
+                </div>
+              </div>
+            </DropdownMenuItem>
+          ))}
+
+          {/* Upgrade Section */}
+          {filteredUpgradeModels.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="p-3 text-center space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  {filteredUpgradeModels.length} more models available
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setUpgradeDialogOpen(true)}
+                  className="w-full"
+                >
+                  <Key className="h-3 w-3 mr-1" />
+                  Add OpenRouter Key
+                </Button>
+              </div>
+
+              {/* Show locked models */}
+              {filteredUpgradeModels.slice(0, 8).map((model) => (
+                <DropdownMenuItem
+                  key={model.modelId}
+                  onClick={() => handleUpgradeModelClick(model)}
+                  className="flex items-center justify-between p-3 cursor-pointer border-b rounded-none opacity-60"
+                >
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-3 w-3 text-amber-600" />
+                      <span className="font-medium">{model.name}</span>
+                      {model.modelData.supportVision && (
+                        <Eye className="h-3 w-3 text-blue-600" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>{model.provider}</span>
+                      <div className="flex items-center gap-1">
+                        {getCostIcon(model.modelData.cost)}
+                        <span>{model.modelData.cost}</span>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-amber-600"
+                      >
+                        Requires Key
+                      </Badge>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
+
+          {hasImages && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="p-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 mb-1">
+                  <Eye className="h-3 w-3" />
+                  <span className="font-medium">Vision Support</span>
+                </div>
+                <p>
+                  Only models with vision support can analyze images. Remove
+                  images to access text-only models.
+                </p>
+              </div>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <UpgradePromptDialog
+        open={upgradeDialogOpen}
+        onOpenChange={setUpgradeDialogOpen}
+        selectedModel={selectedUpgradeModel}
+        upgradeCount={filteredUpgradeModels.length}
+      />
+    </>
   );
 }

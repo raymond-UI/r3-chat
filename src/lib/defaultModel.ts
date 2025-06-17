@@ -1,6 +1,6 @@
 import { AI_MODELS } from "@/types/ai";
 import { UserApiKeys, UserAiPreferences } from "@/types/providers";
-import { getAvailableModels } from "./providers";
+import { getAvailableModelsSimple } from "./providers";
 
 /**
  * Get the appropriate default model based on user configuration and preferences
@@ -20,8 +20,8 @@ export function getDefaultModel(
   }
 
   // 2. Get available models based on user configuration
-  const availableModels = getAvailableModels(userKeys, userPrefs);
-  const accessibleModels = availableModels.filter(m => m.available);
+  const availableModels = getAvailableModelsSimple(userKeys, userPrefs);
+  const accessibleModels = availableModels;
 
   // 3. Smart defaults based on user's API key configuration
   if (userKeys?.openaiKey || (!userKeys && !userPrefs)) {
@@ -32,7 +32,7 @@ export function getDefaultModel(
       coding: "openai/gpt-4o-mini"
     };
     const defaultModel = openAIDefaults[context];
-    if (accessibleModels.some(m => m.modelId === defaultModel)) {
+    if (accessibleModels.some((m: { modelId: string }) => m.modelId === defaultModel)) {
       return defaultModel;
     }
   }
@@ -45,7 +45,7 @@ export function getDefaultModel(
       coding: "anthropic/claude-3.5-sonnet"
     };
     const defaultModel = anthropicDefaults[context];
-    if (accessibleModels.some(m => m.modelId === defaultModel)) {
+    if (accessibleModels.some((m: { modelId: string }) => m.modelId === defaultModel)) {
       return defaultModel;
     }
   }
@@ -57,7 +57,7 @@ export function getDefaultModel(
       coding: "google/gemini-2.0-flash-001"
     };
     const defaultModel = googleDefaults[context];
-    if (accessibleModels.some(m => m.modelId === defaultModel)) {
+    if (accessibleModels.some((m: { modelId: string }) => m.modelId === defaultModel)) {
       return defaultModel;
     }
   }
@@ -70,7 +70,7 @@ export function getDefaultModel(
   };
 
   const freeDefault = freeModelDefaults[context];
-  if (accessibleModels.some(m => m.modelId === freeDefault)) {
+  if (accessibleModels.some((m: { modelId: string }) => m.modelId === freeDefault)) {
     return freeDefault;
   }
 
