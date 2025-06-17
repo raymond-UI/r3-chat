@@ -74,7 +74,7 @@ export function ModelSelector({
         <Button 
           variant="outline" 
           size="sm" 
-          className={cn("justify-between min-w-[200px]", className)}
+          className={cn("justify-between min-w-[150px]", className)}
         >
           <div className="flex items-center gap-2">
             <span className="font-medium">{selectedModelData?.name}</span>
@@ -86,7 +86,7 @@ export function ModelSelector({
         </Button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent className="w-80" align="end">
+      <DropdownMenuContent className="w-80 max-h-[300px] p-0 overflow-y-auto" align="end">
         <DropdownMenuLabel>
           <div className="flex items-center justify-between">
             <span>AI Models</span>
@@ -113,7 +113,7 @@ export function ModelSelector({
             key={model.key}
             onClick={() => onModelChange(model.key)}
             className={cn(
-              "flex items-center justify-between p-3 cursor-pointer",
+              "flex items-center w-full justify-between p-3 cursor-pointer border-b rounded-none",
               (selectedModel === model.key || selectedModel === model.id) && 
               "bg-accent"
             )}

@@ -3,6 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
+After major update, create a summary of waht you did at @doc folder
 ## ✅ Progress Status - Updated
 
 ### Done so far:
@@ -34,6 +35,8 @@ alwaysApply: true
 
 Random TODO:
 - Only conversation creator can delete, even if other participants are part of the chat.?
+- File preview not showing on chat ui, alongside its message.
+- For users that havent set their own openrouter or other provider keys, use the system key, only access to free models for free users.
 
 ### 🎯 Next Priority Items - Phase 2
 

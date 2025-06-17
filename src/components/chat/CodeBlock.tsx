@@ -13,13 +13,15 @@ interface CodeBlockProps {
   language?: string;
   showLineNumbers?: boolean;
   className?: string;
+  "aria-label"?: string;
 }
 
 export function CodeBlock({ 
   code, 
   language = "plaintext", 
   showLineNumbers = true,
-  className 
+  className,
+  "aria-label": ariaLabel
 }: CodeBlockProps) {
   const { resolvedTheme } = useTheme();
   const [copied, setCopied] = useState(false);
@@ -35,7 +37,10 @@ export function CodeBlock({
   };
 
   return (
-    <div className={cn("codeblock relative group rounded-lg overflow-hidden w-full border border-border my-4", className)}>
+    <div 
+      className={cn("codeblock relative group rounded-lg overflow-hidden w-full border border-border my-4", className)}
+      aria-label={ariaLabel}
+    >
       {/* Header with language and copy button */}
       <div className="flex items-center justify-between bg-muted/50 px-4 py-2 text-sm">
         <span className="text-muted-foreground font-mono">
@@ -58,7 +63,6 @@ export function CodeBlock({
 
       {/* Code content */}
       <SyntaxHighlighter
-
         language={language}
         style={resolvedTheme === "dark" ? oneDark : oneLight}
         showLineNumbers={showLineNumbers}
@@ -66,6 +70,8 @@ export function CodeBlock({
         wrapLines
         customStyle={{
           margin: 0,
+          maxHeight: "500px",
+          overflowY: "auto",
           fontSize: "0.875rem",
           padding: "1rem",
           background: "transparent",
@@ -101,4 +107,4 @@ export function InlineCode({ children, className }: InlineCodeProps) {
       {children}
     </code>
   );
-} 
+}
