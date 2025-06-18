@@ -56,9 +56,11 @@ export const MODEL_PROVIDERS: Record<string, Provider> = Object.keys(AI_MODELS).
     case "Google":
       acc[modelId] = "google";
       break;
-    case "Meta":
+    case "OpenRouter":
+      acc[modelId] = "openrouter";
+      break;
     default:
-      // Default to OpenRouter for Meta and other providers
+      // Default to OpenRouter for other providers
       acc[modelId] = "openrouter";
       break;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { ITEM_HEIGHTS } from "@/types/virtualList";
@@ -20,7 +20,6 @@ interface VirtualizedConversationListProps {
   onNewChat: () => void;
   searchQuery: string;
   onClearSearch: () => void;
-  // All the conversation handlers from the original component
   onContextMenuPin: (conversationId: Id<"conversations">) => void;
   onContextMenuRename: (conversationId: Id<"conversations">) => void;
   onContextMenuDelete: (conversationId: Id<"conversations">) => void;
@@ -50,33 +49,25 @@ export function VirtualizedConversationList({
 }: VirtualizedConversationListProps) {
   const { user } = useUser();
   const { conversations, pinnedConversations, isLoading } = useConversations();
-  // console.log("[VirtualizedConversationList] isLoading:", isLoading);
   const parentRef = useRef<HTMLDivElement>(null);
-
-  // Track if conversations have ever loaded
-  const [hasLoaded, setHasLoaded] = useState(false);
-  useEffect(() => {
-    if (Array.isArray(conversations)) {
-      setHasLoaded(true);
-    }
-  }, [conversations]);
-
-  // Debug logs for data flow
-  // console.log("[VirtualizedConversationList] conversations:", conversations);
 
   // Debounce search query for performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // State for collapsed groups
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set()
+  );
 
   // Transform data using optimized hooks
-  const filteredConversations = useFilteredConversations(conversations, debouncedSearchQuery);
-  // console.log("[VirtualizedConversationList] filteredConversations:", filteredConversations);
-
-  const groupedConversations = useGroupedConversations(filteredConversations, debouncedSearchQuery);
-  // console.log("[VirtualizedConversationList] groupedConversations:", groupedConversations);
-
+  const filteredConversations = useFilteredConversations(
+    conversations,
+    debouncedSearchQuery
+  );
+  const groupedConversations = useGroupedConversations(
+    filteredConversations,
+    debouncedSearchQuery
+  );
   const virtualItems = useVirtualListItems(
     groupedConversations,
     pinnedConversations,
@@ -84,11 +75,10 @@ export function VirtualizedConversationList({
     collapsedGroups,
     debouncedSearchQuery
   );
-  // console.log("[VirtualizedConversationList] virtualItems:", virtualItems);
 
   // Toggle group visibility
   const handleToggleGroup = useCallback((groupId: string) => {
-    setCollapsedGroups(prev => {
+    setCollapsedGroups((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(groupId)) {
         newSet.delete(groupId);
@@ -100,34 +90,37 @@ export function VirtualizedConversationList({
   }, []);
 
   // Size estimator with dynamic heights
-  const getItemSize = useCallback((index: number) => {
-    const item = virtualItems[index];
-    if (!item) return ITEM_HEIGHTS.conversation;
+  const getItemSize = useCallback(
+    (index: number) => {
+      const item = virtualItems[index];
+      if (!item) return ITEM_HEIGHTS.conversation;
 
-    switch (item.type) {
-      case 'group-header':
-        return ITEM_HEIGHTS.groupHeader;
-      case 'conversation':
-        return ITEM_HEIGHTS.conversation;
-      case 'empty-state':
-        return ITEM_HEIGHTS.emptyState;
-      case 'spacing':
-        return item.height;
-      default:
-        return ITEM_HEIGHTS.conversation;
-    }
-  }, [virtualItems]);
+      switch (item.type) {
+        case "group-header":
+          return ITEM_HEIGHTS.groupHeader;
+        case "conversation":
+          return ITEM_HEIGHTS.conversation;
+        case "empty-state":
+          return ITEM_HEIGHTS.emptyState;
+        case "spacing":
+          return item.height;
+        default:
+          return ITEM_HEIGHTS.conversation;
+      }
+    },
+    [virtualItems]
+  );
 
   // Setup virtualizer
   const rowVirtualizer = useVirtualizer({
     count: virtualItems.length,
     getScrollElement: () => parentRef.current,
     estimateSize: getItemSize,
-    overscan: 5, // Render 5 extra items above/below viewport for smooth scrolling
+    overscan: 5,
   });
 
-  // Early return for loading state
-  if (!hasLoaded) {
+  // Simplified loading state logic
+  if (isLoading) {
     return (
       <div className="flex-1 overflow-hidden">
         <div className="p-4">
@@ -143,9 +136,8 @@ export function VirtualizedConversationList({
     );
   }
 
-  // Only show empty state if we're not loading AND have no conversations at all
-  // Don't rely solely on virtualItems.length as it might be 0 during processing
-  if (!isLoading && conversations.length === 0) {
+  // Handle empty states after loading is complete
+  if (!conversations || conversations.length === 0) {
     return (
       <div className="flex-1 overflow-auto">
         <div className="p-4 text-center text-muted-foreground">
@@ -156,8 +148,8 @@ export function VirtualizedConversationList({
     );
   }
 
-  // Show empty search results if we have conversations but no virtual items after filtering
-  if (!isLoading && conversations.length > 0 && virtualItems.length === 0 && debouncedSearchQuery) {
+  // Handle empty search results
+  if (debouncedSearchQuery && virtualItems.length === 0) {
     return (
       <div className="flex-1 overflow-auto">
         <div className="p-4 text-center text-muted-foreground">
@@ -169,27 +161,14 @@ export function VirtualizedConversationList({
     );
   }
 
-  // If virtualItems is empty but we have conversations and no search query,
-  // it means the hooks are still processing - render empty container to prevent flash
-  if (virtualItems.length === 0 && conversations.length > 0 && !debouncedSearchQuery) {
-    return (
-      <div className="flex-1 overflow-auto" style={{ minHeight: '200px' }}>
-        {/* Empty container while processing */}
-      </div>
-    );
-  }
-
+  // Main virtualized list
   return (
-    <div 
-      ref={parentRef} 
-      className="flex-1 overflow-auto"
-      style={{ minHeight: '200px' }} // Ensure container has minimum height
-    >
+    <div ref={parentRef} className="flex-1 overflow-auto">
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
+          width: "100%",
+          position: "relative",
         }}
       >
         {rowVirtualizer.getVirtualItems().map((virtualItem) => {
@@ -202,10 +181,10 @@ export function VirtualizedConversationList({
               virtualItem={virtualItem}
               item={item}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 0,
                 left: 0,
-                width: '100%',
+                width: "100%",
                 height: `${virtualItem.size}px`,
                 transform: `translateY(${virtualItem.start}px)`,
               }}

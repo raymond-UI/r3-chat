@@ -1,8 +1,17 @@
 // AI Models available through OpenRouter
+
+export enum Provider {
+  OpenAI = "OpenAI",
+  Anthropic = "Anthropic",
+  Google = "Google",
+  Meta = "Meta",
+  OpenRouter = "OpenRouter",
+}
+
 export const AI_MODELS = {
   "openai/gpt-4.1": {
     name: "GPT-4.1",
-    provider: "OpenAI",
+    provider: Provider.OpenAI,
     cost: "High",
     speed: "Medium",
     id: "openai/gpt-4.1",
@@ -11,7 +20,7 @@ export const AI_MODELS = {
   },
   "openai/gpt-4o-mini": {
     name: "GPT-4o Mini",
-    provider: "OpenAI",
+    provider: Provider.OpenAI,
     cost: "Low",
     speed: "Medium",
     id: "openai/gpt-4o-mini",
@@ -20,7 +29,7 @@ export const AI_MODELS = {
   },
   "openai/gpt-4o-mini-search-preview": {
     name: "GPT-4o Mini Search",
-    provider: "OpenAI",
+    provider: Provider.OpenAI,
     cost: "Medium",
     speed: "Medium",
     id: "openai/gpt-4o-mini-search-preview",
@@ -29,7 +38,7 @@ export const AI_MODELS = {
   },
   "openai/gpt-3.5-turbo": {
     name: "GPT-3.5 Turbo",
-    provider: "OpenAI",
+    provider: Provider.OpenAI,
     cost: "Low",
     speed: "Fast",
     id: "openai/gpt-3.5-turbo",
@@ -38,7 +47,7 @@ export const AI_MODELS = {
   },
   "anthropic/claude-sonnet-4": {
     name: "Claude Sonnet 4",
-    provider: "Anthropic",
+    provider: Provider.Anthropic,
     cost: "High",
     speed: "Medium",
     id: "anthropic/claude-sonnet-4",
@@ -47,7 +56,7 @@ export const AI_MODELS = {
   },
   "anthropic/claude-3.7-sonnet": {
     name: "Claude 3.7 Sonnet",
-    provider: "Anthropic",
+    provider: Provider.Anthropic,
     cost: "Medium",
     speed: "Medium",
     id: "anthropic/claude-3.7-sonnet",
@@ -56,7 +65,7 @@ export const AI_MODELS = {
   },
   "anthropic/claude-3.5-sonnet": {
     name: "Claude 3.5 Sonnet",
-    provider: "Anthropic",
+    provider: Provider.Anthropic,
     cost: "Medium",
     speed: "Medium",
     id: "anthropic/claude-3.5-sonnet",
@@ -65,7 +74,7 @@ export const AI_MODELS = {
   },
   "anthropic/claude-3-haiku": {
     name: "Claude 3 Haiku",
-    provider: "Anthropic",
+    provider: Provider.Anthropic,
     cost: "Medium",
     speed: "Fast",
     id: "anthropic/claude-3-haiku",
@@ -74,7 +83,7 @@ export const AI_MODELS = {
   },
   "gemini-2.5-pro": {
     name: "Gemini 2.5 Pro",
-    provider: "Google",
+    provider: Provider.Google,
     cost: "Medium",
     speed: "Fast",
     id: "google/gemini-2.5-pro",
@@ -83,7 +92,7 @@ export const AI_MODELS = {
   },
   "google/gemini-2.0-flash-001": {
     name: "Gemini 2.0 Flash",
-    provider: "Google",
+    provider: Provider.Google,
     cost: "Medium",
     speed: "Fast",
     id: "google/gemini-2.0-flash-001",
@@ -92,16 +101,16 @@ export const AI_MODELS = {
   },
   "google/gemini-2.0-flash-exp:free": {
     name: "Gemini 2.0 Flash (free)",
-    provider: "Google",
+    provider: Provider.OpenRouter,
     cost: "Free",
     speed: "Medium",
     id: "google/gemini-2.0-flash-exp:free",
-    supportVision: true,
+    supportVision: false,
     search: false,
   },
   "meta-llama/llama-3.3-8b-instruct:free": {
     name: "Llama 3.3 (free)",
-    provider: "Meta",
+    provider: Provider.OpenRouter,
     cost: "Free",
     speed: "Medium",
     id: "meta-llama/llama-3.3-8b-instruct:free",

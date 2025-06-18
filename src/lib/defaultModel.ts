@@ -64,7 +64,7 @@ export function getDefaultModel(
 
   // 5. Free model fallbacks (always available through system OpenRouter)
   const freeModelDefaults = {
-    chat: "google/gemini-2.0-flash-exp:free",
+    chat: "meta-llama/llama-3.3-8b-instruct:free",
     vision: "google/gemini-2.0-flash-exp:free",
     coding: "meta-llama/llama-3.3-8b-instruct:free" // Llama better for coding
   };

@@ -266,7 +266,7 @@ export function useChat({
   useEffect(() => {
     if (model) {
       setSelectedModel(model);
-    } else if (configuration) {
+    } else if (configuration && !conversationId) { // Only update for new conversations
       const dynamicDefault = getDefaultModel(
         configuration.apiKeys || null,
         configuration.preferences || null,
@@ -274,7 +274,7 @@ export function useChat({
       );
       setSelectedModel(dynamicDefault);
     }
-  }, [model, configuration]);
+  }, [model, configuration, conversationId]); // Add conversationId to dependencies
 
   // Sync messages when Convex data changes - with deduplication
   const [lastSyncedMessageCount, setLastSyncedMessageCount] = useState(0);

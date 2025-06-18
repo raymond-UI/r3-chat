@@ -13,6 +13,7 @@ interface ConversationItemProps {
     title: string;
     lastMessage?: string;
     updatedAt: number;
+    
     isCollaborative?: boolean;
     showcase?: {
       isShownOnProfile: boolean;

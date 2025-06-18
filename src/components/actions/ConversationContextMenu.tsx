@@ -101,12 +101,15 @@ export function ConversationContextMenu({
     <ContextMenu onOpenChange={onOpenChange}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-[200px]">
+
+      <Authenticated>
         {/* Pin/Unpin */}
         <ContextMenuItemWithBadge
           icon={<Pin className="h-4 w-4" />}
           label={isPinned ? "Unpin" : "Pin"}
           onClick={onPin}
         />
+        </Authenticated>
 
         {/* Rename */}
         <ContextMenuItemWithBadge
