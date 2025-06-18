@@ -54,6 +54,7 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
   const [isSending, setIsSending] = useState(false);
   const [hasTriggeredInitialResponse, setHasTriggeredInitialResponse] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isAwaitingAIResponse, setIsAwaitingAIResponse] = useState(false);
 
   // Transform AI messages to display format
   const displayMessages = useChatMessages({
@@ -83,6 +84,7 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
       const triggerAIResponse = async () => {
         try {
           setHasTriggeredInitialResponse(true);
+          setIsAwaitingAIResponse(true);
           await reload();
         } catch (error) {
           console.error("Failed to trigger initial AI response:", error);
@@ -111,6 +113,7 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
     ) return;
 
     setIsSending(true);
+    setIsAwaitingAIResponse(true);
 
     try {
       await stopTyping();
@@ -184,11 +187,23 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
     canSend = !!(conversation && conversation.createdBy === anonId);
   }
 
+  // Reset isAwaitingAIResponse when AI starts or finishes streaming
+  useEffect(() => {
+    if (aiIsLoading) {
+      setIsAwaitingAIResponse(false);
+    }
+    // Also reset if AI is not loading (response finished)
+    if (!aiIsLoading) {
+      setIsAwaitingAIResponse(false);
+    }
+  }, [aiIsLoading]);
+
   return (
     <div className="flex-1 flex flex-col w-full h-full mt-11 sm:mt-0 relative mx-auto overflow-hidden">
       <ChatScrollManager
         messages={displayMessages}
         isStreaming={aiIsLoading}
+        isAwaitingAIResponse={isAwaitingAIResponse}
         conversationId={conversationId}
         typingUsers={typingUsers}
         aiError={aiError}

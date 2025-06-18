@@ -5,12 +5,7 @@ import { memo, useMemo } from "react";
 import { Id, Doc } from "../../../convex/_generated/dataModel";
 import dynamic from "next/dynamic";
 import type { ChatMessage } from "@/types/message";
-
-// Lazy load heavy components
-const AiIndicator = dynamic(
-  () => import("../indicators/LoadingIndicator").then((mod) => mod.LoadingIndicator),
-  { ssr: false }
-);
+import { LoadingIndicator } from "../indicators/LoadingIndicator";
 
 const MessageList = dynamic(
   () => import("./MessageList").then((mod) => mod.MessageList),
@@ -38,6 +33,13 @@ export const ChatMessages = memo(function ChatMessages({
   // Memoize message list to prevent re-renders when only streaming state changes
   const memoizedMessages = useMemo(() => messages, [messages]);
 
+  // Show indicator if streaming, or if initial loading and first message is from user and no AI message yet
+  const showLoadingIndicator = isStreaming || (
+    isInitialLoading &&
+    messages.length === 1 &&
+    messages[0]?.type === "user"
+  );
+
   return (
     <>
       <MessageList
@@ -46,10 +48,10 @@ export const ChatMessages = memo(function ChatMessages({
         isLoading={isInitialLoading}
       />
 
-      {/* AI streaming indicator - only render when actually streaming */}
-      {isStreaming && (
-        <div className="mt-4">
-          <AiIndicator />
+      {/* AI streaming/awaiting indicator - show when streaming or awaiting first response */}
+      {showLoadingIndicator && (
+        <div className="mt-4 rounded-e-3xl p-4">
+          <LoadingIndicator />
         </div>
       )}
 

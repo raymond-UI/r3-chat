@@ -1,42 +1,39 @@
-# R3 Chat – T3 Chat Cloneathon Submission 🚀
+# R3 Chat – [Live demo](https://r3-chat.vercel.app) 🚀
 
-**R3 Chat** is a sleek, real-time AI chat app built for the [T3 Chat Cloneathon](https://t3.gg). It checks all required boxes—then goes further—with powerful features, clean UX, and performance-first engineering.
+**R3 Chat** is a sleek, real-time AI chat app built for the [T3 Chat Cloneathon](cloneathon.t3.chat). It checks all required boxes—then goes further—with powerful features, clean UX, and performance-first engineering.
 
 ---
 
 ## ✅ Cloneathon Requirements Met
 
 **Core Features**
-- ✅ Chat with multiple LLMs (OpenAI, Anthropic, Google, OpenRouter, etc.)
+- ✅ Chat with multiple LLMs 
 - ✅ Model selector with vision support, provider badges, cost/speed indicators
-- ✅ Authentication via Clerk (Google, GitHub, Email)
+- ✅ Authentication via Clerk (Google, GitHub)
 - ✅ Real-time sync across devices
 - ✅ Fully web-based and responsive (mobile-first)
 - ✅ Guest/anonymous mode for instant tryout
 - ✅ Shareable links for chats and profiles
 
 **Bonus Features**
-- ✅ File upload (images, PDFs), inline previews, PDF text extraction
-- ✅ Text-to-image support (DALL·E, Gemini, etc.)
-- ✅ Code syntax highlighting with copy, line numbers, themes
-- ✅ Streaming responses with auto-resume on refresh
-- ✅ Chat branching (full or partial) with visual switcher
+- ✅ Bring Your Own Key (BYOK) support (OpenAI, Anthropic, Google, OpenRouter)
+- ✅ File upload (images, PDFs), for models thaqt supoorts files
+- ✅ Code syntax highlighting
+- ✅ Chat/Conversation branching
 - ✅ Chat sharing with password, expiration, and anonymous options
-- ✅ Built-in web search for live data
-- ✅ Bring Your Own Key (BYOK) support
+- ⚠️ Web search with models that supports
 
 ---
 
 ## ✨ Extra Value Adds
 
 - ✅ Public user profiles with conversation showcases (SEO-friendly)
-- ✅ Tags, pins, filters for organizing chats
 - ✅ Real-time multi-user chat rooms with live presence & invites
-- ✅ Planned: export conversations to PDF/Markdown
-- ✅ Mobile-first UI, buttery smooth interactions
-- ✅ Advanced access control (owner-only deletes, granular share modes)
-- ✅ Auto-save, scroll state, and context continuity
-- ✅ Planned: custom AI personas per conversation
+- ✅ Tags, pins, filters for organizing chats
+---
+- ⌛ Planned: export conversations to PDF/Markdown
+- ⌛ Planned: custom AI personas per conversation
+- ⌛ Resumable stream
 
 ---
 
@@ -56,11 +53,17 @@
 
 ```bash
 git clone https://github.com/raymond-ui/r3-chat
+```
+```bash
 cd r3-chat
+```
+Create .env with keys — see env.examples
+```bash
 pnpm install
-# Create .env with keys — see env.examples
+```
+```bash
 pnpm dev
-
+```
 
 ## 📄 License  
 [Apache 2.0](./LICENSE)

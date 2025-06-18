@@ -19,7 +19,7 @@
 
 # production
 /build
-
+src/components/actions/ChatBubbleAction v1.tsx
 # misc
 .DS_Store
 *.pem

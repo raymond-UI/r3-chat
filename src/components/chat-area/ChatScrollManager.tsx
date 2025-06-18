@@ -11,6 +11,7 @@ import type { ChatMessage } from "@/types/message";
 interface ChatScrollManagerProps {
   messages: ChatMessage[];
   isStreaming: boolean;
+  isAwaitingAIResponse?: boolean;
   conversationId: Id<"conversations">;
   typingUsers: Doc<"presence">[];
   aiError: Error | null | undefined;
@@ -21,6 +22,7 @@ interface ChatScrollManagerProps {
 export const ChatScrollManager = memo(function ChatScrollManager({
   messages,
   isStreaming,
+  isAwaitingAIResponse = false,
   conversationId,
   typingUsers,
   aiError,
@@ -154,7 +156,7 @@ export const ChatScrollManager = memo(function ChatScrollManager({
       <ChatMessages
         messages={memoizedMessages}
         conversationId={conversationId}
-        isStreaming={isStreaming}
+        isStreaming={isStreaming || isAwaitingAIResponse}
         typingUsers={typingUsers}
         aiError={aiError}
         isInitialLoading={isInitialLoading}

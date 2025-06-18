@@ -1,37 +1,21 @@
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { gsap } from "gsap";
-import {
-  Copy,
-  GitBranch,
-  GitMerge,
-  Pencil,
-  RefreshCcw,
-  RefreshCw,
-  RotateCcw,
-} from "lucide-react";
+import { Copy, GitMerge, Pencil } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface ChatBubbleActionProps {
   visible: boolean;
   onEdit: (event: React.MouseEvent) => void;
-  onRetry: (event: React.MouseEvent) => void;
-  onRetryAlternative: (event: React.MouseEvent) => void;
   onCopy: (event: React.MouseEvent) => void;
   onBranchConversation: (event: React.MouseEvent) => void;
-  onDropdownOpenChange?: (isOpen: boolean) => void;
+  // onDropdownOpenChange?: (isOpen: boolean) => void;
   isAssistant: boolean;
   readOnly?: boolean;
 }
@@ -39,17 +23,14 @@ interface ChatBubbleActionProps {
 export function ChatBubbleAction({
   visible,
   onEdit,
-  onRetry,
-  onRetryAlternative,
   onCopy,
   onBranchConversation,
-  onDropdownOpenChange,
+  // onDropdownOpenChange,
   isAssistant,
   readOnly = false,
 }: ChatBubbleActionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [isRetryDropdownOpen, setIsRetryDropdownOpen] = useState(false);
 
   // GSAP hover animations for buttons
   useEffect(() => {
@@ -65,7 +46,7 @@ export function ChatBubbleAction({
           ease: "power2.out",
         });
 
-        // Add subtle rotation for the Plus icon
+        // Add subtle rotation for the Plus icon (assuming it's the first button)
         if (index === 0) {
           gsap.to(button.querySelector("svg"), {
             rotation: 90,
@@ -108,7 +89,7 @@ export function ChatBubbleAction({
       gsap.fromTo(
         menuRef.current,
         { x: 40, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.25, ease: "power2.out" }
+        { x: 0, opacity: 1, duration: 0.25, ease: "power2.out" },
       );
     }
   }, [visible]);
@@ -124,7 +105,7 @@ export function ChatBubbleAction({
                   <Button
                     ref={(el) => {
                       buttonRefs.current[0] = el;
-                    }}
+                    }} // This is now the first button
                     variant="ghost"
                     size="icon"
                     onClick={onEdit}
@@ -139,90 +120,12 @@ export function ChatBubbleAction({
               </Tooltip>
             )}
 
-            {!readOnly && isAssistant ? (
-              <DropdownMenu
-                open={isRetryDropdownOpen}
-                onOpenChange={(open) => {
-                  setIsRetryDropdownOpen(open);
-                  onDropdownOpenChange?.(open);
-                }}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        ref={(el) => {
-                          buttonRefs.current[1] = el;
-                        }}
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-destructive transition-colors"
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Retry Options</p>
-                  </TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="start" className="w-full max-w-2xs">
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRetry(e);
-                      setIsRetryDropdownOpen(false);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    Retry
-                    <span className="text-xs text-muted-foreground/70 ml-auto">
-                      Replace
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRetryAlternative(e);
-                      setIsRetryDropdownOpen(false);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <GitBranch className="h-4 w-4" />
-                    Retry Alternative
-                    <span className="text-xs text-muted-foreground/70 ml-auto">
-                      Create branch
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : !readOnly && !isAssistant ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    ref={(el) => {
-                      buttonRefs.current[1] = el;
-                    }}
-                    variant="ghost"
-                    size="icon"
-                    onClick={onRetry}
-                    className="hover:bg-destructive transition-colors"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Retry</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   ref={(el) => {
-                    buttonRefs.current[2] = el;
+                    // Adjust index based on whether edit button is present
+                    buttonRefs.current[!readOnly && !isAssistant ? 1 : 0] = el;
                   }}
                   variant="ghost"
                   size="icon"
@@ -242,7 +145,9 @@ export function ChatBubbleAction({
                 <TooltipTrigger asChild>
                   <Button
                     ref={(el) => {
-                      buttonRefs.current[3] = el;
+                      // Adjust index based on whether edit and copy buttons are present
+                      const copyButtonIndex = !readOnly && !isAssistant ? 1 : 0;
+                      buttonRefs.current[copyButtonIndex + 1] = el;
                     }}
                     variant="ghost"
                     size="icon"
