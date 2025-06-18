@@ -27,12 +27,13 @@ import { api } from "../../../convex/_generated/api";
 import {
   getAvailableModelsSimple,
   getUpgradeRequiredModels,
-  type SimpleModelAvailability,
+  type ModelAvailability,
 } from "@/lib/providers";
 import dynamic from "next/dynamic";
 import { Authenticated, Unauthenticated } from "convex/react";
 import Link from "next/link";
 import { buttonVariants } from "../ui/button";
+import { ModelSelectorFilter, ModelFilter } from "./ModelSelectorFilter";
 
 
 const UpgradePromptDialog = dynamic(
@@ -84,8 +85,9 @@ export function ModelSelector({
   const { user } = useUser();
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [selectedUpgradeModel, setSelectedUpgradeModel] = useState<
-    SimpleModelAvailability | undefined
+    ModelAvailability | undefined
   >();
+  const [selectedFilters, setSelectedFilters] = useState<ModelFilter[]>([]);
 
   // Get user configuration
   const configuration = useQuery(
@@ -105,25 +107,34 @@ export function ModelSelector({
     configuration?.preferences || null
   );
 
-  // Filter models if user has images attached
-  const filteredAvailableModels = hasImages
+  // Filter models by selected filters
+  const filterBySelected = (model: ModelAvailability) => {
+    return selectedFilters.every((filter) => {
+      if (filter === "fast") return model.modelData.speed === "Fast";
+      if (filter === "vision") return model.modelData.supportVision;
+      if (filter === "search") return model.modelData.search === true;
+      return true;
+    });
+  };
+  const filteredAvailableModels = (hasImages
     ? availableModels.filter((m) => m.modelData.supportVision)
-    : availableModels;
-
-  const filteredUpgradeModels = hasImages
+    : availableModels
+  ).filter(filterBySelected);
+  const filteredUpgradeModels = (hasImages
     ? upgradeModels.filter((m) => m.modelData.supportVision)
-    : upgradeModels;
+    : upgradeModels
+  ).filter(filterBySelected);
 
   const selectedModelData =
     filteredAvailableModels.find((m) => m.modelId === selectedModel) ||
     filteredAvailableModels[0];
 
-  const handleUpgradeModelClick = (model: SimpleModelAvailability) => {
+  const handleUpgradeModelClick = (model: ModelAvailability) => {
     setSelectedUpgradeModel(model);
     setUpgradeDialogOpen(true);
   };
 
-  const getSourceIcon = (source: SimpleModelAvailability["source"]) => {
+  const getSourceIcon = (source: ModelAvailability["source"]) => {
     switch (source) {
       case "provider":
         return <Shield className="h-3 w-3 text-green-600" />;
@@ -137,7 +148,7 @@ export function ModelSelector({
   };
 
   const getSourceBadge = (
-    source: SimpleModelAvailability["source"],
+    source: ModelAvailability["source"],
     isFree: boolean
   ) => {
     if (isFree)
@@ -191,10 +202,16 @@ export function ModelSelector({
           align="end"
         >
           <DropdownMenuLabel>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between w-full">
               <span>AI Models</span>
+              <div className="ml-auto">
+                <ModelSelectorFilter
+                  selectedFilters={selectedFilters}
+                  onChange={setSelectedFilters}
+                />
+              </div>
               {hasImages && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs ml-2">
                   <Eye className="h-3 w-3 mr-1" />
                   Vision Required
                 </Badge>

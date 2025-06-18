@@ -176,9 +176,44 @@ export async function getModelInstance(
   userPrefs: UserAiPreferences | null,
   modelId: string
 ): Promise<LanguageModel> {
+  const modelProvider = MODEL_PROVIDERS[modelId];
+
+  // Check if model exists
+  if (!modelProvider) {
+    throw new Error(`Model '${modelId}' is not supported. Please select a valid model.`);
+  }
+
+  // Check if user has configured direct provider key
+  const hasDirectKey = userKeys?.[`${modelProvider}Key` as keyof UserApiKeys];
+  const wantsDirectProvider = userPrefs?.defaultProviders?.[modelProvider];
+
+  // If user wants direct provider but doesn't have key
+  if (wantsDirectProvider && !hasDirectKey) {
+    throw new Error(
+      `You have configured ${modelProvider} as your default provider but haven't added an API key. ` +
+      `Please add your ${modelProvider} API key in Settings or switch to a different provider.`
+    );
+  }
+
+  // If no direct key and no OpenRouter key
+  const modelData = AI_MODELS[modelId as keyof typeof AI_MODELS];
+  const isFree = modelData && modelData.cost === "Free";
+  if (!hasDirectKey && !userKeys?.openrouterKey) {
+    if (isFree) {
+      // Allow free models to proceed using system OpenRouter key
+      const config = getSystemDefaultConfig(modelId);
+      const provider = createProviderInstance(config);
+      return (provider as ProviderFunction)(config.model);
+    }
+    throw new Error(
+      `No API keys available for model '${modelId}'. ` +
+      `Please add either a ${modelProvider} API key or an OpenRouter API key in Settings.`
+    );
+  }
+
   const config = await getProviderConfig(userKeys, userPrefs, modelId);
   const provider = createProviderInstance(config);
-  
+
   // Type assertion to handle union type properly
   return (provider as ProviderFunction)(config.model);
 }
@@ -203,89 +238,89 @@ export function getCostMultiplier(source: KeySource, provider: Provider): number
   }
 }
 
-// Get available models with key status information
-export function getAvailableModels(
-  userKeys: UserApiKeys | null,
-  userPrefs: UserAiPreferences | null
-) {
-  return Object.entries(AI_MODELS).map(([modelId, modelData]) => {
-    const provider = MODEL_PROVIDERS[modelId];
-    const availableSources: Array<{
-      type: KeySource;
-      configured: boolean;
-      costMultiplier?: number;
-    }> = [];
+// // Get available models with key status information
+// export function getAvailableModels(
+//   userKeys: UserApiKeys | null,
+//   userPrefs: UserAiPreferences | null
+// ) {
+//   return Object.entries(AI_MODELS).map(([modelId, modelData]) => {
+//     const provider = MODEL_PROVIDERS[modelId];
+//     const availableSources: Array<{
+//       type: KeySource;
+//       configured: boolean;
+//       costMultiplier?: number;
+//     }> = [];
 
-    // Check system default availability
-    availableSources.push({
-      type: 'system-default',
-      configured: true,
-      costMultiplier: getCostMultiplier('system-default', provider),
-    });
+//     // Check system default availability
+//     availableSources.push({
+//       type: 'system-default',
+//       configured: true,
+//       costMultiplier: getCostMultiplier('system-default', provider),
+//     });
 
-    // Check user's OpenRouter key
-    if (userKeys?.openrouterKey) {
-      availableSources.push({
-        type: 'user-openrouter',
-        configured: true,
-        costMultiplier: getCostMultiplier('user-openrouter', provider),
-      });
-    }
+//     // Check user's OpenRouter key
+//     if (userKeys?.openrouterKey) {
+//       availableSources.push({
+//         type: 'user-openrouter',
+//         configured: true,
+//         costMultiplier: getCostMultiplier('user-openrouter', provider),
+//       });
+//     }
 
-    // Check direct provider key
-    const providerKey = userKeys?.[`${provider}Key` as keyof UserApiKeys];
-    if (providerKey) {
-      availableSources.push({
-        type: 'user-direct',
-        configured: true,
-        costMultiplier: getCostMultiplier('user-direct', provider),
-      });
-    }
+//     // Check direct provider key
+//     const providerKey = userKeys?.[`${provider}Key` as keyof UserApiKeys];
+//     if (providerKey) {
+//       availableSources.push({
+//         type: 'user-direct',
+//         configured: true,
+//         costMultiplier: getCostMultiplier('user-direct', provider),
+//       });
+//     }
 
-    // Determine current source based on simplified logic
-    let currentSource: KeySource = 'system-default';
-    const available = true;
+//     // Determine current source based on simplified logic
+//     let currentSource: KeySource = 'system-default';
+//     const available = true;
 
-    // Use the simplified logic: Provider key → OpenRouter key → System key
-    const useDirectProvider = userPrefs?.defaultProviders?.[provider] && providerKey;
+//     // Use the simplified logic: Provider key → OpenRouter key → System key
+//     const useDirectProvider = userPrefs?.defaultProviders?.[provider] && providerKey;
     
-    if (useDirectProvider) {
-      currentSource = 'user-direct';
-    } else if (userKeys?.openrouterKey) {
-      currentSource = 'user-openrouter';
-    } else {
-      currentSource = 'system-default';
-    }
+//     if (useDirectProvider) {
+//       currentSource = 'user-direct';
+//     } else if (userKeys?.openrouterKey) {
+//       currentSource = 'user-openrouter';
+//     } else {
+//       currentSource = 'system-default';
+//     }
 
-    return {
-      modelId,
-      name: modelData.name,
-      provider,
-      availableSources,
-      currentSource,
-      available,
-      modelData, // Include original model data
-    };
-  });
-}
+//     return {
+//       modelId,
+//       name: modelData.name,
+//       provider,
+//       availableSources,
+//       currentSource,
+//       available,
+//       modelData, // Include original model data
+//     };
+//   });
+// }
 
-// Helper to check if a specific model is available with current configuration
-export function isModelAvailable(
-  modelId: string,
-  userKeys: UserApiKeys | null,
-  userPrefs: UserAiPreferences | null
-): boolean {
-  try {
-    const models = getAvailableModels(userKeys, userPrefs);
-    const model = models.find(m => m.modelId === modelId);
-    return model?.available ?? false;
-  } catch {
-    return false;
-  }
-}
+// // Helper to check if a specific model is available with current configuration
+// export function isModelAvailable(
+//   modelId: string,
+//   userKeys: UserApiKeys | null,
+//   userPrefs: UserAiPreferences | null
+// ): boolean {
+//   try {
+//     const models = getAvailableModels(userKeys, userPrefs);
+//     const model = models.find(m => m.modelId === modelId);
+//     return model?.available ?? false;
+//   } catch {
+//     return false;
+//   }
+// }
 
 // Simplified model availability for better UX
-export interface SimpleModelAvailability {
+export interface ModelAvailability {
   modelId: string;
   name: string;
   provider: Provider;
@@ -296,10 +331,10 @@ export interface SimpleModelAvailability {
   isFree: boolean;
 }
 
-export function getSimplifiedModelAvailability(
+export function getModelAvailability(
   userKeys: UserApiKeys | null,
   userPrefs: UserAiPreferences | null = null
-): SimpleModelAvailability[] {
+): ModelAvailability[] {
   return Object.entries(AI_MODELS).map(([modelId, modelData]) => {
     const provider = MODEL_PROVIDERS[modelId];
     const isFree = modelData.cost === "Free";
@@ -337,14 +372,14 @@ export function getSimplifiedModelAvailability(
 export function getAvailableModelsSimple(
   userKeys: UserApiKeys | null,
   userPrefs: UserAiPreferences | null = null
-): SimpleModelAvailability[] {
-  return getSimplifiedModelAvailability(userKeys, userPrefs).filter(m => m.available);
+): ModelAvailability[] {
+  return getModelAvailability(userKeys, userPrefs).filter(m => m.available);
 }
 
 // Get models that require upgrade
 export function getUpgradeRequiredModels(
   userKeys: UserApiKeys | null,
   userPrefs: UserAiPreferences | null = null
-): SimpleModelAvailability[] {
-  return getSimplifiedModelAvailability(userKeys, userPrefs).filter(m => m.requiresUpgrade);
+): ModelAvailability[] {
+  return getModelAvailability(userKeys, userPrefs).filter(m => m.requiresUpgrade);
 } 

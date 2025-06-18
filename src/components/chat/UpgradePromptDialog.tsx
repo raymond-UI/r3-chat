@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { SimpleModelAvailability } from "@/lib/providers";
+import type { ModelAvailability } from "@/lib/providers";
 import { Key, Lock, Shield, Sparkles } from "lucide-react";
 import { useState, useCallback } from "react";
 import { ApiKeyDialog } from "@/components/ApiKeyDialog";
@@ -21,7 +21,7 @@ import type { Provider, ProviderId } from "@/types/api-keys";
 interface UpgradePromptDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedModel?: SimpleModelAvailability;
+  selectedModel?: ModelAvailability;
   upgradeCount: number;
 }
 

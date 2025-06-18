@@ -13,7 +13,7 @@ import { Button } from "./ui/button";
 import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { getSimplifiedModelAvailability } from "@/lib/providers";
+import { getModelAvailability } from "@/lib/providers";
 
 interface ProviderCardProps {
   readonly provider: Provider;
@@ -39,7 +39,7 @@ export const ProviderCard = memo<ProviderCardProps>(
     );
 
     // Get model availability for this provider
-    const allModels = getSimplifiedModelAvailability(
+    const allModels = getModelAvailability(
       configuration?.apiKeys || null,
       configuration?.preferences || null
     );

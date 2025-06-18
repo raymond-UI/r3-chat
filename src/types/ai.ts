@@ -7,7 +7,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "openai/gpt-4.1",
     supportVision: true,
-    search: true,
+    search: false,
   },
   "openai/gpt-4o-mini": {
     name: "GPT-4o Mini",
@@ -16,6 +16,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "openai/gpt-4o-mini",
     supportVision: true,
+    search: false,
   },
   "openai/gpt-4o-mini-search-preview": {
     name: "GPT-4o Mini Search",
@@ -33,6 +34,7 @@ export const AI_MODELS = {
     speed: "Fast",
     id: "openai/gpt-3.5-turbo",
     supportVision: false,
+    search: false,
   },
   "anthropic/claude-sonnet-4": {
     name: "Claude Sonnet 4",
@@ -41,6 +43,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "anthropic/claude-sonnet-4",
     supportVision: true,
+    search: false,
   },
   "anthropic/claude-3.7-sonnet": {
     name: "Claude 3.7 Sonnet",
@@ -49,6 +52,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "anthropic/claude-3.7-sonnet",
     supportVision: true,
+    search: false,
   },
   "anthropic/claude-3.5-sonnet": {
     name: "Claude 3.5 Sonnet",
@@ -57,6 +61,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "anthropic/claude-3.5-sonnet",
     supportVision: true,
+    search: false,
   },
   "anthropic/claude-3-haiku": {
     name: "Claude 3 Haiku",
@@ -65,6 +70,7 @@ export const AI_MODELS = {
     speed: "Fast",
     id: "anthropic/claude-3-haiku",
     supportVision: false,
+    search: false,
   },
   "gemini-2.5-pro": {
     name: "Gemini 2.5 Pro",
@@ -73,6 +79,7 @@ export const AI_MODELS = {
     speed: "Fast",
     id: "google/gemini-2.5-pro",
     supportVision: true,
+    search: false,
   },
   "google/gemini-2.0-flash-001": {
     name: "Gemini 2.0 Flash",
@@ -90,7 +97,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "google/gemini-2.0-flash-exp:free",
     supportVision: true,
-    functionCalling: true,
+    search: false,
   },
   "meta-llama/llama-3.3-8b-instruct:free": {
     name: "Llama 3.3 (free)",
@@ -99,6 +106,7 @@ export const AI_MODELS = {
     speed: "Medium",
     id: "meta-llama/llama-3.3-8b-instruct:free",
     supportVision: false,
+    search: false,
   },
 } as const;
 

@@ -12,6 +12,7 @@ After major update, create a summary of waht you did at @doc folder
 - ✅ **Basic AI chat with collaboration via invite** (Multi-user support working)
 - ✅ **Syntax Highlighting** (Code formatting implemented) 
 - ✅ **AI SDK Integration** (Fixed streaming, eliminated duplicate saves)
+- ✅ **Anonymous chats**:  signed out users can test connversations
 
 - ⚠️ **File upload integration** - basic upload, pdf direct passing to ai working, still need proper passing to vision models.
 

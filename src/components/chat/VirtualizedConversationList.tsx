@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback, useState } from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { ITEM_HEIGHTS } from "@/types/virtualList";
@@ -50,7 +50,19 @@ export function VirtualizedConversationList({
 }: VirtualizedConversationListProps) {
   const { user } = useUser();
   const { conversations, pinnedConversations, isLoading } = useConversations();
+  // console.log("[VirtualizedConversationList] isLoading:", isLoading);
   const parentRef = useRef<HTMLDivElement>(null);
+
+  // Track if conversations have ever loaded
+  const [hasLoaded, setHasLoaded] = useState(false);
+  useEffect(() => {
+    if (Array.isArray(conversations)) {
+      setHasLoaded(true);
+    }
+  }, [conversations]);
+
+  // Debug logs for data flow
+  // console.log("[VirtualizedConversationList] conversations:", conversations);
 
   // Debounce search query for performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -60,7 +72,11 @@ export function VirtualizedConversationList({
 
   // Transform data using optimized hooks
   const filteredConversations = useFilteredConversations(conversations, debouncedSearchQuery);
+  // console.log("[VirtualizedConversationList] filteredConversations:", filteredConversations);
+
   const groupedConversations = useGroupedConversations(filteredConversations, debouncedSearchQuery);
+  // console.log("[VirtualizedConversationList] groupedConversations:", groupedConversations);
+
   const virtualItems = useVirtualListItems(
     groupedConversations,
     pinnedConversations,
@@ -68,6 +84,7 @@ export function VirtualizedConversationList({
     collapsedGroups,
     debouncedSearchQuery
   );
+  // console.log("[VirtualizedConversationList] virtualItems:", virtualItems);
 
   // Toggle group visibility
   const handleToggleGroup = useCallback((groupId: string) => {
@@ -110,7 +127,7 @@ export function VirtualizedConversationList({
   });
 
   // Early return for loading state
-  if (isLoading) {
+  if (!hasLoaded) {
     return (
       <div className="flex-1 overflow-hidden">
         <div className="p-4">

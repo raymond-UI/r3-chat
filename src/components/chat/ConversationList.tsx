@@ -3,11 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConversations } from "@/hooks/useConversations";
-import {
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -15,22 +11,29 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { VirtualizedConversationList } from "./VirtualizedConversationList";
 import dynamic from "next/dynamic";
 
-const ConfirmationModal = dynamic(() => import("../actions/ConfirmationModal").then((mod) => mod.ConfirmationModal), {
-  ssr: false,
-});
+const ConfirmationModal = dynamic(
+  () =>
+    import("../actions/ConfirmationModal").then((mod) => mod.ConfirmationModal),
+  {
+    ssr: false,
+  }
+);
 
-const ConversationShowcaseDialog = dynamic(() => import("../profile/ConversationShowcaseDialog").then((mod) => mod.ConversationShowcaseDialog), {
-  ssr: false,
-});
-
+const ConversationShowcaseDialog = dynamic(
+  () =>
+    import("../profile/ConversationShowcaseDialog").then(
+      (mod) => mod.ConversationShowcaseDialog
+    ),
+  {
+    ssr: false,
+  }
+);
 
 interface ConversationListProps {
   activeConversationId?: Id<"conversations">;
   onSelectConversation: (id: Id<"conversations">) => void;
   onNewChat: () => void;
 }
-
-
 
 export function ConversationList({
   activeConversationId,
@@ -129,8 +132,6 @@ export function ConversationList({
     }
   };
 
-
-
   const handleQuickStart = () => {
     onNewChat();
   };
@@ -138,21 +139,6 @@ export function ConversationList({
   const conversationToDeleteObj = conversations.find(
     (c) => c._id === conversationToDelete
   );
-
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse">
-          <div className="h-10 bg-muted rounded mb-4"></div>
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-muted rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -186,25 +172,29 @@ export function ConversationList({
           )}
         </div>
       </div>
-
-      {/* Virtualized Conversations List */}
-      <VirtualizedConversationList
-        activeConversationId={activeConversationId}
-        onSelectConversation={onSelectConversation}
-        onNewChat={onNewChat}
-        searchQuery={searchQuery}
-        onClearSearch={handleClearSearch}
-        onContextMenuPin={handleContextMenuPin}
-        onContextMenuRename={handleContextMenuRename}
-        onContextMenuDelete={handleContextMenuDelete}
-        onContextMenuExport={handleContextMenuExport}
-        onContextMenuShowcase={handleContextMenuShowcase}
-        onPin={handlePin}
-        onDelete={handleDelete}
-        hoveredId={hoveredId}
-        onSetHoveredId={setHoveredId}
-      />
-
+      {isLoading ? (
+        <LoadingUI />
+      ) : (
+        <>
+          {/* Virtualized Conversations List */}
+          <VirtualizedConversationList
+            activeConversationId={activeConversationId}
+            onSelectConversation={onSelectConversation}
+            onNewChat={onNewChat}
+            searchQuery={searchQuery}
+            onClearSearch={handleClearSearch}
+            onContextMenuPin={handleContextMenuPin}
+            onContextMenuRename={handleContextMenuRename}
+            onContextMenuDelete={handleContextMenuDelete}
+            onContextMenuExport={handleContextMenuExport}
+            onContextMenuShowcase={handleContextMenuShowcase}
+            onPin={handlePin}
+            onDelete={handleDelete}
+            hoveredId={hoveredId}
+            onSetHoveredId={setHoveredId}
+          />
+        </>
+      )}
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
@@ -231,6 +221,21 @@ export function ConversationList({
           }}
         />
       )}
+    </div>
+  );
+}
+
+function LoadingUI() {
+  return (
+    <div className="p-2">
+      <div className="animate-pulse">
+        <div className="h-8 border border-border bg-muted/50 rounded-md mb-4"></div>
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-8 border border-border bg-muted/50 rounded-md"></div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

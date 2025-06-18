@@ -9,6 +9,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { ChatScrollManager } from "./ChatScrollManager";
 import { useChatMessages } from "@/hooks/messages/useChatMessages";
+import { useConversationAccess } from "@/hooks/useConversationAccess";
+import { getOrCreateAnonymousId } from "@/lib/utils";
 
 interface ChatAreaProps {
   conversationId: Id<"conversations">;
@@ -103,7 +105,6 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
   // Handle message sending
   const handleSendMessage = useCallback(async () => {
     if (
-      !user?.id ||
       (!input.trim() && !hasFilesToSend) ||
       isSending ||
       aiIsLoading
@@ -131,7 +132,6 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
       setIsSending(false);
     }
   }, [
-    user?.id,
     input,
     hasFilesToSend,
     isSending,
@@ -168,6 +168,22 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
     return () => clearTimeout(timeout);
   }, [input, stopTyping]);
 
+  const { conversation, isLoading: isAccessLoading } = useConversationAccess(conversationId);
+
+  // Determine if the current user (anon or auth) can send messages
+  let canSend = false;
+  if (user?.id) {
+    // Authenticated user: must be participant or creator
+    canSend = !!(
+      conversation &&
+      (conversation.participants?.includes(user.id) || conversation.createdBy === user.id)
+    );
+  } else {
+    // Anonymous user: must be the creator
+    const anonId = getOrCreateAnonymousId();
+    canSend = !!(conversation && conversation.createdBy === anonId);
+  }
+
   return (
     <div className="flex-1 flex flex-col w-full h-full mt-11 sm:mt-0 relative mx-auto overflow-hidden">
       <ChatScrollManager
@@ -185,8 +201,16 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
           onChange={handleInputChange}
           onSend={handleSendMessage}
           onStop={stop}
-          disabled={isSending || aiIsLoading}
-          placeholder={aiIsLoading ? "AI is responding..." : "Type a message..."}
+          disabled={isSending || aiIsLoading || !canSend || isAccessLoading}
+          placeholder={
+            !canSend
+              ? user?.id
+                ? "You do not have permission to send messages."
+                : "Only the creator can send messages to this conversation."
+              : aiIsLoading
+              ? "AI is responding..."
+              : "Type a message..."
+          }
           uploadingFiles={uploadingFiles}
           onUploadFiles={uploadFiles}
           onRemoveFile={removeFile}
@@ -196,6 +220,11 @@ export function ChatArea({ conversationId, aiEnabled, initialSelectedModel }: Ch
           onModelChange={setSelectedModel}
           isStreaming={aiIsLoading}
         />
+        {!canSend && !user?.id && (
+          <div className="text-center text-sm text-muted-foreground mt-2">
+            Only the creator can send messages to this conversation.
+          </div>
+        )}
       </div>
     </div>
   );

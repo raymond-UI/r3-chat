@@ -59,18 +59,6 @@ export function ChatSidebar() {
       </div>
 
       <SidebarContent className="px-2 py-4 border-none">
-        {/* Anonymous user notice */}
-        <SignedOut>
-          <div className="group-data-[collapsible=icon]:hidden mb-4 p-3 bg-muted/50 rounded-lg">
-            <h3 className="font-semibold text-sm text-muted-foreground mb-1">
-              Anonymous Chat
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Sign up to save conversations
-            </p>
-          </div>
-        </SignedOut>
-
         {/* Conversation List Container */}
         <div className="flex-1 overflow-hidden">
           <ConversationList

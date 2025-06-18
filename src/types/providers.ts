@@ -6,7 +6,7 @@ import type {
   ProviderConfig,
   UserApiKeys,
   UserAiPreferences,
-  SimpleModelAvailability,
+  ModelAvailability,
 } from "@/lib/providers";
 
 export type {
@@ -16,26 +16,8 @@ export type {
   ProviderConfig,
   UserApiKeys,
   UserAiPreferences,
-  SimpleModelAvailability,
+  ModelAvailability,
 };
-
-// Additional types for UI components
-export interface ModelAvailability {
-  modelId: string;
-  name: string;
-  provider: Provider;
-  availableSources: Array<{
-    type: KeySource;
-    configured: boolean;
-    costMultiplier?: number;
-  }>;
-  currentSource: KeySource;
-  available: boolean;
-  estimatedCost?: {
-    inputTokens: number; // cents per 1K tokens
-    outputTokens: number; // cents per 1K tokens
-  };
-}
 
 export interface KeyValidationStatus {
   provider: Provider;
