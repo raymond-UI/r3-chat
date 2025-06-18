@@ -2,6 +2,7 @@ import { useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id, Doc } from "../../convex/_generated/dataModel";
+import { getOrCreateAnonymousId } from "@/lib/utils";
 
 interface UseConversationAccessResult {
   canAccess: boolean;
@@ -60,6 +61,7 @@ export function useConversationAccess(
 
   // Determine access reason for UI feedback
   let accessReason = "Unknown";
+  const currentAnonymousId = !user?.id ? getOrCreateAnonymousId() : null;
 
   if (validConversation.sharing?.isPublic) {
     accessReason = "Public conversation";
@@ -67,8 +69,8 @@ export function useConversationAccess(
     accessReason = "You are a participant";
   } else if (user?.id && validConversation.createdBy === user.id) {
     accessReason = "You are the creator";
-  } else if (!user?.id && validConversation.createdBy?.startsWith("anonymous_")) {
-    accessReason = "Anonymous conversation";
+  } else if (!user?.id && currentAnonymousId && validConversation.createdBy === currentAnonymousId) {
+    accessReason = "Your anonymous conversation";
   } else {
     accessReason = "Access granted";
   }

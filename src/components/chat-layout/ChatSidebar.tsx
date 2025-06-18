@@ -72,8 +72,8 @@ export function ChatSidebar() {
       <SidebarFooter className="border-t border-border/50 p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SignedIn>
               <div className="flex items-center justify-between gap-2">
+            <SignedIn>
                 {/* Profile Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -127,9 +127,9 @@ export function ChatSidebar() {
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+            </SignedIn>
                 <SidebardDropdownAction />
               </div>
-            </SignedIn>
             <SignedOut>
               <SidebarMenuButton
                 tooltip="Sign In"

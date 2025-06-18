@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { getOrCreateAnonymousId } from "@/lib/utils";
 
 export function useAnonymousMessaging() {
   const { isSignedIn, user } = useUser();
@@ -20,54 +21,32 @@ export function useAnonymousMessaging() {
     ? (user?.publicMetadata?.plan as "free" | "paid" || 'free')
     : 'anonymous';
 
-  // Get anonymous conversations from localStorage (still needed for migration)
-  const getAnonymousConversations = useCallback(() => {
-    if (typeof window === "undefined") return [];
-    const conversations = localStorage.getItem("anonymous_conversations");
-    return conversations ? JSON.parse(conversations) : [];
-  }, []);
-
-  // Add anonymous conversation ID to localStorage (still needed for migration)
-  const addAnonymousConversation = useCallback((conversationId: string) => {
-    if (typeof window === "undefined") return;
-    const conversations = getAnonymousConversations();
-    if (!conversations.includes(conversationId)) {
-      conversations.push(conversationId);
-      localStorage.setItem("anonymous_conversations", JSON.stringify(conversations));
-    }
-  }, [getAnonymousConversations]);
-
-  // Clear anonymous data
-  const clearAnonymousData = useCallback(() => {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem("anonymous_conversations");
-  }, []);
+  // Get anonymous user ID (will be created if doesn't exist)
+  const anonymousId = useMemo(() => {
+    if (isSignedIn) return null;
+    return getOrCreateAnonymousId();
+  }, [isSignedIn]);
 
   // Initialize and handle migration
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const handleSignInMigration = async () => {
-        if (isSignedIn && user?.id) {
-          // Check if we have anonymous conversations to migrate
-          const anonymousConversations = getAnonymousConversations();
-          
-          if (anonymousConversations.length > 0) {
-            setIsMigrating(true);
-            try {
-              const results = await migrateConversations({
-                anonymousConversationIds: anonymousConversations,
-              });
-
-              // Clear anonymous data after successful migration
-              clearAnonymousData();
-              
-              console.log('Migration completed:', results);
-            } catch (error) {
-              console.error('Migration failed:', error);
-              // Optionally, keep the anonymous data for retry
-            } finally {
-              setIsMigrating(false);
-            }
+        if (isSignedIn && user?.id && anonymousId) {
+          setIsMigrating(true);
+          try {
+            // Pass the anonymous ID instead of conversation IDs
+            const results = await migrateConversations({
+              anonymousId,
+            });
+            
+            // Clear anonymous ID after successful migration
+            localStorage.removeItem("anonymous_user_id");
+            
+            console.log('Migration completed:', results);
+          } catch (error) {
+            console.error('Migration failed:', error);
+          } finally {
+            setIsMigrating(false);
           }
         }
       };
@@ -75,25 +54,13 @@ export function useAnonymousMessaging() {
       handleSignInMigration();
       setIsInitialized(true);
     }
-  }, [isSignedIn, user?.id, migrateConversations, getAnonymousConversations, clearAnonymousData]);
+  }, [isSignedIn, user?.id, migrateConversations, anonymousId]);
 
   // Rate limiting is now handled server-side, so we can always allow sending
-  // The actual check happens in the Convex mutation
   const canSendMessage = useMemo(() => {
     if (isSignedIn) return true;
-    // For anonymous users, we'll let the server-side rate limiting handle it
-    // The UI can show warnings based on rateLimitStatus if needed
     return true;
   }, [isSignedIn]);
-
-  // Track message sent (now just tracks conversation for migration)
-  const trackMessageSent = useCallback((conversationId?: string) => {
-    if (!isSignedIn && conversationId) {
-      // Only track the conversation for migration, not the message count
-      // Message count is now tracked server-side
-      addAnonymousConversation(conversationId);
-    }
-  }, [isSignedIn, addAnonymousConversation]);
 
   const handleLoginPromptClose = useCallback(() => {
     setShowLoginPrompt(false);
@@ -103,10 +70,8 @@ export function useAnonymousMessaging() {
     isSignedIn,
     userType,
     canSendMessage,
-    rateLimitStatus, // Expose the full rate limit status
-    // Conversation tracking (for migration)
-    trackMessageSent,
-    getAnonymousConversations,
+    rateLimitStatus,
+    anonymousId,
     // UI state
     showLoginPrompt,
     handleLoginPromptClose,
@@ -114,7 +79,5 @@ export function useAnonymousMessaging() {
     // Migration
     isInitialized,
     isMigrating,
-    // Cleanup
-    resetAnonymousData: clearAnonymousData,
   };
 }

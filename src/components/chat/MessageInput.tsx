@@ -93,7 +93,6 @@ export const MessageInput = forwardRef<
     const { create } = useConversations();
     const { generateTitle, stop: newChatStop, send } = useChat({});
     const {
-      trackMessageSent,
       isSignedIn,
       isInitialized,
     } = useAnonymousMessaging();
@@ -210,7 +209,11 @@ export const MessageInput = forwardRef<
 
         try {
           // Create new conversation (works for both anonymous and authenticated users)
-          const conversationId = await create("New Chat");
+          const conversationId = await create("New Chat", undefined, undefined);
+          
+          if (!conversationId) {
+            throw new Error("Failed to create conversation");
+          }
 
           // Save any uploaded files to database
           let uploadedFileIds: Id<"files">[] = [];
@@ -224,12 +227,9 @@ export const MessageInput = forwardRef<
             conversationId,
             messageContent,
             "user",
-            currentSelectedModel, // Pass the selected model for AI to use
+            currentSelectedModel,
             uploadedFileIds.length > 0 ? uploadedFileIds : undefined
           );
-
-          // Track message for anonymous users (for migration purposes)
-          trackMessageSent(conversationId);
 
           // Clear staged files
           if (clearUploadedFiles) {

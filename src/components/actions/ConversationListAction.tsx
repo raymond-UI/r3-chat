@@ -3,6 +3,7 @@ import { useRef, useEffect } from "react";
 import { Pin, PinOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gsap } from "gsap";
+import { Authenticated } from "convex/react";
 
 interface ConversationListActionProps {
   visible: boolean;
@@ -89,6 +90,7 @@ export function ConversationListAction({
           ref={menuRef}
           className="flex gap-1 absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-muted rounded-lg"
         >
+          <Authenticated>
           <Button
             ref={(el) => {
               buttonRefs.current[0] = el;
@@ -102,9 +104,10 @@ export function ConversationListAction({
             {isPinned ? (
               <PinOff className="h-4 w-4" />
             ) : (
-              <Pin className="h-4 w-4" />
-            )}
-          </Button>
+                <Pin className="h-4 w-4" />
+              )}
+            </Button>
+          </Authenticated>
 
           <Button
             ref={(el) => {

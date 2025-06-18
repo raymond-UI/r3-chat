@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@/cache/useQuery";
 import { useMutation } from "convex/react";
 import { getOrCreateAnonymousId } from "@/lib/utils";
@@ -9,47 +9,17 @@ import { getOrCreateAnonymousId } from "@/lib/utils";
 export function useConversations() {
   const { user } = useUser();
   const userId = user?.id;
-  const [anonymousConversationIds, setAnonymousConversationIds] = useState<string[]>([]);
   const [isAnonymousInitialized, setIsAnonymousInitialized] = useState(false);
+  const anonymousId = !userId ? getOrCreateAnonymousId() : null;
 
-  // Helper functions for anonymous conversation management
-  const getAnonymousConversations = useCallback(() => {
-    if (typeof window === "undefined") return [];
-    const conversations = localStorage.getItem("anonymous_conversations");
-    return conversations ? JSON.parse(conversations) : [];
-  }, []);
-
-  const addAnonymousConversation = useCallback((conversationId: string) => {
-    if (typeof window === "undefined") return;
-    const conversations = getAnonymousConversations();
-    if (!conversations.includes(conversationId)) {
-      conversations.push(conversationId);
-      localStorage.setItem("anonymous_conversations", JSON.stringify(conversations));
-      setAnonymousConversationIds(conversations);
-    }
-  }, [getAnonymousConversations]);
-
-  const removeAnonymousConversation = useCallback((conversationId: string) => {
-    if (typeof window === "undefined") return;
-    const conversations = getAnonymousConversations();
-    const filteredConversations = conversations.filter((id: string) => id !== conversationId);
-    localStorage.setItem("anonymous_conversations", JSON.stringify(filteredConversations));
-    setAnonymousConversationIds(filteredConversations);
-  }, [getAnonymousConversations]);
-
-  // Get anonymous conversation IDs from localStorage on client side
+  // Initialize anonymous state
   useEffect(() => {
     if (!userId) {
-      // Only run on client side
-      if (typeof window !== 'undefined') {
-        const ids = getAnonymousConversations();
-        setAnonymousConversationIds(ids);
-        setIsAnonymousInitialized(true);
-      }
+      setIsAnonymousInitialized(true);
     } else {
       setIsAnonymousInitialized(true);
     }
-  }, [userId, getAnonymousConversations]);
+  }, [userId]);
 
   // Query for authenticated users
   const authenticatedConversations = useQuery(
@@ -57,11 +27,10 @@ export function useConversations() {
     userId ? { userId } : "skip"
   );
 
-  // Query for anonymous users using their conversation IDs
-  // Always run the query for anonymous users, even if they have no conversations
+  // Query for anonymous users using their anonymousId
   const anonymousConversations = useQuery(
-    api.conversations.getByIds,
-    !userId && isAnonymousInitialized ? { conversationIds: anonymousConversationIds } : "skip"
+    api.conversations.list,
+    !userId && isAnonymousInitialized ? { userId: anonymousId!, isAnonymous: true } : "skip"
   );
 
   // Get user preferences for pinned conversations (only for authenticated users)
@@ -76,31 +45,22 @@ export function useConversations() {
   const deleteConversation = useMutation(api.conversations.remove);
   const togglePin = useMutation(api.userPreferences.togglePin);
 
-  const create = async (title: string, isCollaborative = false) => {
-    // Support both authenticated and anonymous users
+  const create = async (title: string, isCollaborative = false, participants?: string[]) => {
     if (userId) {
       // Authenticated user
       return await createConversation({ 
         title, 
-        participants: [userId], // Convert userId to participants array
+        participants: [userId, ...(participants || [])],
         isCollaborative 
       });
-    } else {
+    } else if (anonymousId) {
       // Anonymous user
-      const conversationId = await createConversation({ 
+      return await createConversation({ 
         title, 
-        participants: [], // No specific participants for anonymous
+        participants: [],
         isCollaborative,
-        isAnonymous: true,
-        anonymousId: getOrCreateAnonymousId(),
+        anonymousId,
       });
-      
-      // Track the conversation for anonymous user
-      if (conversationId) {
-        addAnonymousConversation(conversationId);
-      }
-      
-      return conversationId;
     }
   };
 
@@ -113,14 +73,14 @@ export function useConversations() {
   };
 
   const remove = async (conversationId: Id<"conversations">) => {
-    const result = await deleteConversation({ conversationId });
-    
-    // For anonymous users, also remove from localStorage
-    if (!userId) {
-      removeAnonymousConversation(conversationId);
+    if (userId) {
+      // Authenticated user
+      await deleteConversation({ conversationId });
+    } else {
+      // Anonymous user
+      const anonId = getOrCreateAnonymousId();
+      await deleteConversation({ conversationId, anonymousId: anonId });
     }
-    
-    return result;
   };
 
   const pin = async (conversationId: Id<"conversations">) => {
@@ -134,7 +94,7 @@ export function useConversations() {
   // Fix loading state for anonymous users
   const isLoading = userId 
     ? authenticatedConversations === undefined 
-    : !isAnonymousInitialized || (anonymousConversationIds.length > 0 && anonymousConversations === undefined);
+    : !isAnonymousInitialized || anonymousConversations === undefined;
 
   return {
     conversations,

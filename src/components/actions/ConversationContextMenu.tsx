@@ -142,7 +142,7 @@ export function ConversationContextMenu({
 
         {/* Delete */}
         <ContextMenuItemWithBadge
-          icon={<Trash2 className="h-4 w-4" />}
+          icon={<Trash2 className="h-4 w-4 text-destructive-foreground" />}
           label="Delete"
           onClick={onDelete}
           variant="destructive"

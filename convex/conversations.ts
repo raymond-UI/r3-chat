@@ -6,9 +6,21 @@ import { checkConversationAccess } from "./messages";
 
 // 🚀 OPTIMIZED: Get conversations for a user using proper indexing
 export const list = query({
-  args: { userId: v.string() },
-  handler: async (ctx, { userId }) => {
-    // Use index to efficiently find conversations where user is creator
+  args: { 
+    userId: v.string(),
+    isAnonymous: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { userId, isAnonymous }) => {
+    // For anonymous users, just get their conversations directly
+    if (isAnonymous) {
+      return await ctx.db
+        .query("conversations")
+        .withIndex("by_creator", (q) => q.eq("createdBy", userId))
+        .order("desc")
+        .collect();
+    }
+
+    // For authenticated users, get both created and participated conversations
     const createdConversations = await ctx.db
       .query("conversations")
       .withIndex("by_creator_updated", (q) => q.eq("createdBy", userId))
@@ -16,8 +28,6 @@ export const list = query({
       .collect();
 
     // Also get conversations where user is a participant but not creator
-    // Note: Convex doesn't support array contains indexes efficiently,
-    // so we'll need to use a different approach for collaborative conversations
     const allConversations = await ctx.db
       .query("conversations")
       .order("desc")
@@ -147,7 +157,6 @@ export const create = mutation({
     title: v.optional(v.string()),
     isCollaborative: v.optional(v.boolean()),
     participants: v.optional(v.array(v.string())),
-    isAnonymous: v.optional(v.boolean()),
     anonymousId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -157,16 +166,16 @@ export const create = mutation({
     let createdBy: string;
     let participants: string[];
     
-    if (!identity && args.isAnonymous) {
-      // Use provided anonymousId if present, else fallback to old behavior
-      createdBy = args.anonymousId || `anonymous_${crypto.randomUUID()}`;
-      participants = [createdBy, ...(args.participants || [])];
+    if (!identity && args.anonymousId) {
+      // Use provided anonymousId
+      createdBy = args.anonymousId;
+      participants = [args.anonymousId];
     } else if (identity) {
       // Authenticated user
       createdBy = identity.subject;
       participants = [identity.subject, ...(args.participants || [])];
     } else {
-      throw new Error("Not authenticated");
+      throw new Error("Not authenticated and no anonymous ID provided");
     }
 
     const conversationId = await ctx.db.insert("conversations", {
@@ -295,8 +304,31 @@ export const updateLastMessage = mutation({
 
 // Delete a conversation and all its messages
 export const remove = mutation({
-  args: { conversationId: v.id("conversations") },
-  handler: async (ctx, { conversationId }) => {
+  args: { 
+    conversationId: v.id("conversations"),
+    anonymousId: v.optional(v.string()),
+  },
+  handler: async (ctx, { conversationId, anonymousId }) => {
+    const conversation = await ctx.db.get(conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    if (!conversation.createdBy) {
+      throw new Error("Conversation creator is missing.");
+    }
+
+    if (conversation.createdBy.startsWith("anonymous_")) {
+      // Verify anonymous user ownership
+      if (!anonymousId || conversation.createdBy !== anonymousId) {
+        throw new Error("Not authorized to delete this conversation");
+      }
+    } else {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) throw new Error("Not authenticated");
+      if (conversation.createdBy !== identity.subject) {
+        throw new Error("Only the conversation creator can delete this conversation.");
+      }
+    }
+
     // Delete all messages in the conversation first
     const messages = await ctx.db
       .query("messages")

@@ -1,11 +1,11 @@
 import { Users } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
+// import { useUser } from "@clerk/nextjs";
 import { Id } from "../../../convex/_generated/dataModel";
 import { ConversationBranchIndicator } from "./ConversationBranchIndicator";
 import { ConversationListAction } from "../actions/ConversationListAction";
 import { ConversationContextMenu } from "../actions/ConversationContextMenu";
 
-type ClerkUser = ReturnType<typeof useUser>["user"];
+// type ClerkUser = ReturnType<typeof useUser>["user"];
 
 interface ConversationItemProps {
   conversation: {
@@ -26,7 +26,7 @@ interface ConversationItemProps {
   activeConversationId?: Id<"conversations">;
   hoveredId: Id<"conversations"> | null;
   pinnedConversations: Id<"conversations">[];
-  user: ClerkUser;
+  // user: ClerkUser;
   onSelectConversation: (id: Id<"conversations">) => void;
   onSetHoveredId: (id: Id<"conversations"> | null) => void;
   onContextMenuPin: (conversationId: Id<"conversations">) => void;
@@ -44,7 +44,7 @@ export function ConversationItem({
   activeConversationId,
   hoveredId,
   pinnedConversations,
-  user,
+  // user,
   onSelectConversation,
   onSetHoveredId,
   onContextMenuPin,
@@ -109,14 +109,14 @@ export function ConversationItem({
           )}
         </div>
         {/* Only show actions for authenticated users */}
-        {user && (
+        {/* {user && ( */}
           <ConversationListAction
             visible={hoveredId === conversation._id}
             isPinned={pinnedConversations.includes(conversation._id)}
             onPin={(event) => onPin(conversation._id, event)}
             onDelete={(event) => onDelete(conversation._id, event)}
           />
-        )}
+        {/* )} */}
       </div>
     </ConversationContextMenu>
   );
